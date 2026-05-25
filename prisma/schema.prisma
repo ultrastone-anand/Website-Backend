@@ -1,0 +1,488 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model activity_logs {
+  id            Int       @id @default(autoincrement())
+  user_id       Int?
+  action        String?   @db.VarChar(100)
+  resource_type String?   @db.VarChar(100)
+  resource_id   Int?
+  description   String?
+  old_values    Json?     @db.Json
+  new_values    Json?     @db.Json
+  ip_address    String?   @db.VarChar(50)
+  user_agent    String?
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  users         users?    @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_activity_created")
+  @@index([resource_type, resource_id], map: "idx_activity_logs_resource")
+  @@index([user_id], map: "idx_activity_user")
+}
+
+model blog_categories {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique @db.VarChar(255)
+  slug        String       @unique @db.VarChar(100)
+  description String?
+  is_active   Boolean?     @default(true)
+  created_at  DateTime?    @default(now()) @db.Timestamp(6)
+  blog_posts  blog_posts[]
+}
+
+model blog_posts {
+  id                 Int              @id @default(autoincrement())
+  post_id            String           @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title              String           @db.VarChar(500)
+  slug               String           @unique @db.VarChar(255)
+  content            String
+  excerpt            String?
+  featured_image_url String?          @db.VarChar(500)
+  category_id        Int?
+  author_id          Int?
+  meta_description   String?
+  meta_keywords      String?
+  seo_title          String?          @db.VarChar(255)
+  is_published       Boolean?         @default(false)
+  published_at       DateTime?        @db.Timestamp(6)
+  scheduled_at       DateTime?        @db.Timestamp(6)
+  view_count         Int?             @default(0)
+  is_featured        Boolean?         @default(false)
+  created_at         DateTime?        @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?        @default(now()) @db.Timestamp(6)
+  deleted_at         DateTime?        @db.Timestamp(6)
+  users              users?           @relation(fields: [author_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  blog_categories    blog_categories? @relation(fields: [category_id], references: [id], onUpdate: NoAction)
+
+  @@index([category_id], map: "idx_blog_posts_category")
+  @@index([category_id, is_published], map: "idx_blog_posts_category_published")
+  @@index([is_published], map: "idx_blog_posts_published")
+  @@index([slug], map: "idx_blog_posts_slug")
+}
+
+model collection_stones {
+  id                Int               @id @default(autoincrement())
+  collection_id     Int
+  stone_id          Int
+  display_order     Int?
+  stone_collections stone_collections @relation(fields: [collection_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([collection_id, stone_id])
+}
+
+model company_info {
+  id                  Int       @id @default(autoincrement())
+  company_name        String    @default("Ultra Stones") @db.VarChar(255)
+  company_description String?
+  logo_url            String?   @db.VarChar(500)
+  favicon_url         String?   @db.VarChar(500)
+  phone_primary       String?   @db.VarChar(20)
+  phone_secondary     String?   @db.VarChar(20)
+  email_primary       String?   @db.VarChar(255)
+  email_secondary     String?   @db.VarChar(255)
+  whatsapp_number     String?   @db.VarChar(20)
+  website_url         String?   @db.VarChar(255)
+  founded_year        Int?
+  total_stones_count  Int?      @default(500)
+  meta_description    String?
+  meta_keywords       String?
+  created_at          DateTime? @default(now()) @db.Timestamp(6)
+  updated_at          DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model contact_submissions {
+  id            Int       @id @default(autoincrement())
+  submission_id String    @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  first_name    String?   @db.VarChar(100)
+  last_name     String?   @db.VarChar(100)
+  email         String    @db.VarChar(255)
+  phone         String?   @db.VarChar(20)
+  company_name  String?   @db.VarChar(255)
+  message       String?
+  subject       String?   @db.VarChar(255)
+  form_type     String?   @db.VarChar(50)
+  status        String?   @default("new") @db.VarChar(50)
+  assigned_to   Int?
+  notes         String?
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  updated_at    DateTime? @default(now()) @db.Timestamp(6)
+  replied_at    DateTime? @db.Timestamp(6)
+  users         users?    @relation(fields: [assigned_to], references: [id], onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_contact_created")
+  @@index([status], map: "idx_contact_status")
+  @@index([status, created_at], map: "idx_contact_submissions_status_date")
+}
+
+model email_campaigns {
+  id              Int       @id @default(autoincrement())
+  campaign_id     String    @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name            String    @db.VarChar(255)
+  subject         String    @db.VarChar(255)
+  content         String?
+  template_type   String?   @db.VarChar(100)
+  recipient_count Int?      @default(0)
+  sent_count      Int?      @default(0)
+  open_count      Int?      @default(0)
+  click_count     Int?      @default(0)
+  status          String?   @default("draft") @db.VarChar(50)
+  scheduled_at    DateTime? @db.Timestamp(6)
+  sent_at         DateTime? @db.Timestamp(6)
+  created_by      Int?
+  created_at      DateTime? @default(now()) @db.Timestamp(6)
+  updated_at      DateTime? @default(now()) @db.Timestamp(6)
+  users           users?    @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([status], map: "idx_email_campaigns_status")
+}
+
+model email_subscribers {
+  id                 Int       @id @default(autoincrement())
+  subscriber_id      String    @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email              String    @unique @db.VarChar(255)
+  first_name         String?   @db.VarChar(100)
+  is_subscribed      Boolean?  @default(true)
+  subscription_type  String?   @default("newsletter") @db.VarChar(50)
+  subscribed_at      DateTime? @default(now()) @db.Timestamp(6)
+  unsubscribed_at    DateTime? @db.Timestamp(6)
+  verified           Boolean?  @default(false)
+  verification_token String?   @db.VarChar(255)
+
+  @@index([email], map: "idx_subscribers_email")
+  @@index([verified], map: "idx_subscribers_verified")
+}
+
+model faqs {
+  id            Int       @id @default(autoincrement())
+  faq_id        String    @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  question      String    @db.VarChar(500)
+  answer        String
+  category      String?   @db.VarChar(100)
+  display_order Int?
+  is_published  Boolean?  @default(true)
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  updated_at    DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model media_gallery {
+  id          Int       @id @default(autoincrement())
+  media_id    String    @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title       String?   @db.VarChar(255)
+  description String?
+  file_url    String    @db.VarChar(500)
+  file_type   String?   @db.VarChar(50)
+  alt_text    String?   @db.VarChar(255)
+  category    String?   @db.VarChar(100)
+  is_active   Boolean?  @default(true)
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  created_by  Int?
+  users       users?    @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model pages {
+  id                            Int       @id @default(autoincrement())
+  page_id                       String    @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title                         String    @db.VarChar(500)
+  slug                          String    @unique @db.VarChar(100)
+  content                       String
+  featured_image_url            String?   @db.VarChar(500)
+  meta_description              String?
+  meta_keywords                 String?
+  seo_title                     String?   @db.VarChar(255)
+  is_published                  Boolean?  @default(false)
+  is_visible_in_menu            Boolean?  @default(false)
+  menu_order                    Int?
+  parent_page_id                Int?
+  created_at                    DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                    DateTime? @default(now()) @db.Timestamp(6)
+  created_by                    Int?
+  updated_by                    Int?
+  users_pages_created_byTousers users?    @relation("pages_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pages                         pages?    @relation("pagesTopages", fields: [parent_page_id], references: [id], onUpdate: NoAction)
+  other_pages                   pages[]   @relation("pagesTopages")
+  users_pages_updated_byTousers users?    @relation("pages_updated_byTousers", fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([is_published], map: "idx_pages_published")
+  @@index([is_published, is_visible_in_menu], map: "idx_pages_published_menu")
+  @@index([slug], map: "idx_pages_slug")
+}
+
+model permissions {
+  id               Int                @id @default(autoincrement())
+  name             String             @unique @db.VarChar(100)
+  description      String?
+  resource         String?            @db.VarChar(100)
+  action           String?            @db.VarChar(50)
+  created_at       DateTime?          @default(now()) @db.Timestamp(6)
+  role_permissions role_permissions[]
+}
+
+model resource_library {
+  id             Int       @id @default(autoincrement())
+  resource_id    String    @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title          String    @db.VarChar(255)
+  description    String?
+  file_url       String    @db.VarChar(500)
+  file_type      String?   @db.VarChar(50)
+  category       String?   @db.VarChar(100)
+  thumbnail_url  String?   @db.VarChar(500)
+  download_count Int?      @default(0)
+  is_published   Boolean?  @default(true)
+  is_featured    Boolean?  @default(false)
+  created_at     DateTime? @default(now()) @db.Timestamp(6)
+  updated_at     DateTime? @default(now()) @db.Timestamp(6)
+  created_by     Int?
+  users          users?    @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([category], map: "idx_resources_category")
+  @@index([is_published], map: "idx_resources_published")
+}
+
+model role_permissions {
+  id            Int         @id @default(autoincrement())
+  role_id       Int
+  permission_id Int
+  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roles         roles       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([role_id, permission_id])
+}
+
+model roles {
+  id               Int                @id @default(autoincrement())
+  name             String             @unique @db.VarChar(100)
+  description      String?
+  created_at       DateTime?          @default(now()) @db.Timestamp(6)
+  role_permissions role_permissions[]
+}
+
+model seo_metadata {
+  id               Int       @id @default(autoincrement())
+  page_url         String?   @db.VarChar(500)
+  page_type        String?   @db.VarChar(100)
+  page_id          Int?
+  meta_title       String?   @db.VarChar(255)
+  meta_description String?   @db.VarChar(255)
+  meta_keywords    String?   @db.VarChar(255)
+  canonical_url    String?   @db.VarChar(500)
+  og_title         String?   @db.VarChar(255)
+  og_description   String?   @db.VarChar(255)
+  og_image_url     String?   @db.VarChar(500)
+  twitter_card     String?   @db.VarChar(50)
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  updated_at       DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model showrooms {
+  id                      Int       @id @default(autoincrement())
+  name                    String    @db.VarChar(255)
+  slug                    String    @unique @db.VarChar(100)
+  address                 String    @db.VarChar(255)
+  city                    String    @db.VarChar(100)
+  state                   String    @db.VarChar(50)
+  zip_code                String?   @db.VarChar(20)
+  country                 String?   @db.VarChar(100)
+  phone                   String?   @db.VarChar(20)
+  fax                     String?   @db.VarChar(20)
+  email                   String?   @db.VarChar(255)
+  latitude                Decimal?  @db.Decimal(10, 8)
+  longitude               Decimal?  @db.Decimal(11, 8)
+  business_hours_mon_fri  String?   @db.VarChar(50)
+  business_hours_saturday String?   @db.VarChar(50)
+  business_hours_sunday   String?   @db.VarChar(50)
+  description             String?
+  image_url               String?   @db.VarChar(500)
+  is_active               Boolean?  @default(true)
+  is_featured             Boolean?  @default(false)
+  display_order           Int?
+  created_at              DateTime? @default(now()) @db.Timestamp(6)
+  updated_at              DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model site_settings {
+  id            Int       @id @default(autoincrement())
+  setting_key   String    @unique @db.VarChar(100)
+  setting_value String?
+  setting_type  String?   @db.VarChar(50)
+  description   String?
+  is_editable   Boolean?  @default(true)
+  updated_at    DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model stone_categories {
+  id                     Int                @id @default(autoincrement())
+  name                   String             @unique @db.VarChar(255)
+  slug                   String             @unique @db.VarChar(100)
+  description            String?
+  parent_id              Int?
+  thumbnail_url          String?            @db.VarChar(500)
+  banner_url             String?            @db.VarChar(500)
+  is_active              Boolean?           @default(true)
+  display_order          Int?
+  meta_description       String?
+  meta_keywords          String?
+  seo_title              String?            @db.VarChar(255)
+  created_at             DateTime?          @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?          @default(now()) @db.Timestamp(6)
+  stone_categories       stone_categories?  @relation("stone_categoriesTostone_categories", fields: [parent_id], references: [id], onUpdate: NoAction)
+  other_stone_categories stone_categories[] @relation("stone_categoriesTostone_categories")
+  stone_products         stone_products[]
+}
+
+model stone_collections {
+  id                Int                 @id @default(autoincrement())
+  name              String              @unique @db.VarChar(255)
+  slug              String              @unique @db.VarChar(100)
+  description       String?
+  banner_image_url  String?             @db.VarChar(500)
+  is_active         Boolean?            @default(true)
+  display_order     Int?
+  created_at        DateTime?           @default(now()) @db.Timestamp(6)
+  updated_at        DateTime?           @default(now()) @db.Timestamp(6)
+  collection_stones collection_stones[]
+}
+
+model stone_products {
+  id          BigInt  @id @default(autoincrement())
+  product_id  String? @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  category_id Int
+
+  name String @db.VarChar(255)
+  slug String @unique @db.VarChar(255)
+
+  small_description String?
+  long_description  String?
+
+  finishes_available String[]
+  pattern            String?  @db.VarChar(100)
+
+  thicknesses_cm       String[]
+  average_sizes_inches String[]
+
+  stone_group String? @db.VarChar(100)
+
+  translucent Boolean? @default(false)
+  cut_to_size Boolean? @default(false)
+
+  origin_country String? @db.VarChar(100)
+  pantone_colour String? @db.VarChar(100)
+
+  color_enhancing      Boolean? @default(false)
+  countertops_vanities Boolean? @default(false)
+  interior_floor       Boolean? @default(false)
+  shower_wall          Boolean? @default(false)
+  shower_floor         Boolean? @default(false)
+  exterior_floor       Boolean? @default(false)
+  exterior_wall        Boolean? @default(false)
+  pool_fountain        Boolean? @default(false)
+  fireplace            Boolean? @default(false)
+  furniture_top        Boolean? @default(false)
+
+  abrasion_resistance String? @db.VarChar(20)
+  stain_resistance    String? @db.VarChar(20)
+  etching_resistance  String? @db.VarChar(20)
+  heat_resistance     String? @db.VarChar(20)
+  uv_resistance       String? @db.VarChar(20)
+  color_range         String? @db.VarChar(20)
+  movement_index      String? @db.VarChar(20)
+
+  variation_level String? @db.VarChar(10)
+
+  is_featured    Boolean? @default(false)
+  is_trending    Boolean? @default(false)
+  is_new_arrival Boolean? @default(false)
+
+  is_active Boolean? @default(true)
+
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+
+  stone_categories stone_categories @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  media stone_product_media[]
+}
+
+model stone_product_media {
+  id BigInt @id @default(autoincrement())
+
+  product_id BigInt
+
+  media_type String @db.VarChar(30)
+
+  media_url String
+
+  public_id String?
+
+  display_order Int? @default(0)
+
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+
+  product stone_products @relation(fields: [product_id], references: [id], onDelete: Cascade)
+}
+
+model stone_variants {
+  id                      Int       @id @default(autoincrement())
+  stone_id                Int
+  variant_name            String?   @db.VarChar(255)
+  variant_sku             String?   @unique @db.VarChar(100)
+  size_inches             String?   @db.VarChar(50)
+  size_cm                 String?   @db.VarChar(50)
+  thickness_mm            Int?
+  finish_type             String?   @db.VarChar(100)
+  is_available            Boolean?  @default(true)
+  stock_quantity          Int?
+  lead_time_days          Int?
+  additional_price_markup Decimal?  @db.Decimal(10, 2)
+  created_at              DateTime? @default(now()) @db.Timestamp(6)
+  updated_at              DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([stone_id], map: "idx_variants_stone")
+}
+
+model testimonials {
+  id               Int       @id @default(autoincrement())
+  testimonial_id   String    @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  client_name      String    @db.VarChar(255)
+  client_company   String?   @db.VarChar(255)
+  client_image_url String?   @db.VarChar(500)
+  message          String
+  rating           Int?
+  is_featured      Boolean?  @default(false)
+  is_published     Boolean?  @default(true)
+  display_order    Int?
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  updated_at       DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([is_published, is_featured], map: "idx_testimonials_published_featured")
+}
+
+model users {
+  id                            Int                   @id @default(autoincrement())
+  user_id                       String                @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email                         String                @unique @db.VarChar(255)
+  password_hash                 String                @db.VarChar(255)
+  first_name                    String?               @db.VarChar(100)
+  last_name                     String?               @db.VarChar(100)
+  role                          String?               @default("viewer") @db.VarChar(50)
+  is_active                     Boolean?              @default(true)
+  last_login                    DateTime?             @db.Timestamp(6)
+  created_at                    DateTime?             @default(now()) @db.Timestamp(6)
+  updated_at                    DateTime?             @default(now()) @db.Timestamp(6)
+  deleted_at                    DateTime?             @db.Timestamp(6)
+  activity_logs                 activity_logs[]
+  blog_posts                    blog_posts[]
+  contact_submissions           contact_submissions[]
+  email_campaigns               email_campaigns[]
+  media_gallery                 media_gallery[]
+  pages_pages_created_byTousers pages[]               @relation("pages_created_byTousers")
+  pages_pages_updated_byTousers pages[]               @relation("pages_updated_byTousers")
+  resource_library              resource_library[]
+
+  @@index([email], map: "idx_users_email")
+  @@index([role], map: "idx_users_role")
+}
