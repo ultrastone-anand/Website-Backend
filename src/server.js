@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 
+const userRoutes = require('./routes/user.routes');
 const stoneRoutes = require('./routes/stone.routes');
 
 const app = express();
@@ -15,6 +16,7 @@ app.get('/', (req, res) => {
   });
 });
 
+app.use('/api/users', userRoutes);
 app.use('/api/stones', stoneRoutes);
 
 module.exports = app;
