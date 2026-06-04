@@ -332,12 +332,7 @@ const serializeBigInt = (data) => {
     )
   );
 };
-const createProduct = async (body) => {
-
-  console.log(
-    "CREATE BODY:",
-    body
-  );
+const createProduct = async (body, files) => {
 
   const createdProduct =
     await prisma.stone_products.create({
@@ -712,6 +707,82 @@ const updateProduct = async (
   }
 
   // ==============================
+  // APPLICATION IMAGES
+  // ==============================
+
+  let applicationImages = [];
+
+  if (
+    files?.application_images &&
+    files.application_images.length > 0
+  ) {
+    applicationImages =
+      await Promise.all(
+        files.application_images.map(
+          async (file) => {
+            const uploaded =
+              await uploadToCloudinary(
+                file.path,
+                "ultrastones/products/application"
+              );
+
+            return uploaded.secure_url;
+          }
+        )
+      );
+  } else {
+    applicationImages =
+      existingProduct.media
+        .filter(
+          (item) =>
+            item.media_type ===
+            "APPLICATION_IMAGE"
+        )
+        .map(
+          (item) =>
+            item.media_url
+        );
+  }
+
+  // ==============================
+  // BOOKMATCH / SLIPMATCH
+  // ==============================
+
+  let bookmatchSlipmatchImages = [];
+
+  if (
+    files?.bookmatch_slipmatch &&
+    files.bookmatch_slipmatch.length > 0
+  ) {
+    bookmatchSlipmatchImages =
+      await Promise.all(
+        files.bookmatch_slipmatch.map(
+          async (file) => {
+            const uploaded =
+              await uploadToCloudinary(
+                file.path,
+                "ultrastones/products/bookmatch-slipmatch"
+              );
+
+            return uploaded.secure_url;
+          }
+        )
+      );
+  } else {
+    bookmatchSlipmatchImages =
+      existingProduct.media
+        .filter(
+          (item) =>
+            item.media_type ===
+            "BOOKMATCH_SLIPMATCH"
+        )
+        .map(
+          (item) =>
+            item.media_url
+        );
+  }
+
+  // ==============================
   // UPDATE PRODUCT
   // ==============================
 
@@ -935,6 +1006,30 @@ const updateProduct = async (
                 display_order:
                   index,
 
+              })
+            ),
+
+            ...applicationImages.map(
+              (url, index) => ({
+                media_type:
+                  "APPLICATION_IMAGE",
+
+                media_url: url,
+
+                display_order: index,
+              })
+            ),
+
+            // BOOKMATCH / SLIPMATCH
+
+            ...bookmatchSlipmatchImages.map(
+              (url, index) => ({
+                media_type:
+                  "BOOKMATCH_SLIPMATCH",
+
+                media_url: url,
+
+                display_order: index,
               })
             ),
 

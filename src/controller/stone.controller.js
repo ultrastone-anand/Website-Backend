@@ -194,20 +194,13 @@ const createProduct = async (
 ) => {
 
   try {
-
-    console.log(
-      "CREATE BODY:",
-      req.body
-    );
-
-    console.log(
-      "CREATE FILES:",
-      req.files
-    );
+console.log("CREATE BODY:", req.body);
+console.log("CREATE FILES:", req.files);
 
     const data =
       await stoneservice.createProduct(
-        req.body
+        req.body,
+        req.files
       );
 
     res.status(201).json({

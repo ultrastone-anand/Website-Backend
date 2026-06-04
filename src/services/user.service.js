@@ -544,6 +544,14 @@ return {
 
 };
 
+// ================== GET ROLES ==================
+
+const getroles = async () => {
+
+  return await prisma.roles.findMany();
+
+};
+
 module.exports = {
 
   getUsers,
@@ -556,6 +564,8 @@ module.exports = {
 
   deleteUser,
 
-  loginUser
+  loginUser,
+
+  getroles
 
 };

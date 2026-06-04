@@ -28,7 +28,26 @@ router.put("/category/:id", stoneController.updateCategory);
 
 // CREATE PRODUCT
 
-router.post("/product", stoneController.createProduct);
+router.post(
+  "/product",
+
+  upload.fields([
+    {
+      name: "featured_images",
+      maxCount: 20,
+    },
+    {
+      name: "gallery_images",
+      maxCount: 50,
+    },
+    {
+      name: "featured_videos",
+      maxCount: 10,
+    },
+  ]),
+
+  stoneController.createProduct
+);
 
 // UPDATE PRODUCT WITH FILES
 
@@ -50,9 +69,19 @@ router.put(
       name: "featured_videos",
       maxCount: 10,
     },
+
+    {
+      name: "application_images",
+      maxCount: 20, // multiple uploads
+    },
+
+    {
+      name: "bookmatch_slipmatch",
+      maxCount: 20, // multiple uploads
+    },
   ]),
 
-  stoneController.updateProduct,
+  stoneController.updateProduct
 );
 
 module.exports = router;
