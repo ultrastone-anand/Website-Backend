@@ -332,7 +332,89 @@ const serializeBigInt = (data) => {
     )
   );
 };
+
 const createProduct = async (body, files) => {
+
+  const toBool = (value) =>
+    value === true || value === "true";
+
+  const parseArray = (value) => {
+    try {
+      if (!value) return [];
+      if (Array.isArray(value)) return value;
+      return JSON.parse(value);
+    } catch {
+      return [];
+    }
+  };
+
+  // ==============================
+  // UPLOAD FILES
+  // ==============================
+
+  const uploadFiles = async (
+    fileArray,
+    folder,
+    resourceType = "image"
+  ) => {
+
+    if (
+      !fileArray ||
+      fileArray.length === 0
+    ) {
+      return [];
+    }
+
+    return Promise.all(
+      fileArray.map(async (file) => {
+
+        const uploaded =
+          await uploadToCloudinary(
+            file.path,
+            folder,
+            resourceType
+          );
+
+        return uploaded.secure_url;
+
+      })
+    );
+  };
+
+  const featuredImages =
+    await uploadFiles(
+      files?.featured_images,
+      "ultrastones/products/featured"
+    );
+
+  const galleryImages =
+    await uploadFiles(
+      files?.gallery_images,
+      "ultrastones/products/gallery"
+    );
+
+  const featuredVideos =
+    await uploadFiles(
+      files?.featured_videos,
+      "ultrastones/products/videos",
+      "video"
+    );
+
+  const applicationImages =
+    await uploadFiles(
+      files?.application_images,
+      "ultrastones/products/application"
+    );
+
+  const bookmatchSlipmatchImages =
+    await uploadFiles(
+      files?.bookmatch_slipmatch,
+      "ultrastones/products/bookmatch-slipmatch"
+    );
+
+  // ==============================
+  // CREATE PRODUCT
+  // ==============================
 
   const createdProduct =
     await prisma.stone_products.create({
@@ -341,11 +423,9 @@ const createProduct = async (body, files) => {
 
         // BASIC
 
-        name:
-          body.name,
+        name: body.name,
 
-        slug:
-          body.slug,
+        slug: body.slug,
 
         small_description:
           body.small_description,
@@ -361,25 +441,35 @@ const createProduct = async (body, files) => {
         // DETAILS
 
         finishes_available:
-          body.finishes_available || [],
+          parseArray(
+            body.finishes_available
+          ),
 
         pattern:
           body.pattern,
 
         thicknesses_cm:
-          body.thicknesses_cm || [],
+          parseArray(
+            body.thicknesses_cm
+          ),
 
         average_sizes_inches:
-          body.average_sizes_inches || [],
+          parseArray(
+            body.average_sizes_inches
+          ),
 
         stone_group:
           body.stone_group,
 
         translucent:
-          body.translucent,
+          toBool(
+            body.translucent
+          ),
 
         cut_to_size:
-          body.cut_to_size,
+          toBool(
+            body.cut_to_size
+          ),
 
         origin_country:
           body.origin_country,
@@ -390,34 +480,54 @@ const createProduct = async (body, files) => {
         // APPLICATIONS
 
         color_enhancing:
-          body.color_enhancing,
+          toBool(
+            body.color_enhancing
+          ),
 
         countertops_vanities:
-          body.countertops_vanities,
+          toBool(
+            body.countertops_vanities
+          ),
 
         interior_floor:
-          body.interior_floor,
+          toBool(
+            body.interior_floor
+          ),
 
         shower_wall:
-          body.shower_wall,
+          toBool(
+            body.shower_wall
+          ),
 
         shower_floor:
-          body.shower_floor,
+          toBool(
+            body.shower_floor
+          ),
 
         exterior_floor:
-          body.exterior_floor,
+          toBool(
+            body.exterior_floor
+          ),
 
         exterior_wall:
-          body.exterior_wall,
+          toBool(
+            body.exterior_wall
+          ),
 
         pool_fountain:
-          body.pool_fountain,
+          toBool(
+            body.pool_fountain
+          ),
 
         fireplace:
-          body.fireplace,
+          toBool(
+            body.fireplace
+          ),
 
         furniture_top:
-          body.furniture_top,
+          toBool(
+            body.furniture_top
+          ),
 
         // SPECIFICATIONS
 
@@ -450,16 +560,88 @@ const createProduct = async (body, files) => {
         // FLAGS
 
         is_featured:
-          body.is_featured,
+          toBool(
+            body.is_featured
+          ),
 
         is_trending:
-          body.is_trending,
+          toBool(
+            body.is_trending
+          ),
 
         is_new_arrival:
-          body.is_new_arrival,
+          toBool(
+            body.is_new_arrival
+          ),
 
         is_active: true,
 
+        // ==============================
+        // MEDIA
+        // ==============================
+
+        media: {
+
+          create: [
+
+            ...featuredImages.map(
+              (url, index) => ({
+                media_type:
+                  "FEATURED_IMAGE",
+                media_url: url,
+                display_order:
+                  index,
+              })
+            ),
+
+            ...galleryImages.map(
+              (url, index) => ({
+                media_type:
+                  "GALLERY_IMAGE",
+                media_url: url,
+                display_order:
+                  index,
+              })
+            ),
+
+            ...featuredVideos.map(
+              (url, index) => ({
+                media_type:
+                  "FEATURED_VIDEO",
+                media_url: url,
+                display_order:
+                  index,
+              })
+            ),
+
+            ...applicationImages.map(
+              (url, index) => ({
+                media_type:
+                  "APPLICATION_IMAGE",
+                media_url: url,
+                display_order:
+                  index,
+              })
+            ),
+
+            ...bookmatchSlipmatchImages.map(
+              (url, index) => ({
+                media_type:
+                  "BOOKMATCH_SLIPMATCH",
+                media_url: url,
+                display_order:
+                  index,
+              })
+            ),
+
+          ],
+
+        },
+
+      },
+
+      include: {
+        media: true,
       },
 
     });

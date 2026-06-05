@@ -1,5 +1,5 @@
-const cloudinary =
-  require("cloudinary").v2;
+const cloudinary =require("cloudinary").v2;
+const fs = require("fs/promises");
 
 // ==============================
 // CLOUDINARY CONFIG
@@ -55,6 +55,35 @@ const uploadToCloudinary = async (
         }
 
       );
+
+    // Delete local file after upload
+
+    if (
+      typeof filePath === "string"
+    ) {
+      try {
+  await fs.unlink(filePath);
+
+  console.log(
+    "Deleted:",
+    filePath
+  );
+
+} catch (err) {
+
+  console.error(
+    "Delete Error:",
+    err
+  );
+
+  console.error(
+    "File Path:",
+    filePath
+  );
+
+}
+    }
+
 
     return result;
 

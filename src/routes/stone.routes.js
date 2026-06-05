@@ -44,6 +44,15 @@ router.post(
       name: "featured_videos",
       maxCount: 10,
     },
+     {
+      name: "application_images",
+      maxCount: 20, // multiple uploads
+    },
+
+    {
+      name: "bookmatch_slipmatch",
+      maxCount: 20, // multiple uploads
+    },
   ]),
 
   stoneController.createProduct
