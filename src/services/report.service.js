@@ -37,31 +37,31 @@ const getProductAuditReport = async (slug) => {
     // ==================
 
     if (!product.name) {
-      missingFields.push("name");
+      missingFields.push("Name");
     }
 
     if (!product.small_description) {
-      missingFields.push("small_description");
+      missingFields.push("Small Description");
     }
 
     if (!product.long_description) {
-      missingFields.push("long_description");
+      missingFields.push("Long Description");
     }
 
     if (!product.pattern) {
-      missingFields.push("pattern");
+      missingFields.push("Pattern");
     }
 
     if (!product.stone_group) {
-      missingFields.push("stone_group");
+      missingFields.push("Stone Group");
     }
 
     if (!product.origin_country) {
-      missingFields.push("origin_country");
+      missingFields.push("Origin Country");
     }
 
     if (!product.pantone_colour) {
-      missingFields.push("pantone_colour");
+      missingFields.push("Pantone Colour");
     }
 
     // ==================
@@ -69,15 +69,15 @@ const getProductAuditReport = async (slug) => {
     // ==================
 
     if (!product.finishes_available?.length) {
-      missingFields.push("finishes_available");
+      missingFields.push("Finishes Available");
     }
 
     if (!product.thicknesses_cm?.length) {
-      missingFields.push("thicknesses_cm");
+      missingFields.push("Thicknesses (cm)");
     }
 
     if (!product.average_sizes_inches?.length) {
-      missingFields.push("average_sizes_inches");
+      missingFields.push("Average Sizes (inches)");
     }
 
     // ==================
@@ -89,7 +89,7 @@ const getProductAuditReport = async (slug) => {
     );
 
     if (!hasFeaturedImage) {
-      missingFields.push("closeup_image");
+      missingFields.push("Closeup Image");
     }
 
     const hasGalleryImage = product.media.some(
@@ -97,7 +97,7 @@ const getProductAuditReport = async (slug) => {
     );
 
     if (!hasGalleryImage) {
-      missingFields.push("slab_images");
+      missingFields.push("Slab Image");
     }
 
     const hasVideo = product.media.some(
@@ -105,7 +105,23 @@ const getProductAuditReport = async (slug) => {
     );
 
     if (!hasVideo) {
-      missingFields.push("featured_video");
+      missingFields.push("Featured Video");
+    }
+
+        const hasApplicatio_Image = product.media.some(
+      (item) => item.media_type === "APPLICATION_IMAGE",
+    );
+
+    if (!hasApplicatio_Image) {
+      missingFields.push("Application Image (3D Render)");
+    }
+
+        const hasBookmatch_Slipmatch = product.media.some(
+      (item) => item.media_type === "BOOKMATCH_SLIPMATCH",
+    );
+
+    if (!hasBookmatch_Slipmatch) {
+      missingFields.push("Bookmatch or Slipmatch");
     }
 
     // ==================
@@ -149,23 +165,31 @@ const getProductAuditReport = async (slug) => {
     ).length,
 
     missing_featured_images: auditProducts.filter((p) =>
-      p.missing_fields.includes("closeup_image"),
+      p.missing_fields.includes("Closeup Image"),
     ).length,
 
     missing_gallery_images: auditProducts.filter((p) =>
-      p.missing_fields.includes("slab_images"),
+      p.missing_fields.includes("Salb Image"),
     ).length,
 
     missing_videos: auditProducts.filter((p) =>
-      p.missing_fields.includes("featured_video"),
+      p.missing_fields.includes("Featured Video"),
+    ).length,
+
+        missing_application: auditProducts.filter((p) =>
+      p.missing_fields.includes("Application Image (3D Render)"),
+    ).length,
+
+        missing_bookmatch_slipmatch: auditProducts.filter((p) =>
+      p.missing_fields.includes("Book match or Slip match"),
     ).length,
 
     missing_long_descriptions: auditProducts.filter((p) =>
-      p.missing_fields.includes("long_description"),
+      p.missing_fields.includes("Long Description"),
     ).length,
 
     missing_origin_country: auditProducts.filter((p) =>
-      p.missing_fields.includes("origin_country"),
+      p.missing_fields.includes("Origin Country"),
     ).length,
   };
 
