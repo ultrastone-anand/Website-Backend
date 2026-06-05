@@ -161,6 +161,8 @@ const getProductDetails = async (slug) => {
 
       interior_floor: true,
 
+      interior_wall: true,
+
       shower_wall: true,
 
       shower_floor: true,
@@ -492,6 +494,11 @@ const createProduct = async (body, files) => {
         interior_floor:
           toBool(
             body.interior_floor
+          ),
+
+        interior_wall:
+          toBool(
+            body.interior_wall
           ),
 
         shower_wall:
@@ -1045,6 +1052,11 @@ const updateProduct = async (
             body.interior_floor
           ),
 
+        interior_wall:
+          toBool(
+            body.interior_wall
+          ),
+
         shower_wall:
           toBool(
             body.shower_wall
@@ -1224,14 +1236,14 @@ const updateProduct = async (
 };
 
 const deleteProduct = async (id) => {
-return await prisma.stone_products.update({
-  where: {
-    id: BigInt(id),
-  },
-  data: {
-    is_active: false,
-  },
-});
+  return await prisma.stone_products.update({
+    where: {
+      id: BigInt(id),
+    },
+    data: {
+      is_active: false,
+    },
+  });
 };
 
 module.exports = {
