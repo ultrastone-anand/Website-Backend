@@ -33,11 +33,11 @@ router.post(
 
   upload.fields([
     {
-      name: "featured_images",
+      name: "featured_images",  // closeup
       maxCount: 20,
     },
     {
-      name: "gallery_images",
+      name: "gallery_images",  // slab
       maxCount: 50,
     },
     {
@@ -65,12 +65,12 @@ router.put(
 
   upload.fields([
     {
-      name: "featured_images",
+      name: "featured_images",  // closeup
       maxCount: 20,
     },
 
     {
-      name: "gallery_images",
+      name: "gallery_images",  // slab
       maxCount: 50,
     },
 
@@ -92,5 +92,10 @@ router.put(
 
   stoneController.updateProduct
 );
+
+router.delete(
+  "/product/:id",
+  stoneController.deleteProduct
+)
 
 module.exports = router;

@@ -1,4 +1,5 @@
 const stoneservice = require("../services/stone.service");
+const { serialize } = require('../utils/serialize');
 
 // ================== GET ALL STONES ==================
 
@@ -269,6 +270,34 @@ const updateProduct = async (
 
 };
 
+const deleteProduct = async (
+  req,
+  res
+) => {
+
+  try {
+
+    const data =
+      await stoneservice.deleteProduct(
+        req.params.id
+      );
+
+    res.status(200).json({
+      success: true,
+      data: serialize(data)
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+
+};
+
 module.exports = {
 
   getStones,
@@ -283,6 +312,8 @@ module.exports = {
 
   createProduct,
 
-  updateProduct
+  updateProduct,
+
+  deleteProduct
 
 };

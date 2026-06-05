@@ -1233,6 +1233,17 @@ const updateProduct = async (
 
 };
 
+const deleteProduct = async (id) => {
+return await prisma.stone_products.update({
+  where: {
+    id: BigInt(id),
+  },
+  data: {
+    is_active: false,
+  },
+});
+};
+
 module.exports = {
   getStones,
   getCategoryProducts,
@@ -1243,4 +1254,5 @@ module.exports = {
 
   createProduct,
   updateProduct,
+  deleteProduct,
 };
