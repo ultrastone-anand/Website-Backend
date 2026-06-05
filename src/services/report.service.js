@@ -85,19 +85,19 @@ const getProductAuditReport = async (slug) => {
     // ==================
 
     const hasFeaturedImage = product.media.some(
-      (item) => item.media_type === "FEATURED_IMAGE",
+      (item) => item.media_type === "CLOSEUP_IMAGE",
     );
 
     if (!hasFeaturedImage) {
-      missingFields.push("featured_image");
+      missingFields.push("closeup_image");
     }
 
     const hasGalleryImage = product.media.some(
-      (item) => item.media_type === "GALLERY_IMAGE",
+      (item) => item.media_type === "SLAB_IMAGE",
     );
 
     if (!hasGalleryImage) {
-      missingFields.push("gallery_images");
+      missingFields.push("slab_images");
     }
 
     const hasVideo = product.media.some(
@@ -149,11 +149,11 @@ const getProductAuditReport = async (slug) => {
     ).length,
 
     missing_featured_images: auditProducts.filter((p) =>
-      p.missing_fields.includes("featured_image"),
+      p.missing_fields.includes("closeup_image"),
     ).length,
 
     missing_gallery_images: auditProducts.filter((p) =>
-      p.missing_fields.includes("gallery_images"),
+      p.missing_fields.includes("slab_images"),
     ).length,
 
     missing_videos: auditProducts.filter((p) =>
@@ -265,12 +265,12 @@ const getCategoryProductReport = async (slug) => {
 
       media_count: product.media.length,
 
-      featured_images: product.media.filter(
-        (m) => m.media_type === "FEATURED_IMAGE",
+      closeup_images: product.media.filter(
+        (m) => m.media_type === "CLOSEUP_IMAGE",
       ).length,
 
-      gallery_images: product.media.filter(
-        (m) => m.media_type === "GALLERY_IMAGE",
+      slab_images: product.media.filter(
+        (m) => m.media_type === "SLAB_IMAGE",
       ).length,
 
       videos: product.media.filter((m) => m.media_type === "FEATURED_VIDEO")
@@ -318,11 +318,11 @@ const getCategoryProductsReport = async (slug) => {
 
   const reportData = products.map((product) => {
     const featuredImages = product.media.filter(
-      (m) => m.media_type === "FEATURED_IMAGE",
+      (m) => m.media_type === "CLOSEUP_IMAGE",
     );
 
     const galleryImages = product.media.filter(
-      (m) => m.media_type === "GALLERY_IMAGE",
+      (m) => m.media_type === "SLAB_IMAGE",
     );
 
     const videos = product.media.filter(
@@ -404,9 +404,9 @@ const getCategoryProductsReport = async (slug) => {
 
       video_count: videos.length,
 
-      featured_images: featuredImages.map((x) => x.media_url),
+      closeup_images: featuredImages.map((x) => x.media_url),
 
-      gallery_images: galleryImages.map((x) => x.media_url),
+      slab_images: galleryImages.map((x) => x.media_url),
 
       videos: videos.map((x) => x.media_url),
 

@@ -83,18 +83,18 @@ const getAdminDashboard = async () => {
       missingFields.push('average_sizes_inches');
 
     const hasFeaturedImage = product.media.some(
-      (x) => x.media_type === 'FEATURED_IMAGE'
+      (x) => x.media_type === 'CLOSEUP_IMAGE'
     );
 
     if (!hasFeaturedImage)
-      missingFields.push('featured_image');
+      missingFields.push('closeup_image');
 
     const hasGalleryImage = product.media.some(
-      (x) => x.media_type === 'GALLERY_IMAGE'
+      (x) => x.media_type === 'SLAB_IMAGE'
     );
 
     if (!hasGalleryImage)
-      missingFields.push('gallery_images');
+      missingFields.push('slab_images');
 
     const hasVideo = product.media.some(
       (x) => x.media_type === 'FEATURED_VIDEO'
@@ -119,11 +119,11 @@ const getAdminDashboard = async () => {
 
   const missingReports = {
     missingFeaturedImages: auditedProducts.filter((p) =>
-      p.missingFields.includes('featured_image')
+      p.missingFields.includes('closeup_image')
     ).length,
 
     missingGalleryImages: auditedProducts.filter((p) =>
-      p.missingFields.includes('gallery_images')
+      p.missingFields.includes('slab_images')
     ).length,
 
     missingVideos: auditedProducts.filter((p) =>

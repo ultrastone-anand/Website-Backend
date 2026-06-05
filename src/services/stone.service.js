@@ -70,7 +70,7 @@ const getCategoryProducts = async (slug) => {
         media: {
 
           where: {
-            media_type: "FEATURED_IMAGE",
+            media_type: "CLOSEUP_IMAGE",
           },
 
           take: 1,
@@ -89,7 +89,7 @@ const getCategoryProducts = async (slug) => {
 
       ...product,
 
-      featured_image:
+      closeup_image:
         product.media?.[0]?.media_url || null,
 
     }));
@@ -244,12 +244,12 @@ const getProductDetails = async (slug) => {
 
   // Separate media types
 
-  const featured_images = product.media
-    .filter((item) => item.media_type === "featured_image")
+  const closeup_images = product.media
+    .filter((item) => item.media_type === "closeup_image")
     .map((item) => item.media_url);
 
-  const gallery_images = product.media
-    .filter((item) => item.media_type === "gallery_image")
+  const slab_images = product.media
+    .filter((item) => item.media_type === "slab_image")
     .map((item) => item.media_url);
 
   const featured_videos = product.media
@@ -268,8 +268,8 @@ const getProductDetails = async (slug) => {
       id: Number(item.id),
     })),
 
-    featured_images,
-    gallery_images,
+    closeup_images,
+    slab_images,
     featured_videos,
   };
 };
@@ -383,13 +383,13 @@ const createProduct = async (body, files) => {
 
   const featuredImages =
     await uploadFiles(
-      files?.featured_images,
+      files?.closeup_images,
       "ultrastones/products/featured"
     );
 
   const galleryImages =
     await uploadFiles(
-      files?.gallery_images,
+      files?.slab_images,
       "ultrastones/products/gallery"
     );
 
@@ -587,7 +587,7 @@ const createProduct = async (body, files) => {
             ...featuredImages.map(
               (url, index) => ({
                 media_type:
-                  "FEATURED_IMAGE",
+                  "CLOSEUP_IMAGE",
                 media_url: url,
                 display_order:
                   index,
@@ -597,7 +597,7 @@ const createProduct = async (body, files) => {
             ...galleryImages.map(
               (url, index) => ({
                 media_type:
-                  "GALLERY_IMAGE",
+                  "SLAB_IMAGE",
                 media_url: url,
                 display_order:
                   index,
@@ -734,14 +734,14 @@ const updateProduct = async (
   let featuredImages = [];
 
   if (
-    files?.featured_images &&
-    files.featured_images.length > 0
+    files?.closeup_images &&
+    files.closeup_images.length > 0
   ) {
 
     featuredImages =
       await Promise.all(
 
-        files.featured_images.map(
+        files.closeup_images.map(
           async (file) => {
 
             const uploaded =
@@ -770,7 +770,7 @@ const updateProduct = async (
         .filter(
           (item) =>
             item.media_type ===
-            "FEATURED_IMAGE"
+            "CLOSEUP_IMAGE"
         )
 
         .map(
@@ -787,14 +787,14 @@ const updateProduct = async (
   let galleryImages = [];
 
   if (
-    files?.gallery_images &&
-    files.gallery_images.length > 0
+    files?.slab_images &&
+    files.slab_images.length > 0
   ) {
 
     galleryImages =
       await Promise.all(
 
-        files.gallery_images.map(
+        files.slab_images.map(
           async (file) => {
 
             const uploaded =
@@ -823,7 +823,7 @@ const updateProduct = async (
         .filter(
           (item) =>
             item.media_type ===
-            "GALLERY_IMAGE"
+            "SLAB_IMAGE"
         )
 
         .map(
@@ -1146,7 +1146,7 @@ const updateProduct = async (
               (url, index) => ({
 
                 media_type:
-                  "FEATURED_IMAGE",
+                  "CLOSEUP_IMAGE",
 
                 media_url:
                   url,
@@ -1163,7 +1163,7 @@ const updateProduct = async (
               (url, index) => ({
 
                 media_type:
-                  "GALLERY_IMAGE",
+                  "SLAB_IMAGE",
 
                 media_url:
                   url,

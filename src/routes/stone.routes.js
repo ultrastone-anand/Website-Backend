@@ -33,11 +33,11 @@ router.post(
 
   upload.fields([
     {
-      name: "featured_images",  // closeup
+      name: "closeup_images",  // closeup
       maxCount: 20,
     },
     {
-      name: "gallery_images",  // slab
+      name: "slab_images",  // slab
       maxCount: 50,
     },
     {
@@ -65,12 +65,12 @@ router.put(
 
   upload.fields([
     {
-      name: "featured_images",  // closeup
+      name: "closeup_images",  // closeup
       maxCount: 20,
     },
 
     {
-      name: "gallery_images",  // slab
+      name: "slab_images",  // slab
       maxCount: 50,
     },
 
