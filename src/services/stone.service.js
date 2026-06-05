@@ -657,16 +657,6 @@ const updateProduct = async (
   files
 ) => {
 
-  console.log(
-    "BODY:",
-    body
-  );
-
-  console.log(
-    "FILES:",
-    files
-  );
-
   // ==============================
   // HELPERS
   // ==============================

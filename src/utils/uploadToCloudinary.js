@@ -64,10 +64,6 @@ const uploadToCloudinary = async (
       try {
   await fs.unlink(filePath);
 
-  console.log(
-    "Deleted:",
-    filePath
-  );
 
 } catch (err) {
 

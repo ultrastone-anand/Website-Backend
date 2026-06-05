@@ -195,8 +195,6 @@ const createProduct = async (
 ) => {
 
   try {
-console.log("CREATE BODY:", req.body);
-console.log("CREATE FILES:", req.files);
 
     const data =
       await stoneservice.createProduct(
@@ -230,16 +228,6 @@ const updateProduct = async (
 ) => {
 
   try {
-
-    console.log(
-      "UPDATE BODY:",
-      req.body
-    );
-
-    console.log(
-      "UPDATE FILES:",
-      req.files
-    );
 
     const data =
       await stoneservice.updateProduct(
