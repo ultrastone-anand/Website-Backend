@@ -1,4 +1,5 @@
 const userService = require("../services/user.service");
+const getAuditContext = require("../utils/getAuditContext");
 
 // ================== GET ALL USERS ==================
 
@@ -81,7 +82,8 @@ const createUser = async (
 
     const user =
       await userService.createUser(
-        req.body
+        req.body,
+        getAuditContext(req)
       );
 
     res.status(201).json({
@@ -137,11 +139,9 @@ const updateUser = async (
 
     const user =
       await userService.updateUser(
-
         userId,
-
-        req.body
-
+        req.body,
+        getAuditContext(req)
       );
 
     res.status(200).json({
@@ -196,7 +196,8 @@ const deleteUser = async (
       req.params;
 
     await userService.deleteUser(
-      userId
+      userId,
+      getAuditContext(req)
     );
 
     res.status(200).json({

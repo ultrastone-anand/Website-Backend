@@ -3,6 +3,7 @@ const router = require("express").Router();
 const upload = require("../middlewares/upload");
 
 const stoneController = require("../controller/stone.controller");
+const authenticate = require("../middlewares/auth.middleware");
 
 // ==============================
 // GET
@@ -18,9 +19,9 @@ router.get("/productdetail/:slug", stoneController.getProductDetails);
 // CATEGORY CRUD
 // ==============================
 
-router.post("/category", stoneController.createCategory);
+router.post("/category", authenticate , stoneController.createCategory);
 
-router.put("/category/:id", stoneController.updateCategory);
+router.put("/category/:id", authenticate , stoneController.updateCategory);
 
 // ==============================
 // PRODUCT CRUD
@@ -57,8 +58,6 @@ router.post(
 
   stoneController.createProduct
 );
-
-// UPDATE PRODUCT WITH FILES
 
 router.put(
   "/product/:id",

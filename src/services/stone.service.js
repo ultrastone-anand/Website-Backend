@@ -1,6 +1,10 @@
 const prisma = require("../config/prisma");
 const { uploadToCloudinary } = require("../utils/uploadToCloudinary");
 
+const auditService = require("./audit.service");
+
+
+// ================= GET ALLs =================
 const getStones = async () => {
   return await prisma.stone_categories.findMany({
     orderBy: {
@@ -276,52 +280,138 @@ const getProductDetails = async (slug) => {
   };
 };
 
-// ================ CRUD ================
+// ================  CATEGORY CRUD ================
 
-const createCategory = async (body) => {
-  return await prisma.stone_categories.create({
-    data: {
-      name: body.name,
+const createCategory = async (
+  body,
+  audit = {}
+) => {
 
-      slug: body.slug,
+  return await auditService.track({
 
-      description: body.description,
+    audit,
 
-      parent_id: body.parent_id || null,
+    action: "CREATE",
 
-      thumbnail_url: body.thumbnail_url,
+    resourceType: "CATEGORY",
 
-      banner_url: body.banner_url,
+    moduleName:
+      "Stone Management",
 
-      display_order: body.display_order || 1,
+    operation: () =>
+      prisma.stone_categories.create({
 
-      is_active: true,
-    },
+        data: {
+
+          name:
+            body.name,
+
+          slug:
+            body.slug,
+
+          description:
+            body.description,
+
+          parent_id:
+            body.parent_id || null,
+
+          thumbnail_url:
+            body.thumbnail_url,
+
+          banner_url:
+            body.banner_url,
+
+          display_order:
+            body.display_order || 1,
+
+          is_active:
+            true
+
+        }
+
+      })
+
   });
+
 };
 
-const updateCategory = async (id, body) => {
-  const updateData = {
-    ...body,
-  };
+const updateCategory = async (
+  id,
+  body,
+  audit = {}
+) => {
 
-  // Only handle parent_id if it exists
+  const existingCategory =
+    await prisma.stone_categories.findUnique({
 
-  if ("parent_id" in updateData) {
-    updateData.parent_id =
-      updateData.parent_id === "" || updateData.parent_id === null
-        ? null
-        : Number(updateData.parent_id);
+      where: {
+        id: Number(id)
+      }
+
+    });
+
+  if (!existingCategory) {
+
+    throw new Error(
+      "Category not found"
+    );
+
   }
 
-  return await prisma.stone_categories.update({
-    where: {
-      id: Number(id),
-    },
+  const updateData = {
+    ...body
+  };
 
-    data: updateData,
+  if ("parent_id" in updateData) {
+
+    updateData.parent_id =
+
+      updateData.parent_id === "" ||
+      updateData.parent_id === null
+
+        ? null
+
+        : Number(
+            updateData.parent_id
+          );
+
+  }
+
+  return await auditService.track({
+
+    audit,
+
+    action: "UPDATE",
+
+    resourceType:
+      "CATEGORY",
+
+    resourceId:
+      existingCategory.id,
+
+    moduleName:
+      "Stone Management",
+
+    oldValues:
+      existingCategory,
+
+    operation: () =>
+      prisma.stone_categories.update({
+
+        where: {
+          id: Number(id)
+        },
+
+        data:
+          updateData
+
+      })
+
   });
+
 };
+
+// ================  PRODUCT CRUD ================
 
 const serializeBigInt = (data) => {
   return JSON.parse(

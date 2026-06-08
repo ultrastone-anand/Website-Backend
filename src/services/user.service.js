@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/prisma");
+const auditService = require("./audit.service");
 
 // ================== GET ALL USERS ==================
 
@@ -116,107 +117,111 @@ const getUserById = async (
 // ================== CREATE USER ==================
 
 const createUser = async (
-  data
+  data,
+  audit = {}
 ) => {
 
   const existingUser =
     await prisma.users.findUnique({
-
       where: {
         email: data.email
       }
-
     });
 
   if (existingUser) {
-
     throw new Error(
       "Email already exists"
     );
-
   }
 
   const role =
     await prisma.roles.findUnique({
-
       where: {
-        id: Number(
-          data.role_id
-        )
+        id: Number(data.role_id)
       }
-
     });
 
   if (!role) {
-
     throw new Error(
       "Invalid role"
     );
-
   }
 
   const passwordHash =
     await bcrypt.hash(
-
       data.password,
-
       10
-
     );
 
-  return await prisma.users.create({
+  return await auditService.track({
 
-    data: {
+    audit,
 
-      email: data.email,
+    action: "CREATE",
 
-      password_hash:
-        passwordHash,
+    resourceType: "USER",
 
-      first_name:
-        data.first_name,
+    moduleName:
+      "User Management",
 
-      last_name:
-        data.last_name,
+    operation: () =>
+      prisma.users.create({
 
-      role_id:
-        Number(
-          data.role_id
-        ),
+        data: {
 
-      is_active: true
+          email:
+            data.email,
 
-    },
+          password_hash:
+            passwordHash,
 
-    select: {
+          first_name:
+            data.first_name,
 
-      user_id: true,
+          last_name:
+            data.last_name,
 
-      email: true,
+          role_id:
+            Number(data.role_id),
 
-      first_name: true,
+          is_active:
+            true
 
-      last_name: true,
-
-      is_active: true,
-
-      created_at: true,
-
-      roles: {
+        },
 
         select: {
 
           id: true,
 
-          role_id: true,
+          user_id: true,
 
-          name: true
+          email: true,
+
+          first_name: true,
+
+          last_name: true,
+
+          is_active: true,
+
+          created_at: true,
+
+          roles: {
+
+            select: {
+
+              id: true,
+
+              role_id: true,
+
+              name: true
+
+            }
+
+          }
 
         }
 
-      }
-
-    }
+      })
 
   });
 
@@ -226,7 +231,8 @@ const createUser = async (
 
 const updateUser = async (
   userId,
-  data
+  data,
+  audit = {}
 ) => {
 
   const existingUser =
@@ -265,9 +271,7 @@ const updateUser = async (
 
   };
 
-  if (
-    data.role_id
-  ) {
+  if (data.role_id) {
 
     const role =
       await prisma.roles.findUnique({
@@ -295,58 +299,76 @@ const updateUser = async (
 
   }
 
-  if (
-    data.password
-  ) {
+  if (data.password) {
 
     updateData.password_hash =
       await bcrypt.hash(
-
         data.password,
-
         10
-
       );
 
   }
 
-  return await prisma.users.update({
+  return await auditService.track({
 
-    where: {
-      user_id: userId
-    },
+    audit,
 
-    data: updateData,
+    action: "UPDATE",
 
-    select: {
+    resourceType: "USER",
 
-      user_id: true,
+    resourceId:
+      existingUser.id,
 
-      email: true,
+    moduleName:
+      "User Management",
 
-      first_name: true,
+    oldValues:
+      existingUser,
 
-      last_name: true,
+    operation: () =>
+      prisma.users.update({
 
-      is_active: true,
+        where: {
+          user_id: userId
+        },
 
-      updated_at: true,
-
-      roles: {
+        data:
+          updateData,
 
         select: {
 
           id: true,
 
-          role_id: true,
+          user_id: true,
 
-          name: true
+          email: true,
+
+          first_name: true,
+
+          last_name: true,
+
+          is_active: true,
+
+          updated_at: true,
+
+          roles: {
+
+            select: {
+
+              id: true,
+
+              role_id: true,
+
+              name: true
+
+            }
+
+          }
 
         }
 
-      }
-
-    }
+      })
 
   });
 
@@ -356,7 +378,8 @@ const updateUser = async (
 // Soft Delete
 
 const deleteUser = async (
-  userId
+  userId,
+  audit = {}
 ) => {
 
   const existingUser =
@@ -376,21 +399,41 @@ const deleteUser = async (
 
   }
 
-  return await prisma.users.update({
+  return await auditService.track({
 
-    where: {
-      user_id: userId
-    },
+    audit,
 
-    data: {
+    action: "DELETE",
 
-      deleted_at:
-        new Date(),
+    resourceType: "USER",
 
-      is_active:
-        false
+    resourceId:
+      existingUser.id,
 
-    }
+    moduleName:
+      "User Management",
+
+    oldValues:
+      existingUser,
+
+    operation: () =>
+      prisma.users.update({
+
+        where: {
+          user_id: userId
+        },
+
+        data: {
+
+          deleted_at:
+            new Date(),
+
+          is_active:
+            false
+
+        }
+
+      })
 
   });
 
@@ -488,31 +531,28 @@ if (!passwordMatch) {
 
   });
 
-  const token =
-    jwt.sign(
+const token = jwt.sign({
 
-      {
+  id: user.id,
 
-        user_id:
-          user.user_id,
+  user_id: user.user_id,
 
-        email:
-          user.email,
+  email: user.email,
 
-        role:
-          user.role?.name
+  first_name:
+    user.first_name,
 
-      },
+  last_name:
+    user.last_name,
 
-      process.env.JWT_SECRET,
+  role:
+    user.roles.name
 
-      {
-
-        expiresIn: "1d"
-
-      }
-
-    );
+},
+process.env.JWT_SECRET,
+{
+  expiresIn: "1d"
+});
 
 return {
 

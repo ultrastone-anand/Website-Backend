@@ -1,7 +1,8 @@
 const stoneservice = require("../services/stone.service");
+const getAuditContext = require("../utils/getAuditContext");
 const { serialize } = require('../utils/serialize');
 
-// ================== GET ALL STONES ==================
+// ================== GET ALLs ==================
 
 const getStones = async (
   req,
@@ -28,8 +29,6 @@ const getStones = async (
   }
 
 };
-
-// ================== CATEGORY PRODUCTS ==================
 
 const getCategoryProducts = async (
   req,
@@ -62,8 +61,6 @@ const getCategoryProducts = async (
 
 };
 
-// ================== PRODUCT DETAILS ==================
-
 const getProductDetails = async (
   req,
   res
@@ -95,7 +92,7 @@ const getProductDetails = async (
 
 };
 
-// ================== CREATE CATEGORY ==================
+// ==================  CATEGORY CRUD ==================
 
 const createCategory = async (
   req,
@@ -106,7 +103,8 @@ const createCategory = async (
 
     const data =
       await stoneservice.createCategory(
-        req.body
+        req.body,
+        getAuditContext(req)
       );
 
     res.status(201).json({
@@ -153,8 +151,6 @@ const createCategory = async (
 
 };
 
-// ================== UPDATE CATEGORY ==================
-
 const updateCategory = async (
   req,
   res
@@ -167,7 +163,9 @@ const updateCategory = async (
 
         req.params.id,
 
-        req.body
+        req.body ,
+
+        getAuditContext(req)
 
       );
 
@@ -187,7 +185,7 @@ const updateCategory = async (
 
 };
 
-// ================== CREATE PRODUCT ==================
+// ================== PRODUCT CRUD ==================
 
 const createProduct = async (
   req,
@@ -219,8 +217,6 @@ const createProduct = async (
   }
 
 };
-
-// ================== UPDATE PRODUCT ==================
 
 const updateProduct = async (
   req,
