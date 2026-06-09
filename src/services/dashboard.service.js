@@ -143,23 +143,23 @@ const auditedProducts = products.map((product) => {
 
   const missingReports = {
     missingFeaturedImages: auditedProducts.filter((p) =>
-      p.missingFields.includes('Closeup Image')
+      p.missingFields.includes('closeup_image')
     ).length,
 
     missingGalleryImages: auditedProducts.filter((p) =>
-      p.missingFields.includes('Slab Image')
+      p.missingFields.includes('slab_images')
     ).length,
 
     missingVideos: auditedProducts.filter((p) =>
-      p.missingFields.includes('Featured Video')
+      p.missingFields.includes('featured_video')
     ).length,
 
     missingLongDescriptions: auditedProducts.filter((p) =>
-      p.missingFields.includes('Long Description')
+      p.missingFields.includes('long_description')
     ).length,
 
     missingOriginCountry: auditedProducts.filter((p) =>
-      p.missingFields.includes('Origin Country')
+      p.missingFields.includes('origin_country')
     ).length,
   };
 
