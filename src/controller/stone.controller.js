@@ -197,7 +197,8 @@ const createProduct = async (
     const data =
       await stoneservice.createProduct(
         req.body,
-        req.files
+        req.files,
+        getAuditContext(req)
       );
 
     res.status(201).json({
@@ -232,7 +233,9 @@ const updateProduct = async (
 
         req.body,
 
-        req.files
+        req.files,
+
+        getAuditContext(req)
 
       );
 
@@ -263,7 +266,8 @@ const deleteProduct = async (
 
     const data =
       await stoneservice.deleteProduct(
-        req.params.id
+        req.params.id,
+        getAuditContext(req)
       );
 
     res.status(200).json({

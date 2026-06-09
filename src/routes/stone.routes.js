@@ -27,10 +27,11 @@ router.put("/category/:id", authenticate , stoneController.updateCategory);
 // PRODUCT CRUD
 // ==============================
 
-// CREATE PRODUCT
 
 router.post(
   "/product",
+
+  authenticate ,
 
   upload.fields([
     {
@@ -61,6 +62,8 @@ router.post(
 
 router.put(
   "/product/:id",
+
+  authenticate ,
 
   upload.fields([
     {
@@ -94,6 +97,7 @@ router.put(
 
 router.delete(
   "/product/:id",
+  authenticate ,
   stoneController.deleteProduct
 )
 

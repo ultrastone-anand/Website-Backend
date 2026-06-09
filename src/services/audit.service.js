@@ -1,6 +1,6 @@
 const prisma = require("../config/prisma");
 
-// ================== SANITIZE JSON ==================
+// ==================  JSON HELPER ==================
 
 const sanitizeJson = (obj) => {
 
@@ -116,13 +116,19 @@ const track = async ({
 
   // Detect changed fields
 
-  const changedFields =
-    oldValues
-      ? getChangedFields(
-          oldValues,
-          result
-        )
-      : null;
+const sanitizedOldValues =
+  sanitizeJson(oldValues);
+
+const sanitizedResult =
+  sanitizeJson(result);
+
+const changedFields =
+  sanitizedOldValues
+    ? getChangedFields(
+        sanitizedOldValues,
+        sanitizedResult
+      )
+    : null;
 
 
   // Save audit record
@@ -149,15 +155,11 @@ const track = async ({
             )
           : null,
 
-      old_values:
-        sanitizeJson(
-          oldValues
-        ),
+old_values:
+  sanitizedOldValues,
 
-      new_values:
-        sanitizeJson(
-          result
-        ),
+new_values:
+  sanitizedResult,
 
       changed_fields:
         sanitizeJson(

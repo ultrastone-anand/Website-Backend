@@ -367,13 +367,13 @@ const updateCategory = async (
     updateData.parent_id =
 
       updateData.parent_id === "" ||
-      updateData.parent_id === null
+        updateData.parent_id === null
 
         ? null
 
         : Number(
-            updateData.parent_id
-          );
+          updateData.parent_id
+        );
 
   }
 
@@ -425,7 +425,7 @@ const serializeBigInt = (data) => {
   );
 };
 
-const createProduct = async (body, files) => {
+const createProduct = async (body, files, audit = {}) => {
 
   const toBool = (value) =>
     value === true || value === "true";
@@ -439,11 +439,6 @@ const createProduct = async (body, files) => {
       return [];
     }
   };
-
-  // ==============================
-  // UPLOAD FILES
-  // ==============================
-
   const uploadFiles = async (
     fileArray,
     folder,
@@ -473,274 +468,281 @@ const createProduct = async (body, files) => {
     );
   };
 
-  const featuredImages =
-    await uploadFiles(
-      files?.closeup_images,
-      "ultrastones/products/featured"
-    );
+  const featuredImages = await uploadFiles(
+    files?.closeup_images,
+    "ultrastones/products/featured"
+  );
 
-  const galleryImages =
-    await uploadFiles(
-      files?.slab_images,
-      "ultrastones/products/gallery"
-    );
+  const galleryImages = await uploadFiles(
+    files?.slab_images,
+    "ultrastones/products/gallery"
+  );
 
-  const featuredVideos =
-    await uploadFiles(
-      files?.featured_videos,
-      "ultrastones/products/videos",
-      "video"
-    );
+  const featuredVideos = await uploadFiles(
+    files?.featured_videos,
+    "ultrastones/products/videos",
+    "video"
+  );
 
-  const applicationImages =
-    await uploadFiles(
-      files?.application_images,
-      "ultrastones/products/application"
-    );
+  const applicationImages = await uploadFiles(
+    files?.application_images,
+    "ultrastones/products/application"
+  );
 
-  const bookmatchSlipmatchImages =
-    await uploadFiles(
-      files?.bookmatch_slipmatch,
-      "ultrastones/products/bookmatch-slipmatch"
-    );
+  const bookmatchSlipmatchImages = await uploadFiles(
+    files?.bookmatch_slipmatch,
+    "ultrastones/products/bookmatch-slipmatch"
+  );
 
   // ==============================
   // CREATE PRODUCT
   // ==============================
 
   const createdProduct =
-    await prisma.stone_products.create({
+    await auditService.track({
+      audit,
 
-      data: {
+      action: "CREATE",
 
-        // BASIC
+      resourceType: "PRODUCT",
 
-        name: body.name,
+      moduleName:
+        "Stone Management",
 
-        slug: body.slug,
+      operation: () =>
+        prisma.stone_products.create({
 
-        small_description:
-          body.small_description,
+          data: {
 
-        long_description:
-          body.long_description,
+            // BASIC
 
-        category_id:
-          body.category_id
-            ? Number(body.category_id)
-            : null,
+            name: body.name,
 
-        // DETAILS
+            slug: body.slug,
 
-        finishes_available:
-          parseArray(
-            body.finishes_available
-          ),
+            small_description:
+              body.small_description,
 
-        pattern:
-          body.pattern,
+            long_description:
+              body.long_description,
 
-        thicknesses_cm:
-          parseArray(
-            body.thicknesses_cm
-          ),
+            category_id:
+              body.category_id
+                ? Number(body.category_id)
+                : null,
 
-        average_sizes_inches:
-          parseArray(
-            body.average_sizes_inches
-          ),
+            // DETAILS
 
-        stone_group:
-          body.stone_group,
+            finishes_available:
+              parseArray(
+                body.finishes_available
+              ),
 
-        translucent:
-          toBool(
-            body.translucent
-          ),
+            pattern:
+              body.pattern,
 
-        cut_to_size:
-          toBool(
-            body.cut_to_size
-          ),
+            thicknesses_cm:
+              parseArray(
+                body.thicknesses_cm
+              ),
 
-        origin_country:
-          body.origin_country,
+            average_sizes_inches:
+              parseArray(
+                body.average_sizes_inches
+              ),
 
-        pantone_colour:
-          body.pantone_colour,
+            stone_group:
+              body.stone_group,
 
-        // APPLICATIONS
+            translucent:
+              toBool(
+                body.translucent
+              ),
 
-        color_enhancing:
-          toBool(
-            body.color_enhancing
-          ),
+            cut_to_size:
+              toBool(
+                body.cut_to_size
+              ),
 
-        countertops_vanities:
-          toBool(
-            body.countertops_vanities
-          ),
+            origin_country:
+              body.origin_country,
 
-        interior_floor:
-          toBool(
-            body.interior_floor
-          ),
+            pantone_colour:
+              body.pantone_colour,
 
-        interior_wall:
-          toBool(
-            body.interior_wall
-          ),
+            // APPLICATIONS
 
-        shower_wall:
-          toBool(
-            body.shower_wall
-          ),
+            color_enhancing:
+              toBool(
+                body.color_enhancing
+              ),
 
-        shower_floor:
-          toBool(
-            body.shower_floor
-          ),
+            countertops_vanities:
+              toBool(
+                body.countertops_vanities
+              ),
 
-        exterior_floor:
-          toBool(
-            body.exterior_floor
-          ),
+            interior_floor:
+              toBool(
+                body.interior_floor
+              ),
 
-        exterior_wall:
-          toBool(
-            body.exterior_wall
-          ),
+            interior_wall:
+              toBool(
+                body.interior_wall
+              ),
 
-        pool_fountain:
-          toBool(
-            body.pool_fountain
-          ),
+            shower_wall:
+              toBool(
+                body.shower_wall
+              ),
 
-        fireplace:
-          toBool(
-            body.fireplace
-          ),
+            shower_floor:
+              toBool(
+                body.shower_floor
+              ),
 
-        furniture_top:
-          toBool(
-            body.furniture_top
-          ),
+            exterior_floor:
+              toBool(
+                body.exterior_floor
+              ),
 
-        // SPECIFICATIONS
+            exterior_wall:
+              toBool(
+                body.exterior_wall
+              ),
 
-        abrasion_resistance:
-          body.abrasion_resistance,
+            pool_fountain:
+              toBool(
+                body.pool_fountain
+              ),
 
-        stain_resistance:
-          body.stain_resistance,
+            fireplace:
+              toBool(
+                body.fireplace
+              ),
 
-        etching_resistance:
-          body.etching_resistance,
+            furniture_top:
+              toBool(
+                body.furniture_top
+              ),
 
-        heat_resistance:
-          body.heat_resistance,
+            // SPECIFICATIONS
 
-        uv_resistance:
-          body.uv_resistance,
+            abrasion_resistance:
+              body.abrasion_resistance,
 
-        color_range:
-          body.color_range,
+            stain_resistance:
+              body.stain_resistance,
 
-        movement_index:
-          body.movement_index,
+            etching_resistance:
+              body.etching_resistance,
 
-        // VARIATION
+            heat_resistance:
+              body.heat_resistance,
 
-        variation_level:
-          body.variation_level,
+            uv_resistance:
+              body.uv_resistance,
 
-        // FLAGS
+            color_range:
+              body.color_range,
 
-        is_featured:
-          toBool(
-            body.is_featured
-          ),
+            movement_index:
+              body.movement_index,
 
-        is_trending:
-          toBool(
-            body.is_trending
-          ),
+            // VARIATION
 
-        is_new_arrival:
-          toBool(
-            body.is_new_arrival
-          ),
+            variation_level:
+              body.variation_level,
 
-        is_active: true,
+            // FLAGS
 
-        // ==============================
-        // MEDIA
-        // ==============================
+            is_featured:
+              toBool(
+                body.is_featured
+              ),
 
-        media: {
+            is_trending:
+              toBool(
+                body.is_trending
+              ),
 
-          create: [
+            is_new_arrival:
+              toBool(
+                body.is_new_arrival
+              ),
 
-            ...featuredImages.map(
-              (url, index) => ({
-                media_type:
-                  "CLOSEUP_IMAGE",
-                media_url: url,
-                display_order:
-                  index,
-              })
-            ),
+            is_active: true,
 
-            ...galleryImages.map(
-              (url, index) => ({
-                media_type:
-                  "SLAB_IMAGE",
-                media_url: url,
-                display_order:
-                  index,
-              })
-            ),
+            // ==============================
+            // MEDIA
+            // ==============================
 
-            ...featuredVideos.map(
-              (url, index) => ({
-                media_type:
-                  "FEATURED_VIDEO",
-                media_url: url,
-                display_order:
-                  index,
-              })
-            ),
+            media: {
 
-            ...applicationImages.map(
-              (url, index) => ({
-                media_type:
-                  "APPLICATION_IMAGE",
-                media_url: url,
-                display_order:
-                  index,
-              })
-            ),
+              create: [
 
-            ...bookmatchSlipmatchImages.map(
-              (url, index) => ({
-                media_type:
-                  "BOOKMATCH_SLIPMATCH",
-                media_url: url,
-                display_order:
-                  index,
-              })
-            ),
+                ...featuredImages.map(
+                  (url, index) => ({
+                    media_type:
+                      "CLOSEUP_IMAGE",
+                    media_url: url,
+                    display_order:
+                      index,
+                  })
+                ),
 
-          ],
+                ...galleryImages.map(
+                  (url, index) => ({
+                    media_type:
+                      "SLAB_IMAGE",
+                    media_url: url,
+                    display_order:
+                      index,
+                  })
+                ),
 
-        },
+                ...featuredVideos.map(
+                  (url, index) => ({
+                    media_type:
+                      "FEATURED_VIDEO",
+                    media_url: url,
+                    display_order:
+                      index,
+                  })
+                ),
 
-      },
+                ...applicationImages.map(
+                  (url, index) => ({
+                    media_type:
+                      "APPLICATION_IMAGE",
+                    media_url: url,
+                    display_order:
+                      index,
+                  })
+                ),
 
-      include: {
-        media: true,
-      },
+                ...bookmatchSlipmatchImages.map(
+                  (url, index) => ({
+                    media_type:
+                      "BOOKMATCH_SLIPMATCH",
+                    media_url: url,
+                    display_order:
+                      index,
+                  })
+                ),
 
+              ],
+
+            },
+
+          },
+
+          include: {
+            media: true,
+          },
+
+        })
     });
 
   return serializeBigInt(
@@ -748,11 +750,8 @@ const createProduct = async (body, files) => {
   );
 
 };
-const updateProduct = async (
-  id,
-  body,
-  files
-) => {
+
+const updateProduct = async (id, body, files, audit = {}) => {
 
   // ==============================
   // HELPERS
@@ -789,12 +788,7 @@ const updateProduct = async (
 
   };
 
-  // ==============================
-  // FIND EXISTING PRODUCT
-  // ==============================
-
-  const existingProduct =
-    await prisma.stone_products.findUnique({
+  const existingProduct =await prisma.stone_products.findUnique({
 
       where: {
         id: BigInt(id),
@@ -1056,7 +1050,27 @@ const updateProduct = async (
   // ==============================
 
   const updatedProduct =
-    await prisma.stone_products.update({
+  await auditService.track({
+    audit,
+
+    action: "UPDATE",
+
+    resourceType:
+      "PRODUCT",
+
+    resourceId:
+      existingProduct.id,
+
+    moduleName:
+      "Stone Management",
+
+    oldValues:
+      serializeBigInt(
+        existingProduct
+      ),
+
+    operation: () =>
+     prisma.stone_products.update({
 
       where: {
         id: BigInt(id),
@@ -1317,23 +1331,75 @@ const updateProduct = async (
         media: true,
       },
 
+    })
     });
-
   return serializeBigInt(
     updatedProduct
   );
 
 };
 
-const deleteProduct = async (id) => {
-  return await prisma.stone_products.update({
-    where: {
-      id: BigInt(id),
-    },
-    data: {
-      is_active: false,
-    },
+const deleteProduct = async (
+  id,
+  audit = {}
+) => {
+
+  const existingProduct =
+    await prisma.stone_products.findUnique({
+
+      where: {
+        id: BigInt(id)
+      },
+
+      include: {
+        media: true
+      }
+
+    });
+
+  if (!existingProduct) {
+
+    throw new Error(
+      "Product not found"
+    );
+
+  }
+
+  return await auditService.track({
+
+    audit,
+
+    action: "DELETE",
+
+    resourceType:
+      "PRODUCT",
+
+    resourceId:
+      existingProduct.id,
+
+    moduleName:
+      "Stone Management",
+
+    oldValues:
+      serializeBigInt(
+        existingProduct
+      ),
+
+    operation: () =>
+      prisma.stone_products.update({
+
+        where: {
+          id: BigInt(id)
+        },
+
+        data: {
+          is_active: false
+        }
+
+      })
+
   });
+
 };
 
 module.exports = {
