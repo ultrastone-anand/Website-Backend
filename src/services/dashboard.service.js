@@ -55,62 +55,86 @@ const getAdminDashboard = async () => {
     }),
   ]);
 
-  const auditedProducts = products.map((product) => {
-    const missingFields = [];
+const auditedProducts = products.map((product) => {
+  const missingFields = [];
 
-    if (!product.small_description)
-      missingFields.push('small_description');
+  // BASIC
 
-    if (!product.long_description)
-      missingFields.push('long_description');
+  if (!product.small_description)
+    missingFields.push('small_description');
 
-    if (!product.pattern)
-      missingFields.push('pattern');
+  if (!product.long_description)
+    missingFields.push('long_description');
 
-    if (!product.origin_country)
-      missingFields.push('origin_country');
+  if (!product.pattern)
+    missingFields.push('pattern');
 
-    if (!product.pantone_colour)
-      missingFields.push('pantone_colour');
+  if (!product.stone_group)
+    missingFields.push('stone_group');
 
-    if (!product.finishes_available?.length)
-      missingFields.push('finishes_available');
+  if (!product.origin_country)
+    missingFields.push('origin_country');
 
-    if (!product.thicknesses_cm?.length)
-      missingFields.push('thicknesses_cm');
+  if (!product.pantone_colour)
+    missingFields.push('pantone_colour');
 
-    if (!product.average_sizes_inches?.length)
-      missingFields.push('average_sizes_inches');
+  // ARRAYS
 
-    const hasFeaturedImage = product.media.some(
-      (x) => x.media_type === 'CLOSEUP_IMAGE'
-    );
+  if (!product.finishes_available?.length)
+    missingFields.push('finishes_available');
 
-    if (!hasFeaturedImage)
-      missingFields.push('closeup_image');
+  if (!product.thicknesses_cm?.length)
+    missingFields.push('thicknesses_cm');
 
-    const hasGalleryImage = product.media.some(
-      (x) => x.media_type === 'SLAB_IMAGE'
-    );
+  if (!product.average_sizes_inches?.length)
+    missingFields.push('average_sizes_inches');
 
-    if (!hasGalleryImage)
-      missingFields.push('slab_images');
+  // MEDIA
 
-    const hasVideo = product.media.some(
-      (x) => x.media_type === 'FEATURED_VIDEO'
-    );
+  const hasCloseupImage = product.media.some(
+    (x) => x.media_type === 'CLOSEUP_IMAGE'
+  );
 
-    if (!hasVideo)
-      missingFields.push('featured_video');
+  if (!hasCloseupImage)
+    missingFields.push('closeup_image');
 
-    return {
-      id: product.id,
-      name: product.name,
-      slug: product.slug,
-      missingCount: missingFields.length,
-      missingFields,
-    };
-  });
+  const hasSlabImage = product.media.some(
+    (x) => x.media_type === 'SLAB_IMAGE'
+  );
+
+  if (!hasSlabImage)
+    missingFields.push('slab_images');
+
+  const hasVideo = product.media.some(
+    (x) => x.media_type === 'FEATURED_VIDEO'
+  );
+
+  if (!hasVideo)
+    missingFields.push('featured_video');
+
+  const hasApplicationImage = product.media.some(
+    (x) => x.media_type === 'APPLICATION_IMAGE'
+  );
+
+  if (!hasApplicationImage)
+    missingFields.push('application_image');
+
+  const hasBookmatchSlipmatch = product.media.some(
+    (x) => x.media_type === 'BOOKMATCH_SLIPMATCH'
+  );
+
+  if (!hasBookmatchSlipmatch)
+    missingFields.push('bookmatch_slipmatch');
+
+  return {
+    id: product.id,
+    productId: product.product_id,
+    name: product.name,
+    slug: product.slug,
+    missingCount: missingFields.length,
+    missingFields,
+  };
+});
 
   const attentionRequiredProducts = auditedProducts
     .filter((x) => x.missingCount > 0)
@@ -119,23 +143,23 @@ const getAdminDashboard = async () => {
 
   const missingReports = {
     missingFeaturedImages: auditedProducts.filter((p) =>
-      p.missingFields.includes('closeup_image')
+      p.missingFields.includes('Closeup Image')
     ).length,
 
     missingGalleryImages: auditedProducts.filter((p) =>
-      p.missingFields.includes('slab_images')
+      p.missingFields.includes('Slab Image')
     ).length,
 
     missingVideos: auditedProducts.filter((p) =>
-      p.missingFields.includes('featured_video')
+      p.missingFields.includes('Featured Video')
     ).length,
 
     missingLongDescriptions: auditedProducts.filter((p) =>
-      p.missingFields.includes('long_description')
+      p.missingFields.includes('Long Description')
     ).length,
 
     missingOriginCountry: auditedProducts.filter((p) =>
-      p.missingFields.includes('origin_country')
+      p.missingFields.includes('Origin Country')
     ).length,
   };
 

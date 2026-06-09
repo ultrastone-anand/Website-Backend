@@ -5,6 +5,7 @@ const userRoutes = require('./routes/user.routes');
 const stoneRoutes = require('./routes/stone.routes');
 const lookupRoutes = require('./routes/lookup.routes');
 const reportRoutes = require('./routes/report.routes');
+const activityRoutes = require('./routes/activity.routes');
 const dasboardRoutes = require('./routes/dashboard.routes');
 
 const app = express();
@@ -24,5 +25,6 @@ app.use('/api/stones', stoneRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/lookups', lookupRoutes);
 app.use('/api/dashboard', dasboardRoutes);
+app.use('/api/activitie', activityRoutes);
 
 module.exports = app;
