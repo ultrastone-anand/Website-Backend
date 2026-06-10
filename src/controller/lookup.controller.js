@@ -7,7 +7,7 @@ const { serialize } = require('../utils/serialize');
 
 exports.getAllLookups = async (req, res) => {
   try {
-    const data = await lookupService.getAllLookups();
+    const data = await lookupService.getLookups();
 
     res.json({
       success: true,
