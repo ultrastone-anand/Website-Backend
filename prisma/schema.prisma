@@ -162,6 +162,7 @@ model stone_products {
   created_at           DateTime?             @default(now()) @db.Timestamp(6)
   updated_at           DateTime?             @default(now()) @db.Timestamp(6)
   interior_wall        Boolean?
+  sealer               String?               @db.VarChar(100)
   media                stone_product_media[]
   stone_categories     stone_categories      @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }

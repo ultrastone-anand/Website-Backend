@@ -136,6 +136,7 @@ const getProductDetails = async (slug) => {
       long_description: true,
 
       category_id: true,
+      sealer: true,
 
       // DETAILS
 
@@ -569,6 +570,9 @@ const createProduct = async (body, files, audit = {}) => {
 
             pantone_colour:
               body.pantone_colour,
+
+            sealer:
+              body.sealer,
 
             // APPLICATIONS
 
@@ -1113,6 +1117,9 @@ const updateProduct = async (id, body, files, audit = {}) => {
 
         variation_level:
           body.variation_level,
+
+        sealer:
+          body.sealer,
 
         finishes_available:
           parseArray(
