@@ -223,3 +223,13 @@ model stone_product_seo {
   @@index([meta_title], map: "idx_stone_product_seo_meta_title")
   @@index([product_id], map: "idx_stone_product_seo_product_id")
 }
+
+model social_media_links {
+  id            BigInt    @id @default(autoincrement())
+  platform      String    @db.VarChar(50)
+  url           String
+  display_order Int?      @default(0)
+  is_active     Boolean?  @default(true)
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  updated_at    DateTime? @default(now()) @db.Timestamp(6)
+}

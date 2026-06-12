@@ -389,16 +389,275 @@ const deleteCompany = async (
 
 };
 
+// ================== GET ALL SOCIAL MEDIA ==================
+
+const getAllSocialMedia = async () => {
+
+  return await prisma.social_media_links.findMany({
+
+    orderBy: [
+      {
+        display_order: "asc",
+      },
+      {
+        created_at: "desc",
+      },
+    ],
+
+  });
+
+};
+
+// ================== GET SOCIAL MEDIA BY ID ==================
+
+const getSocialMedia = async (id) => {
+
+  const socialMedia =
+    await prisma.social_media_links.findUnique({
+
+      where: {
+        id: Number(id),
+      },
+
+    });
+
+  if (!socialMedia) {
+
+    throw new Error(
+      "Social media record not found"
+    );
+
+  }
+
+  return socialMedia;
+
+};
+
+// ================== CREATE SOCIAL MEDIA ==================
+
+const createSocialMedia = async (
+  data,
+  audit = {}
+) => {
+
+  const existingPlatform =
+    await prisma.social_media_links.findUnique({
+
+      where: {
+        platform: data.platform,
+      },
+
+    });
+
+  if (existingPlatform) {
+
+    throw new Error(
+      "Platform already exists"
+    );
+
+  }
+
+  return await auditService.track({
+
+    audit,
+
+    action: "CREATE",
+
+    resourceType: "SOCIAL_MEDIA",
+
+    moduleName:
+      "Social Media Management",
+
+    operation: () =>
+      prisma.social_media_links.create({
+
+        data: {
+
+          platform:
+            data.platform,
+
+          url:
+            data.url,
+
+          display_order:
+            data.display_order ?? 0,
+
+          is_active:
+            data.is_active ?? true,
+
+        },
+
+      }),
+
+  });
+
+};
+
+// ================== UPDATE SOCIAL MEDIA ==================
+
+const updateSocialMedia = async (
+  id,
+  data,
+  audit = {}
+) => {
+
+  const existingSocialMedia =
+    await prisma.social_media_links.findUnique({
+
+      where: {
+        id: Number(id),
+      },
+
+    });
+
+  if (!existingSocialMedia) {
+
+    throw new Error(
+      "Social media record not found"
+    );
+
+  }
+
+  if (
+    data.platform &&
+    data.platform !== existingSocialMedia.platform
+  ) {
+
+    const platformExists =
+      await prisma.social_media_links.findUnique({
+
+        where: {
+          platform: data.platform,
+        },
+
+      });
+
+    if (platformExists) {
+
+      throw new Error(
+        "Platform already exists"
+      );
+
+    }
+
+  }
+
+  return await auditService.track({
+
+    audit,
+
+    action: "UPDATE",
+
+    resourceType: "SOCIAL_MEDIA",
+
+    resourceId:
+      existingSocialMedia.id,
+
+    moduleName:
+      "Social Media Management",
+
+    oldValues:
+      existingSocialMedia,
+
+    operation: () =>
+      prisma.social_media_links.update({
+
+        where: {
+          id: Number(id),
+        },
+
+        data: {
+
+          platform:
+            data.platform,
+
+          url:
+            data.url,
+
+          display_order:
+            data.display_order,
+
+          is_active:
+            data.is_active,
+
+          updated_at:
+            new Date(),
+
+        },
+
+      }),
+
+  });
+
+};
+
+// ================== DELETE SOCIAL MEDIA ==================
+
+const deleteSocialMedia = async (
+  id,
+  audit = {}
+) => {
+
+  const existingSocialMedia =
+    await prisma.social_media_links.findUnique({
+
+      where: {
+        id: Number(id),
+      },
+
+    });
+
+  if (!existingSocialMedia) {
+
+    throw new Error(
+      "Social media record not found"
+    );
+
+  }
+
+  return await auditService.track({
+
+    audit,
+
+    action: "DELETE",
+
+    resourceType: "SOCIAL_MEDIA",
+
+    resourceId:
+      existingSocialMedia.id,
+
+    moduleName:
+      "Social Media Management",
+
+    oldValues:
+      existingSocialMedia,
+
+    operation: () =>
+      prisma.social_media_links.delete({
+
+        where: {
+          id: Number(id),
+        },
+
+      }),
+
+  });
+
+};
+
+
 module.exports = {
-
+  // Showrooms
   getCompany,
-
   getCompanyById,
-
   createCompany,
-
   updateCompany,
+  deleteCompany,
 
-  deleteCompany
-
+  // Social Media
+  getAllSocialMedia,
+  getSocialMedia,
+  createSocialMedia,
+  updateSocialMedia,
+  deleteSocialMedia,
 };
