@@ -76,16 +76,6 @@ model showrooms {
   updated_at              DateTime? @default(now()) @db.Timestamp(6)
 }
 
-model site_settings {
-  id            Int       @id @default(autoincrement())
-  setting_key   String    @unique @db.VarChar(100)
-  setting_value String?
-  setting_type  String?   @db.VarChar(50)
-  description   String?
-  is_editable   Boolean?  @default(true)
-  updated_at    DateTime? @default(now()) @db.Timestamp(6)
-}
-
 model stone_categories {
   id                     Int                @id @default(autoincrement())
   name                   String             @unique @db.VarChar(255)
