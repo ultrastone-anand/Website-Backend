@@ -12,7 +12,6 @@ const getStones = async () => {
     },
   });
 };
-
 const getCategoryProducts = async (slug) => {
 
   // FIND CATEGORY
@@ -227,6 +226,24 @@ const getProductDetails = async (slug) => {
         },
       },
 
+      // SEO
+
+      stone_product_seo: {
+  select: {
+    id: true,
+    meta_title: true,
+    meta_description: true,
+    canonical_url: true,
+    og_title: true,
+    og_description: true,
+    og_image: true,
+    schema_markup: true,
+    robots_index: true,
+    robots_follow: true,
+    seo_content: true,
+  },
+},
+
       // MEDIA
 
       media: {
@@ -236,6 +253,7 @@ const getProductDetails = async (slug) => {
 
         select: {
           id: true,
+          alt_text: true,
           media_type: true,
           media_url: true,
           public_id: true,
@@ -263,22 +281,73 @@ const getProductDetails = async (slug) => {
     .filter((item) => item.media_type === "featured_video")
     .map((item) => item.media_url);
 
-  return {
-    ...product,
+  const application_images = product.media
+    .filter((item) => item.media_type === "application_image")
+    .map((item) => item.media_url);
 
-    id: Number(product.id),
+  const bookmatch_slipmatchs = product.media
+    .filter((item) => item.media_type === "bookmatch_slipmatch")
+    .map((item) => item.media_url);
 
-    category_id: Number(product.category_id),
+    const {
+  stone_product_seo,
+  ...productWithoutSeo
+} = product;
 
-    media: product.media.map((item) => ({
-      ...item,
-      id: Number(item.id),
-    })),
+return {
+  ...productWithoutSeo,
 
-    closeup_images,
-    slab_images,
-    featured_videos,
-  };
+  id: Number(product.id),
+
+  category_id: Number(product.category_id),
+
+  media: product.media.map((item) => ({
+    ...item,
+    id: Number(item.id),
+  })),
+
+  seo: stone_product_seo
+    ? {
+        id: Number(stone_product_seo.id),
+
+        meta_title:
+          stone_product_seo.meta_title,
+
+        meta_description:
+          stone_product_seo.meta_description,
+
+        canonical_url:
+          stone_product_seo.canonical_url,
+
+        og_title:
+          stone_product_seo.og_title,
+
+        og_description:
+          stone_product_seo.og_description,
+
+        og_image:
+          stone_product_seo.og_image,
+
+        schema_markup:
+          stone_product_seo.schema_markup,
+
+        robots_index:
+          stone_product_seo.robots_index,
+
+        robots_follow:
+          stone_product_seo.robots_follow,
+
+        seo_content:
+          stone_product_seo.seo_content,
+      }
+    : null,
+
+  closeup_images,
+  slab_images,
+  featured_videos,
+  application_images,
+  bookmatch_slipmatchs,
+};
 };
 
 // ================  CATEGORY CRUD ================
@@ -679,6 +748,51 @@ const createProduct = async (body, files, audit = {}) => {
             is_active: true,
 
             // ==============================
+            // SEO
+            // ==============================
+
+            seo: {
+              create: {
+                meta_title:
+                  body.meta_title || null,
+
+                meta_description:
+                  body.meta_description || null,
+
+                canonical_url:
+                  body.canonical_url || null,
+
+                og_title:
+                  body.og_title || null,
+
+                og_description:
+                  body.og_description || null,
+
+                og_image:
+                  body.og_image || null,
+
+                schema_markup:
+                  body.schema_markup
+                    ? JSON.parse(body.schema_markup)
+                    : null,
+
+                robots_index:
+                  body.robots_index !== undefined
+                    ? toBool(body.robots_index)
+                    : true,
+
+                robots_follow:
+                  body.robots_follow !== undefined
+                    ? toBool(body.robots_follow)
+                    : true,
+
+                seo_content:
+                  body.seo_content || null,
+              },
+            },
+
+
+            // ==============================
             // MEDIA
             // ==============================
 
@@ -792,17 +906,32 @@ const updateProduct = async (id, body, files, audit = {}) => {
 
   };
 
-  const existingProduct =await prisma.stone_products.findUnique({
+  const parseJson = (value) => {
+    try {
+      if (!value) return null;
 
-      where: {
-        id: BigInt(id),
-      },
+      if (typeof value === "object") {
+        return value;
+      }
 
-      include: {
-        media: true,
-      },
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  };
 
-    });
+  const existingProduct = await prisma.stone_products.findUnique({
+
+    where: {
+      id: BigInt(id),
+    },
+
+    include: {
+      stone_product_seo: true,
+      media: true,
+    },
+
+  });
 
   if (!existingProduct) {
 
@@ -811,6 +940,22 @@ const updateProduct = async (id, body, files, audit = {}) => {
     );
 
   }
+
+  const existingMedia = JSON.parse(
+    body.existing_media || "[]"
+  );
+
+  const oldMedia = existingProduct.media.map((m) => ({
+    id: m.id.toString(),
+    alt_text: m.alt_text,
+  }));
+
+  const altTextMap = new Map(
+    existingMedia.map((item) => [
+      `${item.media_type}_${item.media_url}`,
+      item.alt_text || null,
+    ])
+  );
 
   // ==============================
   // FEATURED IMAGES
@@ -1053,292 +1198,257 @@ const updateProduct = async (id, body, files, audit = {}) => {
   // UPDATE PRODUCT
   // ==============================
 
-  const updatedProduct =
   await auditService.track({
     audit,
-
     action: "UPDATE",
+    resourceType: "PRODUCT_MEDIA",
+    resourceId: BigInt(id),
+    moduleName: "Stone Management",
+    oldValues: oldMedia,
 
-    resourceType:
-      "PRODUCT",
+    operation: async () => {
+      await Promise.all(
+        existingMedia.map((media) =>
+          prisma.stone_product_media.update({
+            where: {
+              id: BigInt(media.id),
+            },
+            data: {
+              alt_text: media.alt_text || null,
+            },
+          })
+        )
+      );
+    },
+  });
 
-    resourceId:
-      existingProduct.id,
+  const updatedProduct =
+    await auditService.track({
+      audit,
 
-    moduleName:
-      "Stone Management",
+      action: "UPDATE",
 
-    oldValues:
-      serializeBigInt(
-        existingProduct
-      ),
+      resourceType:
+        "PRODUCT",
+
+      resourceId:
+        existingProduct.id,
 
-    operation: () =>
-     prisma.stone_products.update({
+      moduleName:
+        "Stone Management",
+
+      oldValues:
+        serializeBigInt(
+          existingProduct
+        ),
+
+      operation: () =>
+        prisma.stone_products.update({
+
+          where: {
+            id: BigInt(id),
+          },
+
+          data: {
+
+            // BASIC
+
+            name:
+              body.name,
+
+            slug:
+              body.slug,
+
+            small_description:
+              body.small_description,
+
+            long_description:
+              body.long_description,
+
+            category_id:
+              body.category_id
+                ? Number(body.category_id)
+                : null,
+
+            // DETAILS
+
+            pattern:
+              body.pattern,
+
+            stone_group:
+              body.stone_group,
+
+            origin_country:
+              body.origin_country,
+
+            pantone_colour:
+              body.pantone_colour,
+
+            variation_level:
+              body.variation_level,
+
+            sealer:
+              body.sealer,
 
-      where: {
-        id: BigInt(id),
-      },
+            finishes_available:
+              parseArray(
+                body.finishes_available
+              ),
+
+            thicknesses_cm:
+              parseArray(
+                body.thicknesses_cm
+              ),
 
-      data: {
-
-        // BASIC
-
-        name:
-          body.name,
-
-        slug:
-          body.slug,
-
-        small_description:
-          body.small_description,
-
-        long_description:
-          body.long_description,
-
-        category_id:
-          body.category_id
-            ? Number(body.category_id)
-            : null,
-
-        // DETAILS
-
-        pattern:
-          body.pattern,
-
-        stone_group:
-          body.stone_group,
-
-        origin_country:
-          body.origin_country,
-
-        pantone_colour:
-          body.pantone_colour,
-
-        variation_level:
-          body.variation_level,
-
-        sealer:
-          body.sealer,
-
-        finishes_available:
-          parseArray(
-            body.finishes_available
-          ),
-
-        thicknesses_cm:
-          parseArray(
-            body.thicknesses_cm
-          ),
-
-        average_sizes_inches:
-          parseArray(
-            body.average_sizes_inches
-          ),
-
-        translucent:
-          toBool(
-            body.translucent
-          ),
-
-        cut_to_size:
-          toBool(
-            body.cut_to_size
-          ),
-
-        // APPLICATIONS
-
-        color_enhancing:
-          toBool(
-            body.color_enhancing
-          ),
-
-        countertops_vanities:
-          toBool(
-            body.countertops_vanities
-          ),
-
-        interior_floor:
-          toBool(
-            body.interior_floor
-          ),
-
-        interior_wall:
-          toBool(
-            body.interior_wall
-          ),
-
-        shower_wall:
-          toBool(
-            body.shower_wall
-          ),
-
-        shower_floor:
-          toBool(
-            body.shower_floor
-          ),
-
-        exterior_floor:
-          toBool(
-            body.exterior_floor
-          ),
-
-        exterior_wall:
-          toBool(
-            body.exterior_wall
-          ),
-
-        pool_fountain:
-          toBool(
-            body.pool_fountain
-          ),
-
-        fireplace:
-          toBool(
-            body.fireplace
-          ),
-
-        furniture_top:
-          toBool(
-            body.furniture_top
-          ),
-
-        // SPECIFICATIONS
-
-        abrasion_resistance:
-          body.abrasion_resistance,
-
-        stain_resistance:
-          body.stain_resistance,
-
-        etching_resistance:
-          body.etching_resistance,
-
-        heat_resistance:
-          body.heat_resistance,
-
-        uv_resistance:
-          body.uv_resistance,
-
-        color_range:
-          body.color_range,
-
-        movement_index:
-          body.movement_index,
-
-        // FLAGS
-
-        is_featured:
-          toBool(
-            body.is_featured
-          ),
-
-        is_trending:
-          toBool(
-            body.is_trending
-          ),
-
-        is_new_arrival:
-          toBool(
-            body.is_new_arrival
-          ),
-
-        // ==============================
-        // MEDIA
-        // ==============================
-
-        media: {
-
-          deleteMany: {},
-
-          create: [
-
-            // FEATURED IMAGES
-
-            ...featuredImages.map(
-              (url, index) => ({
-
-                media_type:
-                  "CLOSEUP_IMAGE",
-
-                media_url:
-                  url,
-
-                display_order:
-                  index,
-
-              })
-            ),
-
-            // GALLERY IMAGES
-
-            ...galleryImages.map(
-              (url, index) => ({
-
-                media_type:
-                  "SLAB_IMAGE",
-
-                media_url:
-                  url,
-
-                display_order:
-                  index,
-
-              })
-            ),
-
-            // VIDEOS
-
-            ...featuredVideos.map(
-              (url, index) => ({
-
-                media_type:
-                  "FEATURED_VIDEO",
-
-                media_url:
-                  url,
-
-                display_order:
-                  index,
-
-              })
-            ),
-
-            ...applicationImages.map(
-              (url, index) => ({
-                media_type:
-                  "APPLICATION_IMAGE",
-
-                media_url: url,
-
-                display_order: index,
-              })
-            ),
-
-            // BOOKMATCH / SLIPMATCH
-
-            ...bookmatchSlipmatchImages.map(
-              (url, index) => ({
-                media_type:
-                  "BOOKMATCH_SLIPMATCH",
-
-                media_url: url,
-
-                display_order: index,
-              })
-            ),
-
-          ],
-
-        },
-
-      },
-
-      include: {
-        media: true,
-      },
-
-    })
+            average_sizes_inches:
+              parseArray(
+                body.average_sizes_inches
+              ),
+
+            translucent:
+              toBool(
+                body.translucent
+              ),
+
+            cut_to_size:
+              toBool(
+                body.cut_to_size
+              ),
+
+            // APPLICATIONS
+
+            color_enhancing:
+              toBool(
+                body.color_enhancing
+              ),
+
+            countertops_vanities:
+              toBool(
+                body.countertops_vanities
+              ),
+
+            interior_floor:
+              toBool(
+                body.interior_floor
+              ),
+
+            interior_wall:
+              toBool(
+                body.interior_wall
+              ),
+
+            shower_wall:
+              toBool(
+                body.shower_wall
+              ),
+
+            shower_floor:
+              toBool(
+                body.shower_floor
+              ),
+
+            exterior_floor:
+              toBool(
+                body.exterior_floor
+              ),
+
+            exterior_wall:
+              toBool(
+                body.exterior_wall
+              ),
+
+            pool_fountain:
+              toBool(
+                body.pool_fountain
+              ),
+
+            fireplace:
+              toBool(
+                body.fireplace
+              ),
+
+            furniture_top:
+              toBool(
+                body.furniture_top
+              ),
+
+            // SPECIFICATIONS
+
+            abrasion_resistance:
+              body.abrasion_resistance,
+
+            stain_resistance:
+              body.stain_resistance,
+
+            etching_resistance:
+              body.etching_resistance,
+
+            heat_resistance:
+              body.heat_resistance,
+
+            uv_resistance:
+              body.uv_resistance,
+
+            color_range:
+              body.color_range,
+
+            movement_index:
+              body.movement_index,
+
+            // FLAGS
+
+            is_featured:
+              toBool(
+                body.is_featured
+              ),
+
+            is_trending:
+              toBool(
+                body.is_trending
+              ),
+
+            is_new_arrival:
+              toBool(
+                body.is_new_arrival
+              ),
+
+            stone_product_seo: {
+              upsert: {
+                create: {
+                  meta_title: body.meta_title || null,
+                  meta_description: body.meta_description || null,
+                  canonical_url: body.canonical_url || null,
+                  og_title: body.og_title || null,
+                  og_description: body.og_description || null,
+                  og_image: body.og_image || null,
+                  schema_markup: parseJson(body.schema_markup),
+                  robots_index: toBool(body.robots_index),
+                  robots_follow: toBool(body.robots_follow),
+                  seo_content: body.seo_content || null,
+                },
+
+                update: {
+                  meta_title: body.meta_title || null,
+                  meta_description: body.meta_description || null,
+                  canonical_url: body.canonical_url || null,
+                  og_title: body.og_title || null,
+                  og_description: body.og_description || null,
+                  og_image: body.og_image || null,
+                  schema_markup: parseJson(body.schema_markup),
+                  robots_index: toBool(body.robots_index),
+                  robots_follow: toBool(body.robots_follow),
+                  seo_content: body.seo_content || null,
+                },
+              },
+            },
+          },
+
+          include: {
+            stone_product_seo: true,
+            media: true,
+          },
+
+        })
     });
   return serializeBigInt(
     updatedProduct

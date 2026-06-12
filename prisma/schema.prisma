@@ -33,26 +33,6 @@ model activity_logs {
   @@index([resource_type, resource_id, created_at(sort: Desc)], map: "idx_activity_resource_full")
 }
 
-model company_info {
-  id                  Int       @id @default(autoincrement())
-  company_name        String    @default("Ultra Stones") @db.VarChar(255)
-  company_description String?
-  logo_url            String?   @db.VarChar(500)
-  favicon_url         String?   @db.VarChar(500)
-  phone_primary       String?   @db.VarChar(20)
-  phone_secondary     String?   @db.VarChar(20)
-  email_primary       String?   @db.VarChar(255)
-  email_secondary     String?   @db.VarChar(255)
-  whatsapp_number     String?   @db.VarChar(20)
-  website_url         String?   @db.VarChar(255)
-  founded_year        Int?
-  total_stones_count  Int?      @default(500)
-  meta_description    String?
-  meta_keywords       String?
-  created_at          DateTime? @default(now()) @db.Timestamp(6)
-  updated_at          DateTime? @default(now()) @db.Timestamp(6)
-}
-
 model roles {
   id          Int       @id @default(autoincrement())
   role_id     String    @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
@@ -67,25 +47,31 @@ model roles {
 model showrooms {
   id                      Int       @id @default(autoincrement())
   name                    String    @db.VarChar(255)
-  slug                    String    @unique @db.VarChar(100)
+  slug                    String    @unique @db.VarChar(150)
   address                 String    @db.VarChar(255)
   city                    String    @db.VarChar(100)
-  state                   String    @db.VarChar(50)
+  state                   String    @db.VarChar(100)
   zip_code                String?   @db.VarChar(20)
   country                 String?   @db.VarChar(100)
-  phone                   String?   @db.VarChar(20)
-  fax                     String?   @db.VarChar(20)
+  primary_phone           String?   @db.VarChar(30)
+  secondary_phone         String?   @db.VarChar(30)
+  company_phone           String?   @db.VarChar(30)
   email                   String?   @db.VarChar(255)
   latitude                Decimal?  @db.Decimal(10, 8)
   longitude               Decimal?  @db.Decimal(11, 8)
-  business_hours_mon_fri  String?   @db.VarChar(50)
-  business_hours_saturday String?   @db.VarChar(50)
-  business_hours_sunday   String?   @db.VarChar(50)
-  description             String?
-  image_url               String?   @db.VarChar(500)
+  google_maps_url         String?
+  short_description       String?
+  long_description        String?
+  business_hours_mon_fri  String?   @db.VarChar(100)
+  business_hours_saturday String?   @db.VarChar(100)
+  business_hours_sunday   String?   @db.VarChar(100)
+  image_url               String?
+  banner_image_url        String?
+  meta_title              String?   @db.VarChar(255)
+  meta_description        String?
   is_active               Boolean?  @default(true)
   is_featured             Boolean?  @default(false)
-  display_order           Int?
+  display_order           Int?      @default(0)
   created_at              DateTime? @default(now()) @db.Timestamp(6)
   updated_at              DateTime? @default(now()) @db.Timestamp(6)
 }
@@ -164,6 +150,7 @@ model stone_products {
   interior_wall        Boolean?
   sealer               String?               @db.VarChar(100)
   media                stone_product_media[]
+  stone_product_seo    stone_product_seo?
   stone_categories     stone_categories      @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
@@ -175,6 +162,7 @@ model stone_product_media {
   display_order Int?           @default(0)
   created_at    DateTime?      @default(now()) @db.Timestamp(6)
   public_id     String?
+  alt_text      String?
   product       stone_products @relation(fields: [product_id], references: [id], onDelete: Cascade)
 }
 
@@ -223,4 +211,25 @@ model sys_lookup_details {
   sys_lookup    sys_lookup @relation(fields: [lookup_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([lookup_id], map: "idx_lookup_details_lookup_id")
+}
+
+model stone_product_seo {
+  id               BigInt         @id @default(autoincrement())
+  product_id       BigInt         @unique
+  meta_title       String?        @db.VarChar(255)
+  meta_description String?
+  canonical_url    String?
+  og_title         String?        @db.VarChar(255)
+  og_description   String?
+  og_image         String?
+  schema_markup    Json?
+  robots_index     Boolean        @default(true)
+  robots_follow    Boolean        @default(true)
+  seo_content      String?
+  created_at       DateTime       @default(now()) @db.Timestamp(6)
+  updated_at       DateTime       @default(now()) @db.Timestamp(6)
+  stone_products   stone_products @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_stone_product_seo_product")
+
+  @@index([meta_title], map: "idx_stone_product_seo_meta_title")
+  @@index([product_id], map: "idx_stone_product_seo_product_id")
 }

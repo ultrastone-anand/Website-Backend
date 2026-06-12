@@ -3,8 +3,9 @@ const cors = require('cors');
 
 const userRoutes = require('./routes/user.routes');
 const stoneRoutes = require('./routes/stone.routes');
-const lookupRoutes = require('./routes/lookup.routes');
 const reportRoutes = require('./routes/report.routes');
+const lookupRoutes = require('./routes/lookup.routes');
+const companyRoutes = require('./routes/company.routes');
 const activityRoutes = require('./routes/activity.routes');
 const dasboardRoutes = require('./routes/dashboard.routes');
 
@@ -26,5 +27,6 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/lookups', lookupRoutes);
 app.use('/api/dashboard', dasboardRoutes);
 app.use('/api/activitie', activityRoutes);
+app.use('/api/company', companyRoutes);
 
 module.exports = app;
