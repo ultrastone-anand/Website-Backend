@@ -751,7 +751,7 @@ const createProduct = async (body, files, audit = {}) => {
             // SEO
             // ==============================
 
-            seo: {
+            stone_product_seo: {
               create: {
                 meta_title:
                   body.meta_title || null,
@@ -857,6 +857,7 @@ const createProduct = async (body, files, audit = {}) => {
           },
 
           include: {
+            stone_product_seo: true,
             media: true,
           },
 
@@ -1456,10 +1457,7 @@ const updateProduct = async (id, body, files, audit = {}) => {
 
 };
 
-const deleteProduct = async (
-  id,
-  audit = {}
-) => {
+const deleteProduct = async ( id , audit = {} ) => {
 
   const existingProduct =
     await prisma.stone_products.findUnique({
@@ -1519,6 +1517,122 @@ const deleteProduct = async (
 
 };
 
+const bulkCreateProducts = async ( products,audit = {}) => {
+  const createdProducts =
+    await prisma.$transaction(
+      products.map((product) =>
+        prisma.stone_products.create({
+          data: {
+            name: product.name,
+            slug: product.slug,
+
+            category_id:
+              product.category_id,
+
+            stone_group:
+              product.stone_group,
+
+            origin_country:
+              product.origin_country,
+
+            abrasion_resistance:
+              product.abrasion_resistance,
+
+            stain_resistance:
+              product.stain_resistance,
+
+            etching_resistance:
+              product.etching_resistance,
+
+            heat_resistance:
+              product.heat_resistance,
+
+            uv_resistance:
+              product.uv_resistance,
+
+            color_range:
+              product.color_range,
+
+            movement_index:
+              product.movement_index,
+
+            color_enhancing:
+              product.color_enhancing,
+
+            countertops_vanities:
+              product.countertops_vanities,
+
+            interior_floor:
+              product.interior_floor,
+
+            fireplace:
+              product.fireplace,
+
+            shower_wall:
+              product.shower_wall,
+
+            shower_floor:
+              product.shower_floor,
+
+            exterior_floor:
+              product.exterior_floor,
+
+            exterior_wall:
+              product.exterior_wall,
+
+            pool_fountain:
+              product.pool_fountain,
+
+            furniture_top:
+              product.furniture_top,
+
+            translucent:
+              product.translucent,
+
+            cut_to_size:
+              product.cut_to_size,
+
+            pattern:
+              product.pattern,
+
+            sealer:
+              product.sealer,
+
+            thicknesses_cm:
+              product.thicknesses_cm,
+
+            finishes_available:
+              product.finishes_available,
+
+            average_sizes_inches:
+              product.average_sizes_inches,
+
+            is_active: true,
+
+            stone_product_seo: {
+              create: {
+                meta_title:
+                  product.name,
+
+                meta_description:
+                  product.name,
+
+                robots_index: true,
+
+                robots_follow: true,
+              },
+            },
+          },
+        })
+      )
+    );
+
+  return {
+    count:
+      createdProducts.length,
+  };
+};
+
 module.exports = {
   getStones,
   getCategoryProducts,
@@ -1530,4 +1644,5 @@ module.exports = {
   createProduct,
   updateProduct,
   deleteProduct,
+  bulkCreateProducts,
 };

@@ -286,6 +286,37 @@ const deleteProduct = async (
 
 };
 
+const bulkCreateProducts = async (
+  req,
+  res
+) => {
+  try {
+    const result =
+      await stoneservice.bulkCreateProducts(
+        req.body.products,
+        {
+          userId: req.user?.id,
+          ipAddress: req.ip,
+        }
+      );
+
+    return res.status(201).json({
+      success: true,
+      message: `${result.count} products created successfully`,
+      data: result,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.message ||
+        "Bulk upload failed",
+    });
+  }
+};
+
 module.exports = {
 
   getStones,
@@ -302,6 +333,8 @@ module.exports = {
 
   updateProduct,
 
-  deleteProduct
+  deleteProduct,
+
+  bulkCreateProducts
 
 };
