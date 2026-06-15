@@ -101,7 +101,12 @@ router.delete(
   stoneController.deleteProduct
 )
 
+router.post( "/bulkupload", authenticate, stoneController.bulkCreateProducts);
+
 router.post(
-  "/bulkupload", authenticate, stoneController.bulkCreateProducts);
+  "/bulk-delete",
+  authenticate,
+  stoneController.bulkDeleteProducts
+);
 
 module.exports = router;

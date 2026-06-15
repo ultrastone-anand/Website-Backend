@@ -294,10 +294,7 @@ const bulkCreateProducts = async (
     const result =
       await stoneservice.bulkCreateProducts(
         req.body.products,
-        {
-          userId: req.user?.id,
-          ipAddress: req.ip,
-        }
+        getAuditContext(req)
       );
 
     return res.status(201).json({
@@ -314,6 +311,50 @@ const bulkCreateProducts = async (
         error.message ||
         "Bulk upload failed",
     });
+  }
+};
+
+const bulkDeleteProducts = async (
+  req,
+  res
+) => {
+  try {
+
+    const { ids } = req.body;
+
+    if (
+      !Array.isArray(ids) ||
+      ids.length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please provide product ids",
+      });
+    }
+
+
+
+    const result =
+      await stoneservice.bulkDeleteProducts(
+        ids,
+        getAuditContext(req)
+      );
+
+    return res.json({
+      success: true,
+      data: result,
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+
   }
 };
 
@@ -335,6 +376,8 @@ module.exports = {
 
   deleteProduct,
 
-  bulkCreateProducts
+  bulkCreateProducts,
+
+  bulkDeleteProducts,
 
 };
