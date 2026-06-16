@@ -182,6 +182,8 @@ const getProductDetails = async (slug) => {
 
       furniture_top: true,
 
+      silica_warning: true,
+
       // SPECIFICATIONS
 
       abrasion_resistance: true,
@@ -245,6 +247,24 @@ const getProductDetails = async (slug) => {
   },
 },
 
+product_faqs: {
+    where: {
+      is_active: true,
+    },
+
+    orderBy: {
+      sort_order: "asc",
+    },
+
+    select: {
+      id: true,
+      question: true,
+      answer: true,
+      sort_order: true,
+      is_active: true,
+    },
+  },
+
       // MEDIA
 
       media: {
@@ -292,6 +312,7 @@ const getProductDetails = async (slug) => {
 
     const {
   stone_product_seo,
+  product_faqs,
   ...productWithoutSeo
 } = product;
 
@@ -342,6 +363,13 @@ return {
           stone_product_seo.seo_content,
       }
     : null,
+    faqs: product_faqs.map((faq) => ({
+  id: Number(faq.id),
+  question: faq.question,
+  answer: faq.answer,
+  sort_order: faq.sort_order,
+  is_active: faq.is_active,
+})),
 
   closeup_images,
   slab_images,
@@ -510,6 +538,19 @@ const createProduct = async (body, files, audit = {}) => {
       return [];
     }
   };
+  const parseFaqs = (value) => {
+  try {
+    if (!value) return [];
+
+    if (Array.isArray(value)) {
+      return value;
+    }
+
+    return JSON.parse(value);
+  } catch {
+    return [];
+  }
+};
   const uploadFiles = async (
     fileArray,
     folder,
@@ -564,6 +605,8 @@ const createProduct = async (body, files, audit = {}) => {
     files?.bookmatch_slipmatch,
     "ultrastones/products/bookmatch-slipmatch"
   );
+
+  const faqs = parseFaqs(body.faqs);
 
   // ==============================
   // CREATE PRODUCT
@@ -701,6 +744,11 @@ const createProduct = async (body, files, audit = {}) => {
                 body.furniture_top
               ),
 
+              silica_warning:
+                toBool(
+                  body.silica_warning
+              ),
+
             // SPECIFICATIONS
 
             abrasion_resistance:
@@ -792,6 +840,23 @@ const createProduct = async (body, files, audit = {}) => {
               },
             },
 
+            product_faqs: {
+  create: faqs
+    .filter(
+      (faq) =>
+        faq.question?.trim() &&
+        faq.answer?.trim()
+    )
+    .map((faq, index) => ({
+      question: faq.question.trim(),
+      answer: faq.answer.trim(),
+      sort_order:
+        faq.sort_order ?? index,
+      is_active:
+        faq.is_active ?? true,
+    })),
+},
+
 
             // ==============================
             // MEDIA
@@ -860,6 +925,7 @@ const createProduct = async (body, files, audit = {}) => {
           include: {
             stone_product_seo: true,
             media: true,
+            product_faqs: true,
           },
 
         })
@@ -922,6 +988,20 @@ const updateProduct = async (id, body, files, audit = {}) => {
     }
   };
 
+  const parseFaqs = (value) => {
+  try {
+    if (!value) return [];
+
+    if (Array.isArray(value)) {
+      return value;
+    }
+
+    return JSON.parse(value);
+  } catch {
+    return [];
+  }
+};
+
   const existingProduct = await prisma.stone_products.findUnique({
 
     where: {
@@ -959,6 +1039,7 @@ const updateProduct = async (id, body, files, audit = {}) => {
     ])
   );
 
+  const faqs = parseFaqs(body.faqs);
   // ==============================
   // FEATURED IMAGES
   // ==============================
@@ -1374,6 +1455,11 @@ const updateProduct = async (id, body, files, audit = {}) => {
                 body.furniture_top
               ),
 
+            silica_warning:
+              toBool(
+                body.silica_warning
+            ),
+
             // SPECIFICATIONS
 
             abrasion_resistance:
@@ -1443,11 +1529,31 @@ const updateProduct = async (id, body, files, audit = {}) => {
                 },
               },
             },
+
+              product_faqs: {
+    deleteMany: {},
+
+    create: faqs
+      .filter(
+        (faq) =>
+          faq.question?.trim() &&
+          faq.answer?.trim()
+      )
+      .map((faq, index) => ({
+        question: faq.question.trim(),
+        answer: faq.answer.trim(),
+        sort_order:
+          faq.sort_order ?? index,
+        is_active:
+          faq.is_active ?? true,
+      })),
+  },
           },
 
           include: {
             stone_product_seo: true,
             media: true,
+            product_faqs: true,
           },
 
         })
@@ -1824,7 +1930,7 @@ const bulkDeleteProducts = async (
         },
       });
 
-      return seralize({
+      return serialize({
         count:
           deletedProducts.length,
 
