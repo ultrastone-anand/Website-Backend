@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require("path");
 
 const userRoutes = require('./routes/user.routes');
 const stoneRoutes = require('./routes/stone.routes');
@@ -25,6 +26,15 @@ app.use(
     limit: "50mb",
   })
 );
+
+
+app.use(
+  "/uploads",
+  express.static(
+    path.join(__dirname, "../uploads")
+  )
+);
+
 
 app.get('/', (req, res) => {
   res.json({

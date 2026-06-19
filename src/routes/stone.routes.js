@@ -19,14 +19,13 @@ router.get("/productdetail/:slug", stoneController.getProductDetails);
 // CATEGORY CRUD
 // ==============================
 
-router.post("/category", authenticate , stoneController.createCategory);
+router.post("/category", authenticate ,  upload.single("silica_datasheet"), stoneController.createCategory);
 
-router.put("/category/:id", authenticate , stoneController.updateCategory);
+router.put("/category/:id", authenticate ,  upload.single("silica_datasheet"), stoneController.updateCategory);
 
 // ==============================
 // PRODUCT CRUD
 // ==============================
-
 
 router.post(
   "/product",
@@ -55,6 +54,9 @@ router.post(
       name: "bookmatch_slipmatch",
       maxCount: 20, // multiple uploads
     },
+
+    { name: "silica_datasheet", maxCount: 1 }, // ADD THIS
+
   ]),
 
   stoneController.createProduct
@@ -90,6 +92,9 @@ router.put(
       name: "bookmatch_slipmatch",
       maxCount: 20, // multiple uploads
     },
+
+    { name: "silica_datasheet", maxCount: 1 }, // ADD THIS
+
   ]),
 
   stoneController.updateProduct
@@ -108,5 +113,12 @@ router.post(
   authenticate,
   stoneController.bulkDeleteProducts
 );
+
+router.patch(
+  "/product/:id/status",
+  stoneController.updateProductStatus
+);
+
+
 
 module.exports = router;

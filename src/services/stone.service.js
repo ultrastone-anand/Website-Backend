@@ -36,7 +36,6 @@ const getCategoryProducts = async (slug) => {
 
       where: {
         category_id: category.id,
-        is_active: true,
       },
 
       orderBy: {
@@ -63,11 +62,7 @@ const getCategoryProducts = async (slug) => {
 
         variation_level: true,
 
-        is_featured: true,
-
-        is_trending: true,
-
-        is_new_arrival: true,
+        is_active: true,
 
         created_at: true,
 
@@ -184,6 +179,10 @@ const getProductDetails = async (slug) => {
 
       silica_warning: true,
 
+      silica_warning_message: true,
+
+      silica_datasheet_url: true,
+
       // SPECIFICATIONS
 
       abrasion_resistance: true,
@@ -226,44 +225,48 @@ const getProductDetails = async (slug) => {
           id: true,
           name: true,
           slug: true,
+
+          silica_warning: true,
+          silica_warning_message: true,
+          silica_datasheet_url: true,
         },
       },
 
       // SEO
 
       stone_product_seo: {
-  select: {
-    id: true,
-    meta_title: true,
-    meta_description: true,
-    canonical_url: true,
-    og_title: true,
-    og_description: true,
-    og_image: true,
-    schema_markup: true,
-    robots_index: true,
-    robots_follow: true,
-    seo_content: true,
-  },
-},
+        select: {
+          id: true,
+          meta_title: true,
+          meta_description: true,
+          canonical_url: true,
+          og_title: true,
+          og_description: true,
+          og_image: true,
+          schema_markup: true,
+          robots_index: true,
+          robots_follow: true,
+          seo_content: true,
+        },
+      },
 
-product_faqs: {
-    where: {
-      is_active: true,
-    },
+      product_faqs: {
+        where: {
+          is_active: true,
+        },
 
-    orderBy: {
-      sort_order: "asc",
-    },
+        orderBy: {
+          sort_order: "asc",
+        },
 
-    select: {
-      id: true,
-      question: true,
-      answer: true,
-      sort_order: true,
-      is_active: true,
-    },
-  },
+        select: {
+          id: true,
+          question: true,
+          answer: true,
+          sort_order: true,
+          is_active: true,
+        },
+      },
 
       // MEDIA
 
@@ -310,73 +313,90 @@ product_faqs: {
     .filter((item) => item.media_type === "bookmatch_slipmatch")
     .map((item) => item.media_url);
 
-    const {
-  stone_product_seo,
-  product_faqs,
-  ...productWithoutSeo
-} = product;
+  const {
+    stone_product_seo,
+    product_faqs,
+    ...productWithoutSeo
+  } = product;
 
-return {
-  ...productWithoutSeo,
+  return {
+    ...productWithoutSeo,
 
-  id: Number(product.id),
+    id: Number(product.id),
 
-  category_id: Number(product.category_id),
+    category_id: Number(product.category_id),
 
-  media: product.media.map((item) => ({
-    ...item,
-    id: Number(item.id),
-  })),
+    media: product.media.map((item) => ({
+      ...item,
+      id: Number(item.id),
+    })),
 
-  seo: stone_product_seo
-    ? {
-        id: Number(stone_product_seo.id),
+    seo: stone_product_seo ? {
+      id: Number(stone_product_seo.id),
 
-        meta_title:
-          stone_product_seo.meta_title,
+      meta_title:
+        stone_product_seo.meta_title,
 
-        meta_description:
-          stone_product_seo.meta_description,
+      meta_description:
+        stone_product_seo.meta_description,
 
-        canonical_url:
-          stone_product_seo.canonical_url,
+      canonical_url:
+        stone_product_seo.canonical_url,
 
-        og_title:
-          stone_product_seo.og_title,
+      og_title:
+        stone_product_seo.og_title,
 
-        og_description:
-          stone_product_seo.og_description,
+      og_description:
+        stone_product_seo.og_description,
 
-        og_image:
-          stone_product_seo.og_image,
+      og_image:
+        stone_product_seo.og_image,
 
-        schema_markup:
-          stone_product_seo.schema_markup,
+      schema_markup:
+        stone_product_seo.schema_markup,
 
-        robots_index:
-          stone_product_seo.robots_index,
+      robots_index:
+        stone_product_seo.robots_index,
 
-        robots_follow:
-          stone_product_seo.robots_follow,
+      robots_follow:
+        stone_product_seo.robots_follow,
 
-        seo_content:
-          stone_product_seo.seo_content,
-      }
-    : null,
+      seo_content:
+        stone_product_seo.seo_content,
+    }
+      : null,
+
     faqs: product_faqs.map((faq) => ({
-  id: Number(faq.id),
-  question: faq.question,
-  answer: faq.answer,
-  sort_order: faq.sort_order,
-  is_active: faq.is_active,
-})),
+      id: Number(faq.id),
+      question: faq.question,
+      answer: faq.answer,
+      sort_order: faq.sort_order,
+      is_active: faq.is_active,
+    })),
 
-  closeup_images,
-  slab_images,
-  featured_videos,
-  application_images,
-  bookmatch_slipmatchs,
-};
+    silica_warning:
+      product.silica_warning ||
+
+      product.stone_categories?.silica_warning ||
+
+      false,
+
+    silica_warning_message:
+      product.silica_warning_message ||
+      product.stone_categories?.silica_warning_message ||
+      null,
+
+    silica_datasheet_url:
+      product.silica_datasheet_url ||
+      product.stone_categories?.silica_datasheet_url ||
+      null,
+
+    closeup_images,
+    slab_images,
+    featured_videos,
+    application_images,
+    bookmatch_slipmatchs,
+  };
 };
 
 // ================  CATEGORY CRUD ================
@@ -423,6 +443,16 @@ const createCategory = async (
           display_order:
             body.display_order || 1,
 
+          silica_warning:
+            body.silica_warning === "true" ||
+            body.silica_warning === true,
+
+          silica_warning_message:
+            body.silica_warning_message || null,
+
+          silica_datasheet_url:
+            body.silica_datasheet_url || null,
+
           is_active:
             true
 
@@ -442,38 +472,60 @@ const updateCategory = async (
 
   const existingCategory =
     await prisma.stone_categories.findUnique({
-
       where: {
         id: Number(id)
       }
-
     });
 
   if (!existingCategory) {
-
     throw new Error(
       "Category not found"
     );
-
   }
 
   const updateData = {
     ...body
   };
 
-  if ("parent_id" in updateData) {
 
+  if (
+    "is_active" in updateData
+  ) {
+    updateData.is_active =
+      updateData.is_active === "true" ||
+      updateData.is_active === true;
+  }
+
+  if (
+    "silica_warning" in updateData
+  ) {
+    updateData.silica_warning =
+      updateData.silica_warning === "true" ||
+      updateData.silica_warning === true;
+  }
+
+  if (
+    "silica_warning_message" in updateData
+  ) {
+    updateData.silica_warning_message =
+      updateData.silica_warning_message || null;
+  }
+
+  if (
+    "silica_datasheet_url" in updateData
+  ) {
+    updateData.silica_datasheet_url =
+      updateData.silica_datasheet_url || null;
+  }
+
+  if (
+    "parent_id" in updateData
+  ) {
     updateData.parent_id =
-
       updateData.parent_id === "" ||
         updateData.parent_id === null
-
         ? null
-
-        : Number(
-          updateData.parent_id
-        );
-
+        : Number(updateData.parent_id);
   }
 
   return await auditService.track({
@@ -482,8 +534,7 @@ const updateCategory = async (
 
     action: "UPDATE",
 
-    resourceType:
-      "CATEGORY",
+    resourceType: "CATEGORY",
 
     resourceId:
       existingCategory.id,
@@ -494,17 +545,43 @@ const updateCategory = async (
     oldValues:
       existingCategory,
 
-    operation: () =>
-      prisma.stone_categories.update({
+    operation: async () => {
 
-        where: {
-          id: Number(id)
-        },
+      const updatedCategory =
+        await prisma.stone_categories.update({
 
-        data:
-          updateData
+          where: {
+            id: Number(id)
+          },
 
-      })
+          data: updateData
+
+        });
+
+      // If parent category is deactivated,
+      // deactivate all child categories
+      if (
+        "is_active" in updateData &&
+        updateData.is_active === false
+      ) {
+
+        await prisma.stone_categories.updateMany({
+
+          where: {
+            parent_id: Number(id)
+          },
+
+          data: {
+            is_active: false
+          }
+
+        });
+
+      }
+
+      return updatedCategory;
+
+    }
 
   });
 
@@ -539,18 +616,18 @@ const createProduct = async (body, files, audit = {}) => {
     }
   };
   const parseFaqs = (value) => {
-  try {
-    if (!value) return [];
+    try {
+      if (!value) return [];
 
-    if (Array.isArray(value)) {
-      return value;
+      if (Array.isArray(value)) {
+        return value;
+      }
+
+      return JSON.parse(value);
+    } catch {
+      return [];
     }
-
-    return JSON.parse(value);
-  } catch {
-    return [];
-  }
-};
+  };
   const uploadFiles = async (
     fileArray,
     folder,
@@ -644,6 +721,15 @@ const createProduct = async (body, files, audit = {}) => {
               body.category_id
                 ? Number(body.category_id)
                 : null,
+
+            silica_warning:
+              toBool(body.silica_warning),
+
+            silica_warning_message:
+              body.silica_warning_message || null,
+
+            silica_datasheet_url:
+              body.silica_datasheet_url || null,
 
             // DETAILS
 
@@ -744,9 +830,9 @@ const createProduct = async (body, files, audit = {}) => {
                 body.furniture_top
               ),
 
-              silica_warning:
-                toBool(
-                  body.silica_warning
+            silica_warning:
+              toBool(
+                body.silica_warning
               ),
 
             // SPECIFICATIONS
@@ -841,21 +927,21 @@ const createProduct = async (body, files, audit = {}) => {
             },
 
             product_faqs: {
-  create: faqs
-    .filter(
-      (faq) =>
-        faq.question?.trim() &&
-        faq.answer?.trim()
-    )
-    .map((faq, index) => ({
-      question: faq.question.trim(),
-      answer: faq.answer.trim(),
-      sort_order:
-        faq.sort_order ?? index,
-      is_active:
-        faq.is_active ?? true,
-    })),
-},
+              create: faqs
+                .filter(
+                  (faq) =>
+                    faq.question?.trim() &&
+                    faq.answer?.trim()
+                )
+                .map((faq, index) => ({
+                  question: faq.question.trim(),
+                  answer: faq.answer.trim(),
+                  sort_order:
+                    faq.sort_order ?? index,
+                  is_active:
+                    faq.is_active ?? true,
+                })),
+            },
 
 
             // ==============================
@@ -989,18 +1075,18 @@ const updateProduct = async (id, body, files, audit = {}) => {
   };
 
   const parseFaqs = (value) => {
-  try {
-    if (!value) return [];
+    try {
+      if (!value) return [];
 
-    if (Array.isArray(value)) {
-      return value;
+      if (Array.isArray(value)) {
+        return value;
+      }
+
+      return JSON.parse(value);
+    } catch {
+      return [];
     }
-
-    return JSON.parse(value);
-  } catch {
-    return [];
-  }
-};
+  };
 
   const existingProduct = await prisma.stone_products.findUnique({
 
@@ -1038,6 +1124,18 @@ const updateProduct = async (id, body, files, audit = {}) => {
       item.alt_text || null,
     ])
   );
+
+
+  let silicaDatasheetUrl =
+  existingProduct.silica_datasheet_url;
+
+if (
+  files?.silica_datasheet &&
+  files.silica_datasheet.length > 0
+) {
+  silicaDatasheetUrl =
+    `/uploads/${files.silica_datasheet[0].filename}`;
+}
 
   const faqs = parseFaqs(body.faqs);
   // ==============================
@@ -1458,7 +1556,14 @@ const updateProduct = async (id, body, files, audit = {}) => {
             silica_warning:
               toBool(
                 body.silica_warning
-            ),
+              ),
+
+            silica_warning_message:
+              body.silica_warning_message
+            ,
+
+silica_datasheet_url:
+  silicaDatasheetUrl,
 
             // SPECIFICATIONS
 
@@ -1530,24 +1635,24 @@ const updateProduct = async (id, body, files, audit = {}) => {
               },
             },
 
-              product_faqs: {
-    deleteMany: {},
+            product_faqs: {
+              deleteMany: {},
 
-    create: faqs
-      .filter(
-        (faq) =>
-          faq.question?.trim() &&
-          faq.answer?.trim()
-      )
-      .map((faq, index) => ({
-        question: faq.question.trim(),
-        answer: faq.answer.trim(),
-        sort_order:
-          faq.sort_order ?? index,
-        is_active:
-          faq.is_active ?? true,
-      })),
-  },
+              create: faqs
+                .filter(
+                  (faq) =>
+                    faq.question?.trim() &&
+                    faq.answer?.trim()
+                )
+                .map((faq, index) => ({
+                  question: faq.question.trim(),
+                  answer: faq.answer.trim(),
+                  sort_order:
+                    faq.sort_order ?? index,
+                  is_active:
+                    faq.is_active ?? true,
+                })),
+            },
           },
 
           include: {
@@ -1564,7 +1669,7 @@ const updateProduct = async (id, body, files, audit = {}) => {
 
 };
 
-const deleteProduct = async ( id , audit = {} ) => {
+const deleteProduct = async (id, audit = {}) => {
 
   const existingProduct =
     await prisma.stone_products.findUnique({
@@ -1623,121 +1728,6 @@ const deleteProduct = async ( id , audit = {} ) => {
   });
 
 };
-
-// const bulkCreateProducts = async ( products,audit = {}) => {
-//   const createdProducts =
-//     await prisma.$transaction(
-//       products.map((product) =>
-//         prisma.stone_products.create({
-//           data: {
-//             name: product.name,
-//             slug: product.slug,
-
-//             category_id:
-//               product.category_id,
-
-//             stone_group:
-//               product.stone_group,
-
-//             origin_country:
-//               product.origin_country,
-
-//             abrasion_resistance:
-//               product.abrasion_resistance,
-
-//             stain_resistance:
-//               product.stain_resistance,
-
-//             etching_resistance:
-//               product.etching_resistance,
-
-//             heat_resistance:
-//               product.heat_resistance,
-
-//             uv_resistance:
-//               product.uv_resistance,
-
-//             color_range:
-//               product.color_range,
-
-//             movement_index:
-//               product.movement_index,
-
-//             color_enhancing:
-//               product.color_enhancing,
-
-//             countertops_vanities:
-//               product.countertops_vanities,
-
-//             interior_floor:
-//               product.interior_floor,
-
-//             fireplace:
-//               product.fireplace,
-
-//             shower_wall:
-//               product.shower_wall,
-
-//             shower_floor:
-//               product.shower_floor,
-
-//             exterior_floor:
-//               product.exterior_floor,
-
-//             exterior_wall:
-//               product.exterior_wall,
-
-//             pool_fountain:
-//               product.pool_fountain,
-
-//             furniture_top:
-//               product.furniture_top,
-
-//             translucent:
-//               product.translucent,
-
-//             cut_to_size:
-//               product.cut_to_size,
-
-//             pattern:
-//               product.pattern,
-
-//             sealer:
-//               product.sealer,
-
-//             thicknesses_cm:
-//               product.thicknesses_cm,
-
-//             finishes_available:
-//               product.finishes_available,
-
-//             average_sizes_inches:
-//               product.average_sizes_inches,
-
-//             is_active: true,
-
-//             stone_product_seo: {
-//               create: {
-//                 meta_title:
-//                   product.name,
-
-//                 meta_description:
-//                   product.name,
-
-//                 robots_index: true,
-
-//                 robots_follow: true,
-//               },
-//             },
-//           },
-//         })
-//       )
-//     );
-//   return {
-//     count:
-//       createdProducts.length,
-//   };
-// };
 
 const bulkCreateProducts = async (
   products,
@@ -1942,6 +1932,26 @@ const bulkDeleteProducts = async (
 
 };
 
+const updateProductStatus = async (
+  id,
+  is_active
+) => {
+
+  const product =
+    await prisma.stone_products.update({
+      where: {
+        id: Number(id),
+      },
+      data: {
+        is_active: Boolean(is_active),
+      },
+    });
+
+
+  return serialize(product);
+};
+
+
 module.exports = {
   getStones,
   getCategoryProducts,
@@ -1955,4 +1965,5 @@ module.exports = {
   deleteProduct,
   bulkCreateProducts,
   bulkDeleteProducts,
+  updateProductStatus,
 };

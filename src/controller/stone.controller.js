@@ -101,11 +101,22 @@ const createCategory = async (
 
   try {
 
-    const data =
-      await stoneservice.createCategory(
-        req.body,
-        getAuditContext(req)
-      );
+    const payload = {
+  ...req.body,
+};
+
+if (req.file) {
+
+  payload.silica_datasheet_url =
+    `/uploads/${req.file.filename}`;
+
+}
+
+const data =
+  await stoneservice.createCategory(
+    payload,
+    getAuditContext(req)
+  );
 
     res.status(201).json({
       success: true,
@@ -158,16 +169,23 @@ const updateCategory = async (
 
   try {
 
-    const data =
-      await stoneservice.updateCategory(
+const payload = {
+  ...req.body,
+};
 
-        req.params.id,
+if (req.file) {
 
-        req.body ,
+  payload.silica_datasheet_url =
+    `/uploads/${req.file.filename}`;
 
-        getAuditContext(req)
+}
 
-      );
+const data =
+  await stoneservice.updateCategory(
+    req.params.id,
+    payload,
+    getAuditContext(req)
+  );
 
     res.status(200).json({
       success: true,
@@ -193,6 +211,15 @@ const createProduct = async (
 ) => {
 
   try {
+
+        const payload = {
+      ...req.body,
+    };
+
+    if (req.files?.silica_datasheet?.[0]) {
+      payload.silica_datasheet_url =
+        `/uploads/${req.files.silica_datasheet[0].filename}`;
+    }
 
     const data =
       await stoneservice.createProduct(
@@ -225,6 +252,15 @@ const updateProduct = async (
 ) => {
 
   try {
+
+        const payload = {
+      ...req.body,
+    };
+
+    if (req.files?.silica_datasheet?.[0]) {
+      payload.silica_datasheet_url =
+        `/uploads/${req.files.silica_datasheet[0].filename}`;
+    }
 
     const data =
       await stoneservice.updateProduct(
@@ -358,6 +394,37 @@ const bulkDeleteProducts = async (
   }
 };
 
+const updateProductStatus = async (
+  req,
+  res
+) => {
+  try {
+
+    const { is_active } = req.body;
+
+    const product =
+      await stoneservice.updateProductStatus(
+        req.params.id,
+        is_active
+      );
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Product status updated successfully",
+      data: product,
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+
+  }
+};
+
 module.exports = {
 
   getStones,
@@ -379,5 +446,9 @@ module.exports = {
   bulkCreateProducts,
 
   bulkDeleteProducts,
+
+  updateProductStatus,
+
+
 
 };
