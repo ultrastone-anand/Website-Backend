@@ -307,6 +307,9 @@ const updateUser = async (
         10
       );
 
+
+  updateData.must_change_password =
+    false;
   }
 
   return await auditService.track({
@@ -576,8 +579,10 @@ return {
       user.role_id,
 
     role:
-      user.roles.name
+      user.roles.name,
 
+    must_change_password:
+      user.must_change_password
   }
 
 };

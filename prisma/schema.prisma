@@ -164,20 +164,21 @@ model stone_product_media {
 }
 
 model users {
-  id            Int             @id @default(autoincrement())
-  user_id       String          @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  email         String          @unique @db.VarChar(255)
-  password_hash String          @db.VarChar(255)
-  first_name    String?         @db.VarChar(100)
-  last_name     String?         @db.VarChar(100)
-  is_active     Boolean?        @default(true)
-  last_login    DateTime?       @db.Timestamp(6)
-  created_at    DateTime?       @default(now()) @db.Timestamp(6)
-  updated_at    DateTime?       @default(now()) @db.Timestamp(6)
-  deleted_at    DateTime?       @db.Timestamp(6)
-  role_id       Int
-  activity_logs activity_logs[]
-  roles         roles           @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_role")
+  id                   Int             @id @default(autoincrement())
+  user_id              String          @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email                String          @unique @db.VarChar(255)
+  password_hash        String          @db.VarChar(255)
+  first_name           String?         @db.VarChar(100)
+  last_name            String?         @db.VarChar(100)
+  is_active            Boolean?        @default(true)
+  last_login           DateTime?       @db.Timestamp(6)
+  created_at           DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?       @default(now()) @db.Timestamp(6)
+  deleted_at           DateTime?       @db.Timestamp(6)
+  role_id              Int
+  must_change_password Boolean?        @default(true)
+  activity_logs        activity_logs[]
+  roles                roles           @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_role")
 
   @@index([email], map: "idx_users_email")
   @@index([role_id], map: "idx_users_role_id")
