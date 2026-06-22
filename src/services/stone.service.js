@@ -1097,6 +1097,7 @@ const updateProduct = async (id, body, files, audit = {}) => {
     include: {
       stone_product_seo: true,
       media: true,
+      product_faqs: true,
     },
 
   });
@@ -1113,10 +1114,28 @@ const updateProduct = async (id, body, files, audit = {}) => {
     body.existing_media || "[]"
   );
 
-  const oldMedia = existingProduct.media.map((m) => ({
-    id: m.id.toString(),
-    alt_text: m.alt_text,
-  }));
+const oldMedia =existingProduct.media
+.map((m) => ({
+      id: m.id.toString(),
+      alt_text: m.alt_text,
+    }))
+    .sort((a, b) =>
+      Number(a.id) - Number(b.id)
+    );
+
+const newMedia =
+existingMedia
+    .map((m) => ({
+      id: m.id.toString(),
+      alt_text: m.alt_text || null,
+    }))
+    .sort((a, b) =>
+      Number(a.id) - Number(b.id)
+    );
+
+  const mediaChanged =
+    JSON.stringify(oldMedia) !==
+    JSON.stringify(newMedia);
 
   const altTextMap = new Map(
     existingMedia.map((item) => [
@@ -1127,17 +1146,97 @@ const updateProduct = async (id, body, files, audit = {}) => {
 
 
   let silicaDatasheetUrl =
-  existingProduct.silica_datasheet_url;
+    existingProduct.silica_datasheet_url;
 
-if (
-  files?.silica_datasheet &&
-  files.silica_datasheet.length > 0
-) {
-  silicaDatasheetUrl =
-    `/uploads/${files.silica_datasheet[0].filename}`;
-}
+  if (
+    files?.silica_datasheet &&
+    files.silica_datasheet.length > 0
+  ) {
+    silicaDatasheetUrl =
+      `/uploads/${files.silica_datasheet[0].filename}`;
+  }
 
   const faqs = parseFaqs(body.faqs);
+
+  const newFaqs = faqs
+  .filter(
+    (faq) =>
+      faq.question?.trim() &&
+      faq.answer?.trim()
+  )
+  .map((faq, index) => ({
+    question: faq.question.trim(),
+    answer: faq.answer.trim(),
+    sort_order:
+      faq.sort_order ?? index,
+    is_active:
+      faq.is_active ?? true,
+  }));
+
+const oldFaqs =
+  existingProduct.product_faqs
+    .map((faq) => ({
+      question: faq.question,
+      answer: faq.answer,
+      sort_order: faq.sort_order,
+      is_active: faq.is_active,
+    }));
+
+const faqChanged =
+  JSON.stringify(oldFaqs) !==
+  JSON.stringify(newFaqs);
+
+
+  const oldSeo =
+  existingProduct.stone_product_seo || {};
+
+  const newSeo = {
+  meta_title: body.meta_title || null,
+  meta_description:
+    body.meta_description || null,
+  canonical_url:
+    body.canonical_url || null,
+  og_title:
+    body.og_title || null,
+  og_description:
+    body.og_description || null,
+  og_image:
+    body.og_image || null,
+  schema_markup:
+    parseJson(body.schema_markup),
+  robots_index:
+    toBool(body.robots_index),
+  robots_follow:
+    toBool(body.robots_follow),
+  seo_content:
+    body.seo_content || null,
+};
+
+
+const seoChanged =
+  JSON.stringify({
+    meta_title: oldSeo.meta_title,
+    meta_description:
+      oldSeo.meta_description,
+    canonical_url:
+      oldSeo.canonical_url,
+    og_title:
+      oldSeo.og_title,
+    og_description:
+      oldSeo.og_description,
+    og_image:
+      oldSeo.og_image,
+    schema_markup:
+      oldSeo.schema_markup,
+    robots_index:
+      oldSeo.robots_index,
+    robots_follow:
+      oldSeo.robots_follow,
+    seo_content:
+      oldSeo.seo_content,
+  })
+  !==
+  JSON.stringify(newSeo);
   // ==============================
   // FEATURED IMAGES
   // ==============================
@@ -1379,6 +1478,8 @@ if (
   // UPDATE PRODUCT
   // ==============================
 
+  if (mediaChanged) {
+
   await auditService.track({
     audit,
     action: "UPDATE",
@@ -1388,6 +1489,7 @@ if (
     oldValues: oldMedia,
 
     operation: async () => {
+
       await Promise.all(
         existingMedia.map((media) =>
           prisma.stone_product_media.update({
@@ -1400,8 +1502,20 @@ if (
           })
         )
       );
+
+      return newMedia;
     },
   });
+
+}
+
+const productAuditData = {
+  ...existingProduct,
+};
+
+delete productAuditData.media;
+delete productAuditData.product_faqs;
+delete productAuditData.stone_product_seo;
 
   const updatedProduct =
     await auditService.track({
@@ -1420,7 +1534,7 @@ if (
 
       oldValues:
         serializeBigInt(
-          existingProduct
+          productAuditData
         ),
 
       operation: () =>
@@ -1562,8 +1676,8 @@ if (
               body.silica_warning_message
             ,
 
-silica_datasheet_url:
-  silicaDatasheetUrl,
+            silica_datasheet_url:
+              silicaDatasheetUrl,
 
             // SPECIFICATIONS
 
@@ -1605,54 +1719,21 @@ silica_datasheet_url:
                 body.is_new_arrival
               ),
 
-            stone_product_seo: {
-              upsert: {
-                create: {
-                  meta_title: body.meta_title || null,
-                  meta_description: body.meta_description || null,
-                  canonical_url: body.canonical_url || null,
-                  og_title: body.og_title || null,
-                  og_description: body.og_description || null,
-                  og_image: body.og_image || null,
-                  schema_markup: parseJson(body.schema_markup),
-                  robots_index: toBool(body.robots_index),
-                  robots_follow: toBool(body.robots_follow),
-                  seo_content: body.seo_content || null,
-                },
+...(seoChanged && {
+  stone_product_seo: {
+    upsert: {
+      create: newSeo,
+      update: newSeo,
+    },
+  },
+}),
 
-                update: {
-                  meta_title: body.meta_title || null,
-                  meta_description: body.meta_description || null,
-                  canonical_url: body.canonical_url || null,
-                  og_title: body.og_title || null,
-                  og_description: body.og_description || null,
-                  og_image: body.og_image || null,
-                  schema_markup: parseJson(body.schema_markup),
-                  robots_index: toBool(body.robots_index),
-                  robots_follow: toBool(body.robots_follow),
-                  seo_content: body.seo_content || null,
-                },
-              },
-            },
-
-            product_faqs: {
-              deleteMany: {},
-
-              create: faqs
-                .filter(
-                  (faq) =>
-                    faq.question?.trim() &&
-                    faq.answer?.trim()
-                )
-                .map((faq, index) => ({
-                  question: faq.question.trim(),
-                  answer: faq.answer.trim(),
-                  sort_order:
-                    faq.sort_order ?? index,
-                  is_active:
-                    faq.is_active ?? true,
-                })),
-            },
+...(faqChanged && {
+  product_faqs: {
+    deleteMany: {},
+    create: newFaqs,
+  },
+}),
           },
 
           include: {
