@@ -114,6 +114,12 @@ router.post(
   stoneController.bulkDeleteProducts
 );
 
+router.post(
+  "/bulk-deactive",
+  authenticate,
+  stoneController.bulkDeactivateProducts
+);
+
 router.patch(
   "/product/:id/status",
   stoneController.updateProductStatus

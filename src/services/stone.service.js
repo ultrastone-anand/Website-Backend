@@ -2013,6 +2013,72 @@ const bulkDeleteProducts = async (
 
 };
 
+const bulkDeactivateProducts = async (
+  ids,
+  audit = {}
+) => {
+
+  return await auditService.track({
+
+    audit,
+
+    action: "BULK_DEACTIVATE",
+
+    resourceType: "PRODUCT",
+
+    moduleName:
+      "Stone Management",
+
+    oldValues:
+      await prisma.stone_products.findMany({
+        where: {
+          id: {
+            in: ids.map(Number),
+          },
+        },
+        include: {
+          stone_product_seo: true,
+        },
+      }),
+
+    operation: async () => {
+
+      const products =
+        await prisma.stone_products.findMany({
+          where: {
+            id: {
+              in: ids.map(Number),
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            is_active: true,
+          },
+        });
+
+      await prisma.stone_products.updateMany({
+        where: {
+          id: {
+            in: ids.map(Number),
+          },
+        },
+        data: {
+          is_active: false,
+        },
+      });
+
+      return serialize({
+        count: products.length,
+        products,
+      });
+
+    },
+  });
+
+};
+
 const updateProductStatus = async (
   id,
   is_active
@@ -2046,5 +2112,6 @@ module.exports = {
   deleteProduct,
   bulkCreateProducts,
   bulkDeleteProducts,
+  bulkDeactivateProducts,
   updateProductStatus,
 };

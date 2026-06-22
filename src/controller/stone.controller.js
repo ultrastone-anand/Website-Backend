@@ -102,21 +102,21 @@ const createCategory = async (
   try {
 
     const payload = {
-  ...req.body,
-};
+      ...req.body,
+    };
 
-if (req.file) {
+    if (req.file) {
 
-  payload.silica_datasheet_url =
-    `/uploads/${req.file.filename}`;
+      payload.silica_datasheet_url =
+        `/uploads/${req.file.filename}`;
 
-}
+    }
 
-const data =
-  await stoneservice.createCategory(
-    payload,
-    getAuditContext(req)
-  );
+    const data =
+      await stoneservice.createCategory(
+        payload,
+        getAuditContext(req)
+      );
 
     res.status(201).json({
       success: true,
@@ -169,23 +169,23 @@ const updateCategory = async (
 
   try {
 
-const payload = {
-  ...req.body,
-};
+    const payload = {
+      ...req.body,
+    };
 
-if (req.file) {
+    if (req.file) {
 
-  payload.silica_datasheet_url =
-    `/uploads/${req.file.filename}`;
+      payload.silica_datasheet_url =
+        `/uploads/${req.file.filename}`;
 
-}
+    }
 
-const data =
-  await stoneservice.updateCategory(
-    req.params.id,
-    payload,
-    getAuditContext(req)
-  );
+    const data =
+      await stoneservice.updateCategory(
+        req.params.id,
+        payload,
+        getAuditContext(req)
+      );
 
     res.status(200).json({
       success: true,
@@ -212,7 +212,7 @@ const createProduct = async (
 
   try {
 
-        const payload = {
+    const payload = {
       ...req.body,
     };
 
@@ -253,7 +253,7 @@ const updateProduct = async (
 
   try {
 
-        const payload = {
+    const payload = {
       ...req.body,
     };
 
@@ -394,6 +394,50 @@ const bulkDeleteProducts = async (
   }
 };
 
+const bulkDeactivateProducts = async (
+  req,
+  res
+) => {
+  try {
+
+    const { ids } = req.body;
+
+    if (
+      !Array.isArray(ids) ||
+      ids.length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please provide product ids",
+      });
+    }
+
+
+
+    const result =
+      await stoneservice.bulkDeactivateProducts(
+        ids,
+        getAuditContext(req)
+      );
+
+    return res.json({
+      success: true,
+      data: result,
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+
+  }
+};
+
 const updateProductStatus = async (
   req,
   res
@@ -449,6 +493,6 @@ module.exports = {
 
   updateProductStatus,
 
-
+  bulkDeactivateProducts,
 
 };
