@@ -1501,9 +1501,6 @@ featuredVideos.forEach((video, index) => {
     display_order: index,
   });
 });
-
-console.log("MEDIA TO SAVE", mediaToCreate);
-
   // ==============================
   // UPDATE PRODUCT
   // ==============================
