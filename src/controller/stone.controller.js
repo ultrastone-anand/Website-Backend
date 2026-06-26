@@ -350,50 +350,6 @@ const bulkCreateProducts = async (
   }
 };
 
-const bulkDeleteProducts = async (
-  req,
-  res
-) => {
-  try {
-
-    const { ids } = req.body;
-
-    if (
-      !Array.isArray(ids) ||
-      ids.length === 0
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Please provide product ids",
-      });
-    }
-
-
-
-    const result =
-      await stoneservice.bulkDeleteProducts(
-        ids,
-        getAuditContext(req)
-      );
-
-    return res.json({
-      success: true,
-      data: result,
-    });
-
-  } catch (error) {
-
-    console.error(error);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-
-  }
-};
-
 const bulkDeactivateProducts = async (
   req,
   res
@@ -469,6 +425,86 @@ const updateProductStatus = async (
   }
 };
 
+const updatePublishStatus = async (
+  req,
+  res
+) => {
+
+  try {
+
+    const { id } = req.params;
+    const { is_publish } = req.body;
+
+
+    const result =
+      await stoneservice.updatePublishStatus(
+        id,
+        is_publish,
+        getAuditContext(req)
+      );
+
+    return res.json({
+      success: true,
+      data: serialize(result),
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+
+  }
+
+};
+
+const bulkPublishProducts = async (
+  req,
+  res
+) => {
+  try {
+
+    const { ids } = req.body;
+
+    if (
+      !Array.isArray(ids) ||
+      ids.length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please provide product ids",
+      });
+    }
+
+
+
+    const result =
+      await stoneservice.bulkPublishProducts(
+        ids,
+        getAuditContext(req)
+      );
+
+    return res.json({
+      success: true,
+      data: result,
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+
+  }
+};
+
 module.exports = {
 
   getStones,
@@ -489,10 +525,12 @@ module.exports = {
 
   bulkCreateProducts,
 
-  bulkDeleteProducts,
-
   updateProductStatus,
 
   bulkDeactivateProducts,
+
+  updatePublishStatus,
+
+  bulkPublishProducts,
 
 };

@@ -108,11 +108,6 @@ router.delete(
 
 router.post( "/bulkupload", authenticate, stoneController.bulkCreateProducts);
 
-router.post(
-  "/bulk-delete",
-  authenticate,
-  stoneController.bulkDeleteProducts
-);
 
 router.post(
   "/bulk-deactive",
@@ -125,6 +120,17 @@ router.patch(
   stoneController.updateProductStatus
 );
 
+router.patch(
+  "/product/:id/publish",
+  authenticate,
+  stoneController.updatePublishStatus
+);
+
+router.patch(
+  "/bulk-publish",
+  authenticate,
+  stoneController.bulkPublishProducts
+);
 
 
 module.exports = router;

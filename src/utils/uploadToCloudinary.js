@@ -40,6 +40,13 @@ const uploadToCloudinary = async (
     const filePath =
       file.path || file;
 
+      console.log("Uploading File:");
+console.log(file);
+console.log("Resolved Path:", filePath);
+
+const exists = require("fs").existsSync(filePath);
+console.log("File Exists:", exists);
+
     const result =
       await cloudinary.uploader.upload(
 
@@ -83,16 +90,17 @@ const uploadToCloudinary = async (
 
     return result;
 
-  } catch (error) {
+   } catch (error) {
 
-    console.log(
-      "Cloudinary Upload Error:",
-      error
-    );
+  console.log("========== CLOUDINARY ERROR ==========");
+  console.dir(error, { depth: null });
 
-    throw error;
+  console.log("Message:", error.message);
+  console.log("HTTP:", error.http_code);
+  console.log("Stack:", error.stack);
 
-  }
+  throw error;
+}
 
 };
 
