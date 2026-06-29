@@ -106,8 +106,9 @@ router.delete(
   stoneController.deleteProduct
 )
 
-router.post( "/bulkupload", authenticate, stoneController.bulkCreateProducts);
-
+router.post( 
+  "/bulkupload", authenticate, stoneController.bulkCreateProducts
+);
 
 router.post(
   "/bulk-deactive",
@@ -130,6 +131,12 @@ router.patch(
   "/bulk-publish",
   authenticate,
   stoneController.bulkPublishProducts
+);
+
+router.delete(
+    "/media/:mediaId",
+    authenticate,
+    stoneController.deleteStoneProductMedia
 );
 
 

@@ -146,10 +146,9 @@ exports.getSocialMedia = async (req, res) => {
 
 exports.createSocialMedia = async (req, res) => {
   try {
-    const data = await companyService.createSocialMedia(
-      req.params.id,
-      req.body
-    );
+const data = await companyService.createSocialMedia(
+  req.body
+);
 
     res.status(201).json({
       success: true,

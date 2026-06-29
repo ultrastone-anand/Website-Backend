@@ -1,6 +1,6 @@
 const prisma = require("../config/prisma");
 const { serialize } = require("../utils/serialize");
-const { uploadToCloudinary } = require("../utils/uploadToCloudinary");
+const { uploadToR2, deleteFileFromR2 } = require("../utils/uploadToR2");
 
 const auditService = require("./audit.service");
 
@@ -647,7 +647,7 @@ const createProduct = async (body, files, audit = {}) => {
       fileArray.map(async (file) => {
 
         const uploaded =
-          await uploadToCloudinary(
+          await uploadToR2(
             file.path,
             folder,
             resourceType
@@ -1260,7 +1260,7 @@ if (files?.closeup_images && files.closeup_images.length > 0) {
 
     files.closeup_images.map(async (file) => {
 
-      const uploaded = await uploadToCloudinary(
+      const uploaded = await uploadToR2(
         file.path,
         "ultrastones/products/featured"
       );
@@ -1295,7 +1295,7 @@ if (files?.slab_images && files.slab_images.length > 0) {
 
     files.slab_images.map(async (file) => {
 
-      const uploaded = await uploadToCloudinary(
+      const uploaded = await uploadToR2(
         file.path,
         "ultrastones/products/gallery"
       );
@@ -1332,7 +1332,7 @@ if (files?.featured_videos && files.featured_videos.length > 0) {
 
     files.featured_videos.map(async (file) => {
 
-      const uploaded = await uploadToCloudinary(
+      const uploaded = await uploadToR2(
         file.path,
         "ultrastones/products/videos",
         "video"
@@ -1368,7 +1368,7 @@ if (files?.application_images && files.application_images.length > 0) {
 
     files.application_images.map(async (file) => {
 
-      const uploaded = await uploadToCloudinary(
+      const uploaded = await uploadToR2(
         file.path,
         "ultrastones/products/application"
       );
@@ -1403,7 +1403,7 @@ if (files?.bookmatch_slipmatch && files.bookmatch_slipmatch.length > 0) {
 
     files.bookmatch_slipmatch.map(async (file) => {
 
-      const uploaded = await uploadToCloudinary(
+      const uploaded = await uploadToR2(
         file.path,
         "ultrastones/products/bookmatch-slipmatch"
       );
@@ -1434,10 +1434,7 @@ featuredImages.forEach((image, index) => {
     media_type: "CLOSEUP_IMAGE",
     media_url: image.media_url,
     public_id: image.public_id,
-    alt_text:
-  altTextMap.get(
-    `${mediaType}_${image.media_url}`
-  ) || null,
+    alt_text:altTextMap.get(`CLOSEUP_IMAGE_${image.media_url}`) || null,
     display_order: index,
   });
 });
@@ -1449,10 +1446,7 @@ galleryImages.forEach((image, index) => {
     media_type: "SLAB_IMAGE",
     media_url: image.media_url,
     public_id: image.public_id,
-   alt_text:
-  altTextMap.get(
-    `${mediaType}_${image.media_url}`
-  ) || null,
+    alt_text: altTextMap.get(`SLAB_IMAGE_${image.media_url}`) || null,
     display_order: index,
   });
 });
@@ -1464,10 +1458,7 @@ applicationImages.forEach((image, index) => {
     media_type: "APPLICATION_IMAGE",
     media_url: image.media_url,
     public_id: image.public_id,
-    alt_text:
-  altTextMap.get(
-    `${mediaType}_${image.media_url}`
-  ) || null,
+    alt_text: altTextMap.get(`APPLICATION_IMAGE_${image.media_url}`) || null,
     display_order: index,
   });
 });
@@ -1479,10 +1470,7 @@ bookmatchSlipmatchImages.forEach((image, index) => {
     media_type: "BOOKMATCH_SLIPMATCH",
     media_url: image.media_url,
     public_id: image.public_id,
-    alt_text:
-  altTextMap.get(
-    `${mediaType}_${image.media_url}`
-  ) || null,
+    alt_text: altTextMap.get(`BOOKMATCH_SLIPMATCH_${image.media_url}`) || null,
     display_order: index,
   });
 });
@@ -1494,10 +1482,7 @@ featuredVideos.forEach((video, index) => {
     media_type: "FEATURED_VIDEO",
     media_url: video.media_url,
     public_id: video.public_id,
-    alt_text:
-  altTextMap.get(
-    `${mediaType}_${image.media_url}`
-  ) || null,
+    alt_text: altTextMap.get(`FEATURED_VIDEO_${video.media_url}`) || null,
     display_order: index,
   });
 });
@@ -2300,6 +2285,35 @@ const bulkPublishProducts = async (
 
 };
 
+const deleteStoneProductMedia = async (mediaId) => {
+
+    // 1. Find media
+    const media =
+        await prisma.stone_product_media.findUnique({
+            where: {
+                id: BigInt(mediaId),
+            },
+        });
+
+    if (!media) {
+        throw new Error("Media not found.");
+    }
+
+    // 2. Delete from R2
+    if (media.public_id) {
+        await deleteFileFromR2(media.public_id);
+    }
+
+    // 3. Delete DB record
+    await prisma.stone_product_media.delete({
+        where: {
+            id: BigInt(mediaId),
+        },
+    });
+
+    return media;
+};
+
 
 module.exports = {
   getStones,
@@ -2317,4 +2331,5 @@ module.exports = {
   updateProductStatus,
   updatePublishStatus,
   bulkPublishProducts,
+  deleteStoneProductMedia,
 };

@@ -440,15 +440,13 @@ const createSocialMedia = async (
   audit = {}
 ) => {
 
-  const existingPlatform =
-    await prisma.social_media_links.findUnique({
-
-      where: {
-        platform: data.platform,
-      },
-
-    });
-
+ const existingPlatform =
+  await prisma.social_media_links.findFirst({
+    where: {
+      platform: data.platform,
+    },
+  });
+  
   if (existingPlatform) {
 
     throw new Error(

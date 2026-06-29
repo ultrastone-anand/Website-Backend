@@ -505,6 +505,34 @@ const bulkPublishProducts = async (
   }
 };
 
+ const deleteStoneProductMedia = async (req, res) => {
+    try {
+
+        const { mediaId } = req.params;
+
+        const result =
+            await stoneservice.deleteStoneProductMedia(
+                mediaId
+            );
+
+        return res.status(200).json({
+            success: true,
+            message: "Media deleted successfully.",
+            data: serialize(result),
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        return res.status(400).json({
+            success: false,
+            message: error.message,
+        });
+
+    }
+};
+
 module.exports = {
 
   getStones,
@@ -532,5 +560,7 @@ module.exports = {
   updatePublishStatus,
 
   bulkPublishProducts,
+
+  deleteStoneProductMedia,
 
 };

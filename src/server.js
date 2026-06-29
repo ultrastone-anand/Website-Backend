@@ -2,6 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const path = require("path");
 
+const fs = require("fs");
+const { buildProductSeo, injectSeo } = require("./utils/seoHtml");
+const { getProductDetails } = require("./services/stone.service");
+
 const userRoutes = require('./routes/user.routes');
 const stoneRoutes = require('./routes/stone.routes');
 const reportRoutes = require('./routes/report.routes');
@@ -56,5 +60,32 @@ app.use('/api/dashboard', dasboardRoutes);
 app.use('/api/activitie', activityRoutes);
 app.use('/api/newsletter', newsLetterRoutes);
 app.use('/api/products', ProductRemarkRoutes);
+
+const frontendDistPath = path.join(__dirname, "../dist");
+const frontendIndexPath = path.join(frontendDistPath, "index.html");
+
+app.use(express.static(frontendDistPath));
+
+app.get("/product/:categorySlug/:productSlug", async (req, res, next) => {
+  try {
+    const html = fs.readFileSync(frontendIndexPath, "utf8");
+    const { productSlug } = req.params;
+
+    const product = await getProductDetails(productSlug);
+
+    const seoTags = buildProductSeo(product, req.originalUrl);
+    const finalHtml = injectSeo(html, seoTags);
+
+    res.setHeader("Content-Type", "text/html");
+    return res.send(finalHtml);
+  } catch (error) {
+    console.error("SEO HTML error:", error);
+    return res.sendFile(frontendIndexPath);
+  }
+});
+
+app.use((req, res) => {
+  res.sendFile(frontendIndexPath);
+});
 
 module.exports = app;
