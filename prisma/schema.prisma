@@ -300,3 +300,32 @@ model product_remarks {
   @@index([product_id], map: "idx_product_remarks_product_id")
   @@index([user_id], map: "idx_product_remarks_user_id")
 }
+
+model page_seo {
+  id               Int       @id @default(autoincrement())
+  page_id          Int       @unique
+  meta_title       String?   @db.VarChar(255)
+  meta_description String?
+  canonical_url    String?
+  og_title         String?   @db.VarChar(255)
+  og_image_url     String?
+  og_description   String?
+  robots_index     String?   @default("index") @db.VarChar(20)
+  robots_follow    String?   @default("follow") @db.VarChar(20)
+  schema_markup    Json?     @default("{}")
+  seo_content      String?
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  updated_at       DateTime? @default(now()) @db.Timestamp(6)
+  pages            pages     @relation(fields: [page_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model pages {
+  id         Int       @id @default(autoincrement())
+  slug       String    @unique @db.VarChar(255)
+  title      String    @db.VarChar(255)
+  content    Json      @default("{}")
+  status     String    @default("draft") @db.VarChar(20)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+  page_seo   page_seo?
+}

@@ -6,6 +6,7 @@ const fs = require("fs");
 const { buildProductSeo, injectSeo } = require("./utils/seoHtml");
 const { getProductDetails } = require("./services/stone.service");
 
+const pageRoutes = require('./routes/page.routes');
 const userRoutes = require('./routes/user.routes');
 const stoneRoutes = require('./routes/stone.routes');
 const reportRoutes = require('./routes/report.routes');
@@ -60,6 +61,8 @@ app.use('/api/dashboard', dasboardRoutes);
 app.use('/api/activitie', activityRoutes);
 app.use('/api/newsletter', newsLetterRoutes);
 app.use('/api/products', ProductRemarkRoutes);
+app.use("/api/pages", pageRoutes);
+
 
 const frontendDistPath = path.join(__dirname, "../dist");
 const frontendIndexPath = path.join(frontendDistPath, "index.html");
