@@ -3,9 +3,11 @@ const {
   DeleteObjectCommand,
 } = require("@aws-sdk/client-s3");
 
-const fs = require("fs/promises");
+const fs = require("fs");
+const fsp = require("fs/promises");
 const path = require("path");
 const mime = require("mime-types");
+const crypto = require("crypto");
 
 const r2 = require("../config/r2");
 
@@ -13,75 +15,62 @@ const r2 = require("../config/r2");
 // UPLOAD TO CLOUDFLARE R2
 // =====================================
 
-const uploadToR2 = async (
+const uploadToR2 = async (file, folder = "uploads") => {
+  const filePath = file.path || file;
+  const fileName = path.basename(filePath);
 
-  file,
+  const ext = path.extname(fileName);
+  const safeName = fileName
+    .replace(ext, "")
+    .replace(/\s+/g, "-")
+    .replace(/[^\w-]/g, "")
+    .toLowerCase();
 
-  folder = "uploads",
-
-  resourceType = "image"
-
-) => {
+  const objectKey = `${folder}/${Date.now()}-${crypto.randomUUID()}-${safeName}${ext}`;
 
   try {
+    const stats = await fsp.stat(filePath);
 
-    const filePath =
-      file.path || file;
+    console.log("Uploading file to R2:", {
+      fileName,
+      sizeMB: (stats.size / 1024 / 1024).toFixed(2),
+      folder,
+      objectKey,
+    });
 
-    const fileBuffer =
-      await fs.readFile(filePath);
-
-    const fileName =
-      path.basename(filePath);
-
-    const objectKey =
-      `${folder}/${Date.now()}-${fileName}`;
+    console.time(`R2_UPLOAD_${fileName}`);
 
     await r2.send(
-
       new PutObjectCommand({
-
-        Bucket:
-          process.env.R2_BUCKET_NAME,
-
-        Key:
-          objectKey,
-
-        Body:
-          fileBuffer,
-
-        ContentType:
-          mime.lookup(fileName)
-          || "application/octet-stream",
-
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: objectKey,
+        Body: fs.createReadStream(filePath),
+        ContentType: mime.lookup(fileName) || "application/octet-stream",
       })
-
     );
 
-    await fs.unlink(filePath);
+    console.timeEnd(`R2_UPLOAD_${fileName}`);
+
+    await fsp.unlink(filePath).catch(() => null);
 
     return {
-
-      secure_url:
-        `${process.env.R2_PUBLIC_URL}/${objectKey}`,
-
-      public_id:
-        objectKey,
-
+      secure_url: `${process.env.R2_PUBLIC_URL}/${objectKey}`,
+      public_id: objectKey,
     };
-
   } catch (error) {
+    await fsp.unlink(filePath).catch(() => null);
 
-    console.error(
-      "========== R2 ERROR =========="
-    );
-
-    console.error(error);
+    console.error("========== R2 ERROR ==========");
+    console.error({
+      message: error.message,
+      fileName,
+      filePath,
+      folder,
+      objectKey,
+    });
 
     throw error;
-
   }
-
 };
 
 // =====================================
@@ -89,12 +78,8 @@ const uploadToR2 = async (
 // =====================================
 
 const deleteFileFromR2 = async (objectKey) => {
-
   try {
-
-    if (!objectKey) {
-      throw new Error("Object key is required.");
-    }
+    if (!objectKey) return false;
 
     await r2.send(
       new DeleteObjectCommand({
@@ -104,22 +89,18 @@ const deleteFileFromR2 = async (objectKey) => {
     );
 
     return true;
-
   } catch (error) {
-
-    console.error(
-      "========== R2 DELETE ERROR =========="
-    );
-
-    console.error(error);
+    console.error("========== R2 DELETE ERROR ==========");
+    console.error({
+      message: error.message,
+      objectKey,
+    });
 
     throw error;
-
   }
-
 };
 
 module.exports = {
   uploadToR2,
-  deleteFileFromR2
+  deleteFileFromR2,
 };
