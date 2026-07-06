@@ -389,6 +389,22 @@ const deleteCompany = async (
 
 };
 
+// ================== GET SHOWROOM BY SLUG ==================
+
+const getCompanyBySlug = async (slug) => {
+  const showroom = await prisma.showrooms.findUnique({
+    where: {
+      slug,
+    },
+  });
+
+  if (!showroom) {
+    throw new Error("Showroom not found");
+  }
+
+  return showroom;
+};
+
 // ================== GET ALL SOCIAL MEDIA ==================
 
 const getAllSocialMedia = async () => {
@@ -651,6 +667,7 @@ module.exports = {
   createCompany,
   updateCompany,
   deleteCompany,
+  getCompanyBySlug,
 
   // Social Media
   getAllSocialMedia,

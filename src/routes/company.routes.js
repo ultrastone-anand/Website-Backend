@@ -15,10 +15,10 @@ router.delete('/socialmedia/:id', authenticate, companyController.deleteSocialMe
 // company Master
 router.get('/', companyController.getCompany);
 router.get('/:id', companyController.getCompanyById);
+router.get('/slug/:slug', companyController.getCompanyBySlug);
 router.post('/', authenticate , companyController.createCompany);
 router.put('/:id', authenticate ,companyController.updateCompany);
 router.delete('/:id', authenticate ,companyController.deleteCompany);
-
 
 
 module.exports = router;

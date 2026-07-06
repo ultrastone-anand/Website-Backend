@@ -102,6 +102,31 @@ exports.deleteCompany = async (req, res) => {
   }
 };
 
+exports.getCompanyBySlug = async (req, res) => {
+  try {
+    const data = await companyService.getCompanyBySlug(req.params.slug);
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: 'Company not found',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: serialize(data),
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // =========================
 // SOCIAL MEDIA
 // =========================
