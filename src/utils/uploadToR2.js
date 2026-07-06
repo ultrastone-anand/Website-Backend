@@ -1,7 +1,8 @@
 const {
-  PutObjectCommand,
   DeleteObjectCommand,
 } = require("@aws-sdk/client-s3");
+
+const { Upload } = require("@aws-sdk/lib-storage");
 
 const fs = require("fs");
 const fsp = require("fs/promises");
@@ -30,24 +31,41 @@ const uploadToR2 = async (file, folder = "uploads") => {
 
   try {
     const stats = await fsp.stat(filePath);
+    const sizeMB = stats.size / 1024 / 1024;
+    const contentType = mime.lookup(fileName) || "application/octet-stream";
 
     console.log("Uploading file to R2:", {
       fileName,
-      sizeMB: (stats.size / 1024 / 1024).toFixed(2),
+      sizeMB: sizeMB.toFixed(2),
       folder,
       objectKey,
+      contentType,
     });
 
     console.time(`R2_UPLOAD_${fileName}`);
 
-    await r2.send(
-      new PutObjectCommand({
+    const upload = new Upload({
+      client: r2,
+      params: {
         Bucket: process.env.R2_BUCKET_NAME,
         Key: objectKey,
         Body: fs.createReadStream(filePath),
-        ContentType: mime.lookup(fileName) || "application/octet-stream",
-      })
-    );
+        ContentType: contentType,
+      },
+      queueSize: 4,
+      partSize: 10 * 1024 * 1024,
+      leavePartsOnError: false,
+    });
+
+    upload.on("httpUploadProgress", (progress) => {
+      if (!progress.loaded || !progress.total) return;
+
+      const percent = ((progress.loaded / progress.total) * 100).toFixed(2);
+
+      console.log(`R2 Upload Progress: ${percent}%`);
+    });
+
+    await upload.done();
 
     console.timeEnd(`R2_UPLOAD_${fileName}`);
 
