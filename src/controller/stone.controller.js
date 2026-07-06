@@ -1,5 +1,6 @@
 const stoneservice = require("../services/stone.service");
 const getAuditContext = require("../utils/getAuditContext");
+const { createR2UploadUrl } = require("../utils/r2Presigned");
 const { serialize } = require('../utils/serialize');
 
 // ================== GET ALLs ==================
@@ -533,34 +534,50 @@ const bulkPublishProducts = async (
     }
 };
 
+const getVideoUploadUrl = async (req, res) => {
+  try {
+    const { fileName } = req.body;
+
+    if (!fileName) {
+      return res.status(400).json({
+        success: false,
+        message: "fileName is required",
+      });
+    }
+
+    const result = await createR2UploadUrl(
+      fileName,
+      "ultrastones/products/videos"
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error("Presigned URL Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
-
   getStones,
-
   getCategoryProducts,
-
   getProductDetails,
-
   createCategory,
-
   updateCategory,
-
   createProduct,
-
   updateProduct,
-
   deleteProduct,
-
   bulkCreateProducts,
-
   updateProductStatus,
-
   bulkDeactivateProducts,
-
   updatePublishStatus,
-
   bulkPublishProducts,
-
   deleteStoneProductMedia,
-
+  getVideoUploadUrl,
 };

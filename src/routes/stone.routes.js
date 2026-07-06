@@ -139,5 +139,6 @@ router.delete(
     stoneController.deleteStoneProductMedia
 );
 
+router.post("/r2/video-upload-url", stoneController.getVideoUploadUrl);
 
 module.exports = router;

@@ -1129,26 +1129,28 @@ const updateProduct = async (id, body, files, audit = {}) => {
       Number(a.id) - Number(b.id)
     );
 
-  const newMedia =
-    existingMedia
-      .map((m) => ({
-        id: m.id.toString(),
-        alt_text: m.alt_text || null,
-      }))
-      .sort((a, b) =>
-        Number(a.id) - Number(b.id)
-      );
+const newMedia = existingMedia
+  .filter((m) => m.id)
+  .map((m) => ({
+    id: m.id.toString(),
+    alt_text: m.alt_text || null,
+  }))
+  .sort((a, b) =>
+    Number(a.id) - Number(b.id)
+  );
 
   const mediaChanged =
     JSON.stringify(oldMedia) !==
     JSON.stringify(newMedia);
 
   const altTextMap = new Map(
-    existingMedia.map((item) => [
+  existingMedia
+    .filter((item) => item.media_type && item.media_url)
+    .map((item) => [
       `${item.media_type}_${item.media_url}`,
       item.alt_text || null,
     ])
-  );
+);
 
 
   let silicaDatasheetUrl =
@@ -1317,73 +1319,48 @@ if (files?.slab_images && files.slab_images.length > 0) {
   
 
  // ==============================
-
 // FEATURED VIDEOS
-
 // ==============================
 
-let featuredVideos = existingProduct.media
-
+let featuredVideos = existingMedia
   .filter((item) => item.media_type === "FEATURED_VIDEO")
-
   .map((item) => ({
-
     media_url: item.media_url,
-
     public_id: item.public_id,
-
   }));
 
 if (files?.featured_videos && files.featured_videos.length > 0) {
-
   console.time("FEATURED_VIDEOS_TOTAL_UPLOAD");
 
   const uploadedVideos = await Promise.all(
-
     files.featured_videos.map(async (file, index) => {
-
       console.log("VIDEO FILE RECEIVED BY SERVER:", {
-
         index,
-
         originalname: file.originalname,
-
         filename: file.filename,
-
         path: file.path,
-
         sizeMB: (file.size / 1024 / 1024).toFixed(2),
-
       });
 
       console.time(`SERVER_TO_R2_VIDEO_${index}_${file.originalname}`);
 
       const uploaded = await uploadToR2(
-
         file.path,
-
         "ultrastones/products/videos"
-
       );
 
       console.timeEnd(`SERVER_TO_R2_VIDEO_${index}_${file.originalname}`);
 
       return {
-
         media_url: uploaded.secure_url,
-
         public_id: uploaded.public_id,
-
       };
-
     })
-
   );
 
   console.timeEnd("FEATURED_VIDEOS_TOTAL_UPLOAD");
 
   featuredVideos.push(...uploadedVideos);
-
 }
 
   // ==============================
