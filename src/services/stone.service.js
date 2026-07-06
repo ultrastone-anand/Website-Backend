@@ -1029,6 +1029,7 @@ const createProduct = async (body, files, audit = {}) => {
 };
 
 const updateProduct = async (id, body, files, audit = {}) => {
+    console.time(`UPDATE_PRODUCT_TOTAL_${id}`);
 
   // ==============================
   // HELPERS
@@ -1316,36 +1317,70 @@ if (files?.slab_images && files.slab_images.length > 0) {
   
 
  // ==============================
+
 // FEATURED VIDEOS
+
 // ==============================
 
 let featuredVideos = existingProduct.media
+
   .filter((item) => item.media_type === "FEATURED_VIDEO")
+
   .map((item) => ({
+
     media_url: item.media_url,
+
     public_id: item.public_id,
+
   }));
 
 if (files?.featured_videos && files.featured_videos.length > 0) {
 
+  console.time("FEATURED_VIDEOS_TOTAL_UPLOAD");
+
   const uploadedVideos = await Promise.all(
 
-    files.featured_videos.map(async (file) => {
+    files.featured_videos.map(async (file, index) => {
+
+      console.log("VIDEO FILE RECEIVED BY SERVER:", {
+
+        index,
+
+        originalname: file.originalname,
+
+        filename: file.filename,
+
+        path: file.path,
+
+        sizeMB: (file.size / 1024 / 1024).toFixed(2),
+
+      });
+
+      console.time(`SERVER_TO_R2_VIDEO_${index}_${file.originalname}`);
 
       const uploaded = await uploadToR2(
+
         file.path,
-        "ultrastones/products/videos",
-        "video"
+
+        "ultrastones/products/videos"
+
       );
 
+      console.timeEnd(`SERVER_TO_R2_VIDEO_${index}_${file.originalname}`);
+
       return {
+
         media_url: uploaded.secure_url,
+
         public_id: uploaded.public_id,
+
       };
 
     })
 
   );
+
+  console.timeEnd("FEATURED_VIDEOS_TOTAL_UPLOAD");
 
   featuredVideos.push(...uploadedVideos);
 
@@ -1875,6 +1910,8 @@ return finalProduct;
       }
       
     });
+
+    console.timeEnd(`UPDATE_PRODUCT_TOTAL_${id}`);
   return serializeBigInt(
     updatedProduct
   );
