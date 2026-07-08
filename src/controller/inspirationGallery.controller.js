@@ -67,7 +67,10 @@ const deleteCategory = async (req, res) => {
 
 const getImages = async (req, res) => {
   try {
-    const data = await service.getImages(req.query.category_id);
+    const data = await service.getImages({
+      categoryId: req.query.category_id,
+      limit: req.query.limit,
+    });
 
     res.json({
       success: true,
@@ -80,7 +83,6 @@ const getImages = async (req, res) => {
     });
   }
 };
-
 const createImageUploadUrls = async (req, res) => {
   try {
     const data = await service.createImageUploadUrls(req.body);

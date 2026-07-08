@@ -145,10 +145,12 @@ const deleteCategory = async (id) => {
   });
 };
 
-const getImages = async (categoryId) => {
+const getImages = async ({ categoryId, limit = 20 }) => {
   const where = {
     is_active: true,
   };
+
+  const safeLimit = Math.min(Number(limit) || 20, 50);
 
   if (categoryId) {
     where.category_id = Number(categoryId);
@@ -156,12 +158,25 @@ const getImages = async (categoryId) => {
 
   return prisma.inspiration_gallery_images.findMany({
     where,
-    include: {
-      inspiration_gallery_categories: true,
+    select: {
+      id: true,
+      category_id: true,
+      image_url: true,
+      image_alt: true,
+      title: true,
+      sort_order: true,
+      inspiration_gallery_categories: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
     },
     orderBy: {
       sort_order: "asc",
     },
+    take: safeLimit,
   });
 };
 
