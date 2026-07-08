@@ -17,6 +17,7 @@ const dasboardRoutes = require('./routes/dashboard.routes');
 const newsLetterRoutes = require('./routes/newsletter.routes');
 const contactRoutes = require('./routes/contactEnquiry.routes');
 const ProductRemarkRoutes =require('./routes/productRemark.routes');
+const inspirationGalleryRoutes = require("./routes/inspirationGallery.routes");
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.get('/', (req, res) => {
   });
 });
 
+app.use("/api/pages", pageRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/stones', stoneRoutes);
 app.use('/api/reports', reportRoutes);
@@ -61,7 +63,7 @@ app.use('/api/dashboard', dasboardRoutes);
 app.use('/api/activitie', activityRoutes);
 app.use('/api/newsletter', newsLetterRoutes);
 app.use('/api/products', ProductRemarkRoutes);
-app.use("/api/pages", pageRoutes);
+app.use("/api/inspiration-gallery", inspirationGalleryRoutes);
 
 
 const frontendDistPath = path.join(__dirname, "../dist");
