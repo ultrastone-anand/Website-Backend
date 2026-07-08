@@ -81,13 +81,29 @@ const getImages = async (req, res) => {
   }
 };
 
-const uploadImages = async (req, res) => {
+const createImageUploadUrls = async (req, res) => {
   try {
-    const data = await service.uploadImages(req.body, req.files);
+    const data = await service.createImageUploadUrls(req.body);
 
     res.json({
       success: true,
-      message: "Images uploaded successfully",
+      data,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const saveUploadedImages = async (req, res) => {
+  try {
+    const data = await service.saveUploadedImages(req.body);
+
+    res.json({
+      success: true,
+      message: "Images saved successfully",
       data,
     });
   } catch (error) {
@@ -120,6 +136,7 @@ module.exports = {
   updateCategory,
   deleteCategory,
   getImages,
-  uploadImages,
+  createImageUploadUrls,
+  saveUploadedImages,
   deleteImage,
 };

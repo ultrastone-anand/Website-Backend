@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma");
-const { uploadToR2, deleteFileFromR2 } = require("../utils/uploadToR2");
+const { deleteFileFromR2 } = require("../utils/uploadToR2");
+const { createR2UploadUrl } = require("../utils/r2Presigned");
 
 const slugify = (text) =>
   text
@@ -62,26 +63,6 @@ const createCategory = async (body) => {
       name,
       slug,
       sort_order: (lastCategory?.sort_order || 0) + 1,
-    },
-  });
-};
-
-const getImages = async (categoryId) => {
-  const where = {
-    is_active: true,
-  };
-
-  if (categoryId) {
-    where.category_id = Number(categoryId);
-  }
-
-  return prisma.inspiration_gallery_images.findMany({
-    where,
-    include: {
-      inspiration_gallery_categories: true,
-    },
-    orderBy: {
-      sort_order: "asc",
     },
   });
 };
@@ -164,15 +145,37 @@ const deleteCategory = async (id) => {
   });
 };
 
-const uploadImages = async (body, files = []) => {
-  const categoryId = Number(body.category_id);
+const getImages = async (categoryId) => {
+  const where = {
+    is_active: true,
+  };
+
+  if (categoryId) {
+    where.category_id = Number(categoryId);
+  }
+
+  return prisma.inspiration_gallery_images.findMany({
+    where,
+    include: {
+      inspiration_gallery_categories: true,
+    },
+    orderBy: {
+      sort_order: "asc",
+    },
+  });
+};
+
+const createImageUploadUrls = async (body) => {
+  const { category_id, files = [] } = body;
+
+  const categoryId = Number(category_id);
 
   if (!categoryId) {
     throw new Error("Category is required");
   }
 
   if (!files.length) {
-    throw new Error("Please select image(s)");
+    throw new Error("Files are required");
   }
 
   const category = await prisma.inspiration_gallery_categories.findUnique({
@@ -187,25 +190,33 @@ const uploadImages = async (body, files = []) => {
 
   const folder = `Home Page/inspiration galleries/${category.slug}`;
 
-  const uploadedImages = [];
+  return Promise.all(
+    files.map((file) => createR2UploadUrl(file.fileName, folder))
+  );
+};
 
-  for (const file of files) {
-    const uploaded = await uploadToR2(file, folder);
+const saveUploadedImages = async (body) => {
+  const { category_id, images = [] } = body;
 
-    const savedImage = await prisma.inspiration_gallery_images.create({
-      data: {
-        category_id: categoryId,
-        image_url: uploaded.secure_url,
-        image_alt: body.image_alt || category.name,
-        title: body.title || null,
-        sort_order: 0,
-      },
-    });
+  const categoryId = Number(category_id);
 
-    uploadedImages.push(savedImage);
+  if (!categoryId) {
+    throw new Error("Category is required");
   }
 
-  return uploadedImages;
+  if (!images.length) {
+    throw new Error("Images are required");
+  }
+
+  return prisma.inspiration_gallery_images.createMany({
+    data: images.map((image) => ({
+      category_id: categoryId,
+      image_url: image.secure_url,
+      image_alt: image.image_alt || null,
+      title: image.title || null,
+      sort_order: 0,
+    })),
+  });
 };
 
 const deleteImage = async (id) => {
@@ -244,6 +255,7 @@ module.exports = {
   updateCategory,
   deleteCategory,
   getImages,
-  uploadImages,
+  createImageUploadUrls,
+  saveUploadedImages,
   deleteImage,
 };
