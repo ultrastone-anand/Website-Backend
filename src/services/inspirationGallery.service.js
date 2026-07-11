@@ -17,18 +17,14 @@ const getCategories = async () => {
     where: {
       is_active: true,
     },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      sort_order: true,
+    },
     orderBy: {
       sort_order: "asc",
-    },
-    include: {
-      inspiration_gallery_images: {
-        where: {
-          is_active: true,
-        },
-        orderBy: {
-          sort_order: "asc",
-        },
-      },
     },
   });
 };
@@ -146,38 +142,141 @@ const deleteCategory = async (id) => {
 };
 
 const getImages = async ({ categoryId, limit = 20 }) => {
-  const where = {
-    is_active: true,
-  };
+  const parsedCategoryId = Number(categoryId);
+  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 50);
 
-  const safeLimit = Math.min(Number(limit) || 20, 50);
-
-  if (categoryId) {
-    where.category_id = Number(categoryId);
-  }
-
-  return prisma.inspiration_gallery_images.findMany({
-    where,
-    select: {
-      id: true,
-      category_id: true,
-      image_url: true,
-      image_alt: true,
-      title: true,
-      sort_order: true,
-      inspiration_gallery_categories: {
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-        },
+  const imageSelect = {
+    id: true,
+    category_id: true,
+    image_url: true,
+    image_alt: true,
+    title: true,
+    sort_order: true,
+    inspiration_gallery_categories: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
       },
     },
-    orderBy: {
-      sort_order: "asc",
-    },
-    take: safeLimit,
-  });
+  };
+
+  /*
+   * Category selected:
+   * Return up to 20 images belonging only to that category.
+   */
+  if (parsedCategoryId) {
+    return prisma.inspiration_gallery_images.findMany({
+      where: {
+        is_active: true,
+        category_id: parsedCategoryId,
+        inspiration_gallery_categories: {
+          is: {
+            is_active: true,
+          },
+        },
+      },
+      select: imageSelect,
+      orderBy: [
+        {
+          sort_order: "asc",
+        },
+        {
+          created_at: "desc",
+        },
+        {
+          id: "desc",
+        },
+      ],
+      take: safeLimit,
+    });
+  }
+
+  /*
+   * No category selected:
+   * Fetch active categories first.
+   */
+  const categories =
+    await prisma.inspiration_gallery_categories.findMany({
+      where: {
+        is_active: true,
+      },
+      select: {
+        id: true,
+      },
+      orderBy: {
+        sort_order: "asc",
+      },
+    });
+
+  if (!categories.length) {
+    return [];
+  }
+
+  /*
+   * Fetch images separately for every category.
+   *
+   * We fetch up to safeLimit per category so categories with fewer
+   * images do not prevent the final response from reaching 20.
+   */
+  const categoryImageGroups = await Promise.all(
+    categories.map((category) =>
+      prisma.inspiration_gallery_images.findMany({
+        where: {
+          is_active: true,
+          category_id: category.id,
+        },
+        select: imageSelect,
+        orderBy: [
+          {
+            sort_order: "asc",
+          },
+          {
+            created_at: "desc",
+          },
+          {
+            id: "desc",
+          },
+        ],
+        take: safeLimit,
+      })
+    )
+  );
+
+  /*
+   * Round-robin mixing:
+   *
+   * First image from every category,
+   * then second image from every category,
+   * then third image, and so on.
+   */
+  const mixedImages = [];
+  let imageIndex = 0;
+
+  while (mixedImages.length < safeLimit) {
+    let imageAdded = false;
+
+    for (const categoryImages of categoryImageGroups) {
+      const image = categoryImages[imageIndex];
+
+      if (image) {
+        mixedImages.push(image);
+        imageAdded = true;
+      }
+
+      if (mixedImages.length >= safeLimit) {
+        break;
+      }
+    }
+
+    if (!imageAdded) {
+      break;
+    }
+
+    imageIndex += 1;
+  }
+
+  return mixedImages;
 };
 
 const createImageUploadUrls = async (body) => {
