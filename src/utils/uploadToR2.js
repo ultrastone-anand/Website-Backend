@@ -34,13 +34,6 @@ const uploadToR2 = async (file, folder = "uploads") => {
     const sizeMB = stats.size / 1024 / 1024;
     const contentType = mime.lookup(fileName) || "application/octet-stream";
 
-    console.log("Uploading file to R2:", {
-      fileName,
-      sizeMB: sizeMB.toFixed(2),
-      folder,
-      objectKey,
-      contentType,
-    });
 
     console.time(`R2_UPLOAD_${fileName}`);
 
@@ -61,8 +54,6 @@ const uploadToR2 = async (file, folder = "uploads") => {
       if (!progress.loaded || !progress.total) return;
 
       const percent = ((progress.loaded / progress.total) * 100).toFixed(2);
-
-      console.log(`R2 Upload Progress: ${percent}%`);
     });
 
     await upload.done();

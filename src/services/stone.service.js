@@ -1116,9 +1116,13 @@ const updateProduct = async (id, body, files, audit = {}) => {
 
   }
 
-  const existingMedia = JSON.parse(
-    body.existing_media || "[]"
-  );
+const existingMedia = parseArray(
+  body.existing_media
+);
+
+const uploadedFeaturedVideos = parseArray(
+  body.uploaded_featured_videos
+);
 
   const oldMedia = existingProduct.media
     .map((m) => ({
@@ -1318,51 +1322,50 @@ if (files?.slab_images && files.slab_images.length > 0) {
 }
   
 
- // ==============================
+// ==============================
 // FEATURED VIDEOS
+// Presigned videos are already uploaded to R2.
+// Here we only save their URLs and public IDs.
 // ==============================
 
 let featuredVideos = existingMedia
-  .filter((item) => item.media_type === "FEATURED_VIDEO")
+  .filter(
+    (item) =>
+      item.media_type === "FEATURED_VIDEO" &&
+      item.media_url
+  )
   .map((item) => ({
     media_url: item.media_url,
-    public_id: item.public_id,
+    public_id: item.public_id || null,
+    alt_text: item.alt_text || null,
   }));
 
-if (files?.featured_videos && files.featured_videos.length > 0) {
-  console.time("FEATURED_VIDEOS_TOTAL_UPLOAD");
+// New videos uploaded directly from frontend to R2
+const newPresignedVideos =
+  uploadedFeaturedVideos
+    .filter(
+      (video) =>
+        video &&
+        video.media_url
+    )
+    .map((video) => ({
+      media_url: video.media_url,
+      public_id: video.public_id || null,
+      alt_text: video.alt_text || null,
+    }));
 
-  const uploadedVideos = await Promise.all(
-    files.featured_videos.map(async (file, index) => {
-      console.log("VIDEO FILE RECEIVED BY SERVER:", {
-        index,
-        originalname: file.originalname,
-        filename: file.filename,
-        path: file.path,
-        sizeMB: (file.size / 1024 / 1024).toFixed(2),
-      });
+featuredVideos.push(
+  ...newPresignedVideos
+);
 
-      console.time(`SERVER_TO_R2_VIDEO_${index}_${file.originalname}`);
-
-      const uploaded = await uploadToR2(
-        file.path,
-        "ultrastones/products/videos"
-      );
-
-      console.timeEnd(`SERVER_TO_R2_VIDEO_${index}_${file.originalname}`);
-
-      return {
-        media_url: uploaded.secure_url,
-        public_id: uploaded.public_id,
-      };
-    })
-  );
-
-  console.timeEnd("FEATURED_VIDEOS_TOTAL_UPLOAD");
-
-  featuredVideos.push(...uploadedVideos);
-}
-
+featuredVideos = Array.from(
+  new Map(
+    featuredVideos.map((video) => [
+      video.public_id || video.media_url,
+      video,
+    ])
+  ).values()
+);
   // ==============================
 // APPLICATION IMAGES
 // ==============================
@@ -1493,8 +1496,15 @@ featuredVideos.forEach((video, index) => {
     product_id: BigInt(id),
     media_type: "FEATURED_VIDEO",
     media_url: video.media_url,
-    public_id: video.public_id,
-    alt_text: altTextMap.get(`FEATURED_VIDEO_${video.media_url}`) || null,
+    public_id: video.public_id || null,
+
+    alt_text:
+      video.alt_text ||
+      altTextMap.get(
+        `FEATURED_VIDEO_${video.media_url}`
+      ) ||
+      null,
+
     display_order: index,
   });
 });
@@ -1856,19 +1866,17 @@ if (faqChanged) {
 
           });
 
-if (mediaToCreate.length > 0) {
-   await prisma.stone_product_media.deleteMany({
+await prisma.stone_product_media.deleteMany({
   where: {
     product_id: BigInt(id),
   },
 });
 
-// Insert the rebuilt media list
 if (mediaToCreate.length > 0) {
   await prisma.stone_product_media.createMany({
     data: mediaToCreate,
   });
-}}
+}
 
 // Reload updated media
 const finalProduct = await prisma.stone_products.findUnique({
