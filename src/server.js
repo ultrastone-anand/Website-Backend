@@ -16,6 +16,7 @@ const activityRoutes = require('./routes/activity.routes');
 const dasboardRoutes = require('./routes/dashboard.routes');
 const newsLetterRoutes = require('./routes/newsletter.routes');
 const contactRoutes = require('./routes/contactEnquiry.routes');
+const GlobalSerchRoutes = require('./routes/globalsearch.route');
 const ProductRemarkRoutes =require('./routes/productRemark.routes');
 const inspirationGalleryRoutes = require("./routes/inspirationGallery.routes");
 
@@ -61,6 +62,7 @@ app.use('/api/company', companyRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/dashboard', dasboardRoutes);
 app.use('/api/activitie', activityRoutes);
+app.use('/api/search', GlobalSerchRoutes);
 app.use('/api/newsletter', newsLetterRoutes);
 app.use('/api/products', ProductRemarkRoutes);
 app.use("/api/inspiration-gallery", inspirationGalleryRoutes);
