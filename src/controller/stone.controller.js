@@ -592,6 +592,58 @@ const getMediaBase64 = async (req, res) => {
   }
 };
 
+const getBrowseProducts = async (req, res) => {
+
+  try {
+
+    const requestedLimit = Number.parseInt(req.query.limit, 10);
+
+    const limit =
+
+      Number.isInteger(requestedLimit) && requestedLimit > 0
+
+        ? Math.min(requestedLimit, 20)
+
+        : 6;
+
+    const products = await stoneservice.getBrowseProducts(limit);
+
+    return res.status(200).json({
+
+      success: true,
+
+      message: "Browse products fetched successfully",
+
+      count: products.length,
+
+      data: products,
+
+    });
+
+  } catch (error) {
+
+    console.error("getBrowseProducts error:", error);
+
+    return res.status(500).json({
+
+      success: false,
+
+      message: "Failed to fetch browse products",
+
+      error:
+
+        process.env.NODE_ENV === "development"
+
+          ? error.message
+
+          : undefined,
+
+    });
+
+  }
+
+};
+
 module.exports = {
   getStones,
   getCategoryProducts,
@@ -609,4 +661,5 @@ module.exports = {
   deleteStoneProductMedia,
   getVideoUploadUrl,
   getMediaBase64,
+  getBrowseProducts,
 };

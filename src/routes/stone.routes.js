@@ -9,11 +9,9 @@ const authenticate = require("../middlewares/auth.middleware");
 // GET
 // ==============================
 
-router.get(
-  "/media/base64",
-  stoneController.getMediaBase64
-);
+router.get( "/media/base64",stoneController.getMediaBase64);
 
+router.get( "/browse",stoneController.getBrowseProducts);
 
 router.get("/", stoneController.getStones);
 

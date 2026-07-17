@@ -2356,6 +2356,178 @@ const getMediaBase64 = async (imageUrl) => {
   };
 };
 
+const shuffleArray = (items) => {
+
+  const shuffledItems = [...items];
+
+  for (let index = shuffledItems.length - 1; index > 0; index -= 1) {
+
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+
+    [shuffledItems[index], shuffledItems[randomIndex]] = [
+
+      shuffledItems[randomIndex],
+
+      shuffledItems[index],
+
+    ];
+
+  }
+
+  return shuffledItems;
+
+};
+
+const getBrowseProducts = async (limit = 6) => {
+  const safeLimit = Math.min(
+    Math.max(Number(limit) || 6, 1),
+    20
+  );
+
+  // Get all active parent categories
+  const categories =
+    await prisma.stone_categories.findMany({
+      where: {
+        is_active: true,
+        parent_id: null,
+      },
+
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+    });
+
+  if (categories.length === 0) {
+    return [];
+  }
+
+  // Randomize category order
+  const shuffledCategories =
+    shuffleArray(categories);
+
+  const categoryProducts = [];
+
+  /*
+   * Loop through randomized categories until we collect
+   * the requested number of products.
+   *
+   * This avoids querying every category when only 6
+   * products are needed.
+   */
+  for (const category of shuffledCategories) {
+    if (categoryProducts.length >= safeLimit) {
+      break;
+    }
+
+    try {
+      const productWhere = {
+        category_id: category.id,
+        is_active: true,
+        is_published: true,
+
+        // Product must have at least one close-up image
+        media: {
+          some: {
+            media_type: "CLOSEUP_IMAGE",
+          },
+        },
+      };
+
+      // Count eligible products in this category
+      const productCount =
+        await prisma.stone_products.count({
+          where: productWhere,
+        });
+
+      if (productCount === 0) {
+        continue;
+      }
+
+      // Choose a random product position
+      const randomSkip =
+        Math.floor(Math.random() * productCount);
+
+      const product =
+        await prisma.stone_products.findFirst({
+          where: productWhere,
+
+          skip: randomSkip,
+
+          /*
+           * An orderBy is important when using skip,
+           * otherwise database ordering may be inconsistent.
+           */
+          orderBy: {
+            id: "asc",
+          },
+
+          select: {
+            id: true,
+            product_id: true,
+            name: true,
+            slug: true,
+            small_description: true,
+            stone_group: true,
+            pattern: true,
+            origin_country: true,
+            variation_level: true,
+            is_active: true,
+            is_published: true,
+            created_at: true,
+
+            media: {
+              where: {
+                media_type: "CLOSEUP_IMAGE",
+              },
+
+              orderBy: {
+                display_order: "asc",
+              },
+
+              take: 1,
+
+              select: {
+                id: true,
+                media_url: true,
+                alt_text: true,
+                display_order: true,
+              },
+            },
+          },
+        });
+
+      if (!product) {
+        continue;
+      }
+
+      categoryProducts.push({
+        ...product,
+
+        closeup_image:
+          product.media?.[0]?.media_url || null,
+
+        category: {
+          id: category.id,
+          name: category.name,
+          slug: category.slug,
+        },
+      });
+    } catch (error) {
+      console.error(
+        `Browse product failed for category ${category.slug}:`,
+        error
+      );
+    }
+  }
+
+  // Randomize final result order
+  return serializeBigInt(
+    shuffleArray(categoryProducts)
+  );
+};
+
 
 module.exports = {
   getStones,
@@ -2375,4 +2547,5 @@ module.exports = {
   bulkPublishProducts,
   deleteStoneProductMedia,
   getMediaBase64,
+  getBrowseProducts,
 };
