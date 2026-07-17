@@ -60,7 +60,9 @@ const getCategoryProducts = async (slug) => {
 
         origin_country: true,
 
-        variation_level: true,
+        thicknesses_cm: true,
+
+        finishes_available: true,
 
         is_active: true,
 
@@ -2473,6 +2475,8 @@ const getBrowseProducts = async (limit = 6) => {
             pattern: true,
             origin_country: true,
             variation_level: true,
+            thicknesses_cm: true,
+            finishes_available: true,
             is_active: true,
             is_published: true,
             created_at: true,
