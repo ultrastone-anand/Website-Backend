@@ -564,6 +564,34 @@ const getVideoUploadUrl = async (req, res) => {
   }
 };
 
+
+const getMediaBase64 = async (req, res) => {
+  try {
+    const { url } = req.query;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        message: "Image URL is required",
+      });
+    }
+
+    const result = await stoneservice.getMediaBase64(url);
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
 module.exports = {
   getStones,
   getCategoryProducts,
@@ -580,4 +608,5 @@ module.exports = {
   bulkPublishProducts,
   deleteStoneProductMedia,
   getVideoUploadUrl,
+  getMediaBase64,
 };

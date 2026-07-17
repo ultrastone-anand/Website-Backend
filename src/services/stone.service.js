@@ -2336,6 +2336,26 @@ const deleteStoneProductMedia = async (mediaId) => {
     return media;
 };
 
+const getMediaBase64 = async (imageUrl) => {
+  const response = await fetch(imageUrl);
+
+  if (!response.ok) {
+    throw new Error("Unable to fetch image");
+  }
+
+  const contentType =
+    response.headers.get("content-type") ||
+    "image/jpeg";
+
+  const buffer = Buffer.from(
+    await response.arrayBuffer()
+  );
+
+  return {
+    base64: `data:${contentType};base64,${buffer.toString("base64")}`,
+  };
+};
+
 
 module.exports = {
   getStones,
@@ -2354,4 +2374,5 @@ module.exports = {
   updatePublishStatus,
   bulkPublishProducts,
   deleteStoneProductMedia,
+  getMediaBase64,
 };

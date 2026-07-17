@@ -9,6 +9,12 @@ const authenticate = require("../middlewares/auth.middleware");
 // GET
 // ==============================
 
+router.get(
+  "/media/base64",
+  stoneController.getMediaBase64
+);
+
+
 router.get("/", stoneController.getStones);
 
 router.get("/:slug", stoneController.getCategoryProducts);
@@ -140,5 +146,7 @@ router.delete(
 );
 
 router.post("/r2/video-upload-url", stoneController.getVideoUploadUrl);
+
+
 
 module.exports = router;
