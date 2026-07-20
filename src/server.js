@@ -18,7 +18,9 @@ const newsLetterRoutes = require('./routes/newsletter.routes');
 const contactRoutes = require('./routes/contactEnquiry.routes');
 const GlobalSerchRoutes = require('./routes/globalsearch.route');
 const ProductRemarkRoutes =require('./routes/productRemark.routes');
+const bulkDescriptionRoutes = require("./routes/bulkDescription.routes");
 const inspirationGalleryRoutes = require("./routes/inspirationGallery.routes");
+
 
 const app = express();
 
@@ -65,6 +67,7 @@ app.use('/api/activitie', activityRoutes);
 app.use('/api/search', GlobalSerchRoutes);
 app.use('/api/newsletter', newsLetterRoutes);
 app.use('/api/products', ProductRemarkRoutes);
+app.use("/api/bulk-descriptions",bulkDescriptionRoutes);
 app.use("/api/inspiration-gallery", inspirationGalleryRoutes);
 
 
