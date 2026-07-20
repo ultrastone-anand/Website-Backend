@@ -23,9 +23,37 @@ router.get("/productdetail/:slug", stoneController.getProductDetails);
 // CATEGORY CRUD
 // ==============================
 
-router.post("/category", authenticate ,  upload.single("silica_datasheet"), stoneController.createCategory);
+router.post(
+  '/category',
+  authenticate,
+  upload.fields([
+    {
+      name: 'thumbnail',
+      maxCount: 1,
+    },
+    {
+      name: 'silica_datasheet',
+      maxCount: 1,
+    },
+  ]),
+  stoneController.createCategory
+);
 
-router.put("/category/:id", authenticate ,  upload.single("silica_datasheet"), stoneController.updateCategory);
+router.put(
+  '/category/:id',
+  authenticate,
+  upload.fields([
+    {
+      name: 'thumbnail',
+      maxCount: 1,
+    },
+    {
+      name: 'silica_datasheet',
+      maxCount: 1,
+    },
+  ]),
+  stoneController.updateCategory
+);
 
 // ==============================
 // PRODUCT CRUD

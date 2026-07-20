@@ -1,7 +1,35 @@
+const prisma = require("../config/prisma");
 const stoneservice = require("../services/stone.service");
 const getAuditContext = require("../utils/getAuditContext");
-const { createR2UploadUrl } = require("../utils/r2Presigned");
+const { createR2UploadUrl} = require("../utils/r2Presigned");
 const { serialize } = require('../utils/serialize');
+const { uploadToR2 , deleteFileFromR2 } = require("../utils/uploadToR2");
+
+
+
+
+const getR2ObjectKeyFromUrl = (fileUrl) => {
+  if (!fileUrl || !process.env.R2_PUBLIC_URL) {
+    return null;
+  }
+
+  const normalizedPublicUrl =
+    process.env.R2_PUBLIC_URL.replace(/\/+$/, '');
+
+  const normalizedFileUrl = String(fileUrl).trim();
+
+  if (
+    !normalizedFileUrl.startsWith(
+      `${normalizedPublicUrl}/`
+    )
+  ) {
+    return null;
+  }
+
+  return normalizedFileUrl.slice(
+    normalizedPublicUrl.length + 1
+  );
+};
 
 // ================== GET ALLs ==================
 
@@ -95,22 +123,39 @@ const getProductDetails = async (
 
 // ==================  CATEGORY CRUD ==================
 
-const createCategory = async (
-  req,
-  res
-) => {
+const createCategory = async (req, res) => {
+  let uploadedThumbnailKey = null;
 
   try {
-
     const payload = {
       ...req.body,
     };
 
-    if (req.file) {
+    const thumbnailFile =
+      req.files?.thumbnail?.[0];
 
+    const silicaDatasheetFile =
+      req.files?.silica_datasheet?.[0];
+
+    // Upload category thumbnail to Cloudflare R2
+    if (thumbnailFile) {
+      const uploadedThumbnail =
+        await uploadToR2(
+          thumbnailFile,
+          'category-thumbnails'
+        );
+
+      payload.thumbnail_url =
+        uploadedThumbnail.secure_url;
+
+      uploadedThumbnailKey =
+        uploadedThumbnail.public_id;
+    }
+
+    // Keep silica PDF in local /uploads folder
+    if (silicaDatasheetFile) {
       payload.silica_datasheet_url =
-        `/uploads/${req.file.filename}`;
-
+        `/uploads/${silicaDatasheetFile.filename}`;
     }
 
     const data =
@@ -119,89 +164,174 @@ const createCategory = async (
         getAuditContext(req)
       );
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      data
+      data,
     });
-
   } catch (error) {
+    // If database creation fails after R2 upload,
+    // delete the orphaned thumbnail.
+    if (uploadedThumbnailKey) {
+      await deleteFileFromR2(
+        uploadedThumbnailKey
+      ).catch((deleteError) => {
+        console.error(
+          'Failed to clean uploaded thumbnail:',
+          deleteError
+        );
+      });
+    }
 
-    // Prisma unique constraint
-
-    if (
-      error.code === "P2002"
-    ) {
+    if (error.code === 'P2002') {
+      const target =
+        Array.isArray(error.meta?.target)
+          ? error.meta.target.join(', ')
+          : error.meta?.target;
 
       return res.status(400).json({
         success: false,
-        message:
-          "Slug already exists"
+        message: target?.includes('name')
+          ? 'Category name already exists'
+          : 'Slug already exists',
       });
-
     }
 
-    // Custom error
-
-    if (
-      error.message ===
-      "Slug already exists"
-    ) {
-
-      return res.status(400).json({
-        success: false,
-        message: error.message
-      });
-
-    }
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: error.message
+      message:
+        error.message ||
+        'Failed to create category',
     });
-
   }
-
 };
 
-const updateCategory = async (
-  req,
-  res
-) => {
+const updateCategory = async (req, res) => {
+  let newlyUploadedThumbnailKey = null;
 
   try {
+    const categoryId = Number(req.params.id);
+
+    const existingCategory =
+      await prisma.stone_categories.findUnique({
+        where: {
+          id: categoryId,
+        },
+      });
+
+    if (!existingCategory) {
+      return res.status(404).json({
+        success: false,
+        message: 'Category not found',
+      });
+    }
 
     const payload = {
       ...req.body,
     };
 
-    if (req.file) {
+    const thumbnailFile =
+      req.files?.thumbnail?.[0];
 
+    const silicaDatasheetFile =
+      req.files?.silica_datasheet?.[0];
+
+    if (thumbnailFile) {
+      const uploadedThumbnail =
+        await uploadToR2(
+          thumbnailFile,
+          'category-thumbnails'
+        );
+
+      payload.thumbnail_url =
+        uploadedThumbnail.secure_url;
+
+      newlyUploadedThumbnailKey =
+        uploadedThumbnail.public_id;
+    }
+
+    if (silicaDatasheetFile) {
       payload.silica_datasheet_url =
-        `/uploads/${req.file.filename}`;
-
+        `/uploads/${silicaDatasheetFile.filename}`;
     }
 
     const data =
       await stoneservice.updateCategory(
-        req.params.id,
+        categoryId,
         payload,
         getAuditContext(req)
       );
 
-    res.status(200).json({
+    // Delete old thumbnail only after successful DB update.
+    if (
+      thumbnailFile &&
+      existingCategory.thumbnail_url &&
+      existingCategory.thumbnail_url !==
+        payload.thumbnail_url
+    ) {
+      const oldThumbnailKey =
+        getR2ObjectKeyFromUrl(
+          existingCategory.thumbnail_url
+        );
+
+      if (oldThumbnailKey) {
+        await deleteFileFromR2(
+          oldThumbnailKey
+        ).catch((deleteError) => {
+          console.error(
+            'Failed to delete previous thumbnail:',
+            deleteError
+          );
+        });
+      }
+    }
+
+    return res.status(200).json({
       success: true,
-      data
+      data,
     });
-
   } catch (error) {
+    // Delete newly uploaded image if database update fails.
+    if (newlyUploadedThumbnailKey) {
+      await deleteFileFromR2(
+        newlyUploadedThumbnailKey
+      ).catch((deleteError) => {
+        console.error(
+          'Failed to clean uploaded thumbnail:',
+          deleteError
+        );
+      });
+    }
 
-    res.status(500).json({
+    if (error.code === 'P2002') {
+      const target =
+        Array.isArray(error.meta?.target)
+          ? error.meta.target.join(', ')
+          : error.meta?.target;
+
+      return res.status(400).json({
+        success: false,
+        message: target?.includes('name')
+          ? 'Category name already exists'
+          : 'Slug already exists',
+      });
+    }
+
+    if (
+      error.message === 'Category not found'
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    return res.status(500).json({
       success: false,
-      message: error.message
+      message:
+        error.message ||
+        'Failed to update category',
     });
-
   }
-
 };
 
 // ================== PRODUCT CRUD ==================

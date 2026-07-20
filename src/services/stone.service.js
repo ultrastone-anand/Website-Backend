@@ -409,188 +409,234 @@ const createCategory = async (
   body,
   audit = {}
 ) => {
+  const createData = {
+    name: body.name?.trim(),
 
-  return await auditService.track({
+    slug: body.slug?.trim(),
 
+    description:
+      body.description?.trim() || null,
+
+    parent_id:
+      body.parent_id === '' ||
+      body.parent_id === null ||
+      body.parent_id === undefined
+        ? null
+        : Number(body.parent_id),
+
+    thumbnail_url:
+      body.thumbnail_url || null,
+
+    banner_url:
+      body.banner_url || null,
+
+    display_order:
+      body.display_order === '' ||
+      body.display_order === null ||
+      body.display_order === undefined
+        ? 1
+        : Number(body.display_order),
+
+    silica_warning:
+      body.silica_warning === 'true' ||
+      body.silica_warning === true,
+
+    silica_warning_message:
+      body.silica_warning_message?.trim() ||
+      null,
+
+    silica_datasheet_url:
+      body.silica_datasheet_url || null,
+
+    is_active:
+      body.is_active === undefined
+        ? true
+        : body.is_active === 'true' ||
+          body.is_active === true,
+  };
+
+  return auditService.track({
     audit,
 
-    action: "CREATE",
+    action: 'CREATE',
 
-    resourceType: "CATEGORY",
+    resourceType: 'CATEGORY',
 
-    moduleName:
-      "Stone Management",
+    moduleName: 'Stone Management',
 
     operation: () =>
       prisma.stone_categories.create({
-
-        data: {
-
-          name:
-            body.name,
-
-          slug:
-            body.slug,
-
-          description:
-            body.description,
-
-          parent_id:
-            body.parent_id || null,
-
-          thumbnail_url:
-            body.thumbnail_url,
-
-          banner_url:
-            body.banner_url,
-
-          display_order:
-            body.display_order || 1,
-
-          silica_warning:
-            body.silica_warning === "true" ||
-            body.silica_warning === true,
-
-          silica_warning_message:
-            body.silica_warning_message || null,
-
-          silica_datasheet_url:
-            body.silica_datasheet_url || null,
-
-          is_active:
-            true
-
-        }
-
-      })
-
+        data: createData,
+      }),
   });
-
 };
+
+// ----------------------------------------------------------------------
 
 const updateCategory = async (
   id,
   body,
   audit = {}
 ) => {
+  const categoryId = Number(id);
+
+  if (!Number.isInteger(categoryId)) {
+    throw new Error('Invalid category ID');
+  }
 
   const existingCategory =
     await prisma.stone_categories.findUnique({
       where: {
-        id: Number(id)
-      }
+        id: categoryId,
+      },
     });
 
   if (!existingCategory) {
+    throw new Error('Category not found');
+  }
+
+  const updateData = {};
+
+  if ('name' in body) {
+    updateData.name =
+      body.name?.trim();
+  }
+
+  if ('slug' in body) {
+    updateData.slug =
+      body.slug?.trim();
+  }
+
+  if ('description' in body) {
+    updateData.description =
+      body.description?.trim() || null;
+  }
+
+  if ('parent_id' in body) {
+    updateData.parent_id =
+      body.parent_id === '' ||
+      body.parent_id === null ||
+      body.parent_id === undefined
+        ? null
+        : Number(body.parent_id);
+  }
+
+  if ('thumbnail_url' in body) {
+    updateData.thumbnail_url =
+      body.thumbnail_url || null;
+  }
+
+  if ('banner_url' in body) {
+    updateData.banner_url =
+      body.banner_url || null;
+  }
+
+  if ('display_order' in body) {
+    updateData.display_order =
+      body.display_order === '' ||
+      body.display_order === null ||
+      body.display_order === undefined
+        ? null
+        : Number(body.display_order);
+  }
+
+  if ('is_active' in body) {
+    updateData.is_active =
+      body.is_active === 'true' ||
+      body.is_active === true;
+  }
+
+  if ('silica_warning' in body) {
+    updateData.silica_warning =
+      body.silica_warning === 'true' ||
+      body.silica_warning === true;
+  }
+
+  if (
+    'silica_warning_message' in body
+  ) {
+    updateData.silica_warning_message =
+      body.silica_warning_message?.trim() ||
+      null;
+  }
+
+  if (
+    'silica_datasheet_url' in body
+  ) {
+    updateData.silica_datasheet_url =
+      body.silica_datasheet_url || null;
+  }
+
+  if ('meta_description' in body) {
+    updateData.meta_description =
+      body.meta_description?.trim() || null;
+  }
+
+  if ('meta_keywords' in body) {
+    updateData.meta_keywords =
+      body.meta_keywords?.trim() || null;
+  }
+
+  if ('seo_title' in body) {
+    updateData.seo_title =
+      body.seo_title?.trim() || null;
+  }
+
+  if (
+    updateData.parent_id === categoryId
+  ) {
     throw new Error(
-      "Category not found"
+      'A category cannot be its own parent'
     );
   }
 
-  const updateData = {
-    ...body
-  };
-
-
-  if (
-    "is_active" in updateData
-  ) {
-    updateData.is_active =
-      updateData.is_active === "true" ||
-      updateData.is_active === true;
-  }
-
-  if (
-    "silica_warning" in updateData
-  ) {
-    updateData.silica_warning =
-      updateData.silica_warning === "true" ||
-      updateData.silica_warning === true;
-  }
-
-  if (
-    "silica_warning_message" in updateData
-  ) {
-    updateData.silica_warning_message =
-      updateData.silica_warning_message || null;
-  }
-
-  if (
-    "silica_datasheet_url" in updateData
-  ) {
-    updateData.silica_datasheet_url =
-      updateData.silica_datasheet_url || null;
-  }
-
-  if (
-    "parent_id" in updateData
-  ) {
-    updateData.parent_id =
-      updateData.parent_id === "" ||
-        updateData.parent_id === null
-        ? null
-        : Number(updateData.parent_id);
-  }
-
-  return await auditService.track({
-
+  return auditService.track({
     audit,
 
-    action: "UPDATE",
+    action: 'UPDATE',
 
-    resourceType: "CATEGORY",
+    resourceType: 'CATEGORY',
 
     resourceId:
       existingCategory.id,
 
     moduleName:
-      "Stone Management",
+      'Stone Management',
 
     oldValues:
       existingCategory,
 
     operation: async () => {
-
       const updatedCategory =
         await prisma.stone_categories.update({
-
           where: {
-            id: Number(id)
+            id: categoryId,
           },
 
-          data: updateData
-
+          data: updateData,
         });
 
-      // If parent category is deactivated,
-      // deactivate all child categories
+      // When a parent category is deactivated,
+      // deactivate its direct child categories.
       if (
-        "is_active" in updateData &&
+        'is_active' in updateData &&
         updateData.is_active === false
       ) {
-
         await prisma.stone_categories.updateMany({
-
           where: {
-            parent_id: Number(id)
+            parent_id: categoryId,
           },
 
           data: {
-            is_active: false
-          }
-
+            is_active: false,
+          },
         });
-
       }
 
       return updatedCategory;
-
-    }
-
+    },
   });
-
 };
-
 // ================  PRODUCT CRUD ================
 
 const serializeBigInt = (data) => {
