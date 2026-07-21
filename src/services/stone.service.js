@@ -403,6 +403,196 @@ const getProductDetails = async (slug) => {
   };
 };
 
+const searchProducts = async ({
+  searchTerm,
+  categoryId = null,
+  status = 'active',
+  page = 1,
+  limit = 24,
+}) => {
+  const normalizedSearchTerm =
+    String(searchTerm || '').trim();
+
+  const safePage = Math.max(
+    Number(page) || 1,
+    1
+  );
+
+  const safeLimit = Math.min(
+    Math.max(
+      Number(limit) || 24,
+      1
+    ),
+    50
+  );
+
+  const skip =
+    (safePage - 1) *
+    safeLimit;
+
+  const where = {
+    OR: [
+      {
+        name: {
+          contains:
+            normalizedSearchTerm,
+        },
+      },
+      {
+        slug: {
+          contains:
+            normalizedSearchTerm,
+        },
+      },
+    ],
+  };
+
+  if (
+    categoryId !== null &&
+    categoryId !== undefined &&
+    categoryId !== ''
+  ) {
+    const parsedCategoryId =
+      Number(categoryId);
+
+    if (
+      Number.isInteger(
+        parsedCategoryId
+      ) &&
+      parsedCategoryId > 0
+    ) {
+      where.category_id =
+        parsedCategoryId;
+    }
+  }
+
+  if (status === 'active') {
+    where.is_active = true;
+  } else if (
+    status === 'inactive'
+  ) {
+    where.is_active = false;
+  }
+
+  const [
+    products,
+    total,
+  ] = await prisma.$transaction([
+    prisma.stone_products.findMany({
+      where,
+
+      orderBy: {
+        name: 'asc',
+      },
+
+      skip,
+      take: safeLimit,
+
+      select: {
+        id: true,
+        product_id: true,
+        name: true,
+        slug: true,
+        small_description: true,
+        stone_group: true,
+        pattern: true,
+        origin_country: true,
+        thicknesses_cm: true,
+        finishes_available: true,
+        category_id: true,
+        is_active: true,
+        is_published: true,
+        is_featured: true,
+        is_trending: true,
+        is_new_arrival: true,
+        created_at: true,
+        updated_at: true,
+
+        stone_categories: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+
+        media: {
+          where: {
+            media_type:
+              'CLOSEUP_IMAGE',
+          },
+
+          orderBy: {
+            display_order: 'asc',
+          },
+
+          take: 1,
+
+          select: {
+            id: true,
+            media_url: true,
+            alt_text: true,
+            display_order: true,
+          },
+        },
+      },
+    }),
+
+    prisma.stone_products.count({
+      where,
+    }),
+  ]);
+
+  const formattedProducts =
+    products.map((product) => ({
+      ...product,
+
+      closeup_image:
+        product.media?.[0]
+          ?.media_url || null,
+
+      category:
+        product.stone_categories
+          ? {
+              id:
+                product
+                  .stone_categories.id,
+
+              name:
+                product
+                  .stone_categories.name,
+
+              slug:
+                product
+                  .stone_categories.slug,
+            }
+          : null,
+    }));
+
+  return serializeBigInt({
+    products:
+      formattedProducts,
+
+    pagination: {
+      page: safePage,
+      limit: safeLimit,
+      total,
+
+      totalPages:
+        Math.ceil(
+          total / safeLimit
+        ),
+
+      hasNextPage:
+        safePage * safeLimit <
+        total,
+
+      hasPreviousPage:
+        safePage > 1,
+    },
+  });
+};
+
 // ================  CATEGORY CRUD ================
 
 const createCategory = async (
@@ -2583,6 +2773,7 @@ module.exports = {
   getStones,
   getCategoryProducts,
   getProductDetails,
+  searchProducts,
 
   createCategory,
   updateCategory,

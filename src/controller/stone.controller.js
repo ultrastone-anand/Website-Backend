@@ -121,6 +121,112 @@ const getProductDetails = async (
 
 };
 
+const searchProducts = async (
+  req,
+  res
+) => {
+  try {
+    const searchTerm =
+      String(
+        req.query.q || ''
+      ).trim();
+
+    if (
+      searchTerm.length < 2
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Enter at least 2 characters',
+      });
+    }
+
+    const requestedPage =
+      Number.parseInt(
+        req.query.page,
+        10
+      );
+
+    const requestedLimit =
+      Number.parseInt(
+        req.query.limit,
+        10
+      );
+
+    const page =
+      Number.isInteger(
+        requestedPage
+      ) &&
+      requestedPage > 0
+        ? requestedPage
+        : 1;
+
+    const limit =
+      Number.isInteger(
+        requestedLimit
+      ) &&
+      requestedLimit > 0
+        ? Math.min(
+            requestedLimit,
+            50
+          )
+        : 24;
+
+    const categoryId =
+      req.query.category_id ||
+      null;
+
+    const allowedStatuses = [
+      'active',
+      'inactive',
+      'all',
+    ];
+
+    const requestedStatus =
+      String(
+        req.query.status ||
+          'active'
+      ).toLowerCase();
+
+    const status =
+      allowedStatuses.includes(
+        requestedStatus
+      )
+        ? requestedStatus
+        : 'active';
+
+    const result =
+      await stoneservice.searchProducts({
+        searchTerm,
+        categoryId,
+        status,
+        page,
+        limit,
+      });
+
+    return res.status(200).json({
+      success: true,
+      message:
+        'Products searched successfully',
+      data: result.products,
+      pagination:
+        result.pagination,
+    });
+  } catch (error) {
+    console.error(
+      'searchProducts error:',
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.message ||
+        'Failed to search products',
+    });
+  }
+};
+
 // ==================  CATEGORY CRUD ==================
 
 const createCategory = async (req, res) => {
@@ -778,6 +884,7 @@ module.exports = {
   getStones,
   getCategoryProducts,
   getProductDetails,
+  searchProducts,
   createCategory,
   updateCategory,
   createProduct,

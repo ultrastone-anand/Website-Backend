@@ -13,6 +13,10 @@ router.get( "/media/base64",stoneController.getMediaBase64);
 
 router.get( "/browse",stoneController.getBrowseProducts);
 
+// CMS product search
+
+router.get("/search/products", authenticate,stoneController.searchProducts);
+
 router.get("/", stoneController.getStones);
 
 router.get("/:slug", stoneController.getCategoryProducts);
