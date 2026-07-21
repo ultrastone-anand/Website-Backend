@@ -19,5 +19,6 @@ router.post("/images/presign", controller.createImageUploadUrls);
 router.post("/images/save", controller.saveUploadedImages);
 
 router.delete("/images/:id", controller.deleteImage);
+router.patch("/images/:id/alt",controller.updateImageAlt);
 
 module.exports = router;

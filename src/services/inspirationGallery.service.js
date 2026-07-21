@@ -363,13 +363,60 @@ const deleteImage = async (id) => {
   });
 };
 
+const updateImageAlt = async (id, body) => {
+  const imageId = Number(id);
+  const imageAlt = body.image_alt?.trim();
+
+  if (!imageId) {
+    throw new Error("Valid image ID is required");
+  }
+
+  if (!imageAlt) {
+    throw new Error("Image alt text is required");
+  }
+
+  if (imageAlt.length > 250) {
+    throw new Error("Image alt text cannot exceed 250 characters");
+  }
+
+  const existingImage =
+    await prisma.inspiration_gallery_images.findUnique({
+      where: {
+        id: imageId,
+      },
+    });
+
+  if (!existingImage) {
+    throw new Error("Gallery media not found");
+  }
+
+  return prisma.inspiration_gallery_images.update({
+    where: {
+      id: imageId,
+    },
+    data: {
+      image_alt: imageAlt,
+    },
+    select: {
+      id: true,
+      category_id: true,
+      image_url: true,
+      image_alt: true,
+      title: true,
+      sort_order: true,
+    },
+  });
+};
+
 module.exports = {
   getCategories,
   createCategory,
   updateCategory,
   deleteCategory,
+
   getImages,
   createImageUploadUrls,
   saveUploadedImages,
   deleteImage,
+  updateImageAlt,
 };

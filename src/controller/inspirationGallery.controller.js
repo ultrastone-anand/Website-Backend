@@ -151,13 +151,32 @@ const deleteImage = async (req, res) => {
   }
 };
 
+const updateImageAlt = async (req, res, next) => {
+  try {
+    const image = await service.updateImageAlt(
+      req.params.id,
+      req.body
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Image alt text updated successfully",
+      image,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getCategories,
   createCategory,
   updateCategory,
   deleteCategory,
+
   getImages,
   createImageUploadUrls,
   saveUploadedImages,
   deleteImage,
+  updateImageAlt,
 };
