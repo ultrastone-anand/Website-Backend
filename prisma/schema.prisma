@@ -167,22 +167,23 @@ model stone_product_media {
 }
 
 model users {
-  id                   Int               @id @default(autoincrement())
-  user_id              String            @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  email                String            @unique @db.VarChar(255)
-  password_hash        String            @db.VarChar(255)
-  first_name           String?           @db.VarChar(100)
-  last_name            String?           @db.VarChar(100)
-  is_active            Boolean?          @default(true)
-  last_login           DateTime?         @db.Timestamp(6)
-  created_at           DateTime?         @default(now()) @db.Timestamp(6)
-  updated_at           DateTime?         @default(now()) @db.Timestamp(6)
-  deleted_at           DateTime?         @db.Timestamp(6)
+  id                   Int                   @id @default(autoincrement())
+  user_id              String                @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email                String                @unique @db.VarChar(255)
+  password_hash        String                @db.VarChar(255)
+  first_name           String?               @db.VarChar(100)
+  last_name            String?               @db.VarChar(100)
+  is_active            Boolean?              @default(true)
+  last_login           DateTime?             @db.Timestamp(6)
+  created_at           DateTime?             @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?             @default(now()) @db.Timestamp(6)
+  deleted_at           DateTime?             @db.Timestamp(6)
   role_id              Int
-  must_change_password Boolean?          @default(true)
+  must_change_password Boolean?              @default(true)
   activity_logs        activity_logs[]
+  career_applications  career_applications[]
   product_remarks      product_remarks[]
-  roles                roles             @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_role")
+  roles                roles                 @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_role")
 
   @@index([email], map: "idx_users_email")
   @@index([role_id], map: "idx_users_role_id")
@@ -430,6 +431,91 @@ model blog_tags {
   blog_post_tags blog_post_tags[]
 }
 
+model career_applications {
+  id                      BigInt                    @id @default(autoincrement())
+  job_id                  BigInt?
+  application_type        career_application_type   @default(JOB_APPLICATION)
+  first_name              String                    @db.VarChar(100)
+  last_name               String                    @db.VarChar(100)
+  email                   String                    @db.VarChar(255)
+  phone                   String?                   @db.VarChar(50)
+  department              String?                   @db.VarChar(150)
+  message                 String?
+  experience_level        career_experience_level?
+  years_of_experience     Int?
+  resume_url              String
+  resume_object_key       String
+  resume_filename         String?                   @db.VarChar(255)
+  resume_mime_type        String?                   @db.VarChar(100)
+  resume_size_bytes       BigInt?
+  cover_letter_url        String?
+  cover_letter_object_key String?
+  cover_letter_filename   String?                   @db.VarChar(255)
+  status                  career_application_status @default(NEW)
+  internal_notes          String?
+  reviewed_by             Int?
+  reviewed_at             DateTime?                 @db.Timestamptz(6)
+  source_page             String?                   @db.VarChar(255)
+  ip_address              String?                   @db.VarChar(50)
+  user_agent              String?
+  created_at              DateTime?                 @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime?                 @default(now()) @db.Timestamptz(6)
+  career_jobs             career_jobs?              @relation(fields: [job_id], references: [id], onUpdate: NoAction)
+  users                   users?                    @relation(fields: [reviewed_by], references: [id], onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_career_applications_created")
+  @@index([email], map: "idx_career_applications_email")
+  @@index([job_id], map: "idx_career_applications_job")
+  @@index([reviewed_by], map: "idx_career_applications_reviewer")
+  @@index([status], map: "idx_career_applications_status")
+  @@index([application_type], map: "idx_career_applications_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model career_jobs {
+  id                  BigInt                 @id @default(autoincrement())
+  title               String                 @db.VarChar(255)
+  slug                String                 @unique @db.VarChar(255)
+  department          String?                @db.VarChar(150)
+  location            String?                @db.VarChar(255)
+  employment_type     career_employment_type @default(FULL_TIME)
+  work_mode           career_work_mode       @default(ONSITE)
+  short_description   String?
+  summary             String?
+  responsibilities    String[]               @default([])
+  qualifications      String[]               @default([])
+  how_to_apply        String?
+  contact_phone       String?                @db.VarChar(50)
+  contact_email       String?                @db.VarChar(255)
+  office_hours        String?
+  salary_range        String?                @db.VarChar(150)
+  status              career_job_status      @default(DRAFT)
+  is_featured         Boolean?               @default(false)
+  display_order       Int?                   @default(0)
+  published_at        DateTime?              @db.Timestamptz(6)
+  closing_date        DateTime?              @db.Timestamptz(6)
+  meta_title          String?                @db.VarChar(255)
+  meta_description    String?
+  canonical_url       String?
+  robots_index        Boolean?               @default(true)
+  robots_follow       Boolean?               @default(true)
+  created_at          DateTime?              @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?              @default(now()) @db.Timestamptz(6)
+  experience_required String?                @db.VarChar(100)
+  vacancies           Int                    @default(1)
+  education_required  String?                @db.VarChar(255)
+  skills_required     String[]               @default([])
+  benefits            String[]               @default([])
+  career_applications career_applications[]
+
+  @@index([department], map: "idx_career_jobs_department")
+  @@index([display_order], map: "idx_career_jobs_display_order")
+  @@index([location], map: "idx_career_jobs_location")
+  @@index([published_at(sort: Desc)], map: "idx_career_jobs_published_at")
+  @@index([slug], map: "idx_career_jobs_slug")
+  @@index([status], map: "idx_career_jobs_status")
+}
+
 enum blog_media_type {
   COVER
   CONTENT
@@ -439,4 +525,46 @@ enum blog_post_status {
   DRAFT
   PUBLISHED
   ARCHIVED
+}
+
+enum career_application_status {
+  NEW
+  REVIEWING
+  SHORTLISTED
+  INTERVIEW
+  SELECTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum career_application_type {
+  JOB_APPLICATION
+  GENERAL_RESUME
+}
+
+enum career_employment_type {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+  TEMPORARY
+}
+
+enum career_experience_level {
+  ZERO_TO_TWO
+  THREE_TO_FIVE
+  FIVE_PLUS
+}
+
+enum career_job_status {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum career_work_mode {
+  ONSITE
+  REMOTE
+  HYBRID
 }
