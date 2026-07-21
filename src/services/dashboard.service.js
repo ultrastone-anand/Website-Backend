@@ -4,692 +4,704 @@ const prisma = require('../config/prisma');
 
 const serialize = (obj) =>
   JSON.parse(
-    JSON.stringify(obj, (_, value) =>
-      typeof value === 'bigint'
-        ? value.toString()
-        : value
+    JSON.stringify(
+      obj,
+      (_, value) =>
+        typeof value === 'bigint'
+          ? value.toString()
+          : value
     )
   );
 
-const getAdminDashboard = async () => {
-  const [
-    totalUsers,
-    totalProducts,
-    totalCategories,
-    recentActivities,
-    products,
-  ] = await Promise.all([
-    prisma.users.count(),
+// ======================================================
+// PRODUCT COMPLETENESS CONFIGURATION
+// ======================================================
 
-    prisma.stone_products.count({
-      where: {
-        is_active: true,
+const REQUIRED_PRODUCT_FIELDS = [
+  {
+    key: 'small_description',
+    label: 'Small Description',
+    group: 'content',
+    check: (product) =>
+      Boolean(
+        product.small_description?.trim()
+      ),
+  },
+  {
+    key: 'long_description',
+    label: 'Long Description',
+    group: 'content',
+    check: (product) =>
+      Boolean(
+        product.long_description?.trim()
+      ),
+  },
+  {
+    key: 'pattern',
+    label: 'Pattern',
+    group: 'basic',
+    check: (product) =>
+      Boolean(product.pattern?.trim()),
+  },
+  {
+    key: 'stone_group',
+    label: 'Stone Group',
+    group: 'basic',
+    check: (product) =>
+      Boolean(
+        product.stone_group?.trim()
+      ),
+  },
+  {
+    key: 'origin_country',
+    label: 'Origin Country',
+    group: 'basic',
+    check: (product) =>
+      Boolean(
+        product.origin_country?.trim()
+      ),
+  },
+  {
+    key: 'pantone_colour',
+    label: 'Pantone Colour',
+    group: 'basic',
+    check: (product) =>
+      Boolean(
+        product.pantone_colour?.trim()
+      ),
+  },
+  {
+    key: 'finishes_available',
+    label: 'Finishes Available',
+    group: 'specifications',
+    check: (product) =>
+      Array.isArray(
+        product.finishes_available
+      ) &&
+      product.finishes_available.length >
+      0,
+  },
+  {
+    key: 'thicknesses_cm',
+    label: 'Thicknesses',
+    group: 'specifications',
+    check: (product) =>
+      Array.isArray(
+        product.thicknesses_cm
+      ) &&
+      product.thicknesses_cm.length >
+      0,
+  },
+  {
+    key: 'average_sizes_inches',
+    label: 'Average Sizes',
+    group: 'specifications',
+    check: (product) =>
+      Array.isArray(
+        product.average_sizes_inches
+      ) &&
+      product.average_sizes_inches
+        .length > 0,
+  },
+  {
+    key: 'closeup_image',
+    label: 'Close-up Image',
+    group: 'media',
+    check: (product) =>
+      product.media.some(
+        (media) =>
+          media.media_type ===
+          'CLOSEUP_IMAGE'
+      ),
+  },
+  {
+    key: 'slab_images',
+    label: 'Slab Image',
+    group: 'media',
+    check: (product) =>
+      product.media.some(
+        (media) =>
+          media.media_type ===
+          'SLAB_IMAGE'
+      ),
+  },
+  {
+    key: 'featured_video',
+    label: 'Featured Video',
+    group: 'media',
+    check: (product) =>
+      product.media.some(
+        (media) =>
+          media.media_type ===
+          'FEATURED_VIDEO'
+      ),
+  },
+  {
+    key: 'application_image',
+    label: 'Application Image',
+    group: 'media',
+    check: (product) =>
+      product.media.some(
+        (media) =>
+          media.media_type ===
+          'APPLICATION_IMAGE'
+      ),
+  },
+  {
+    key: 'bookmatch_slipmatch',
+    label: 'Bookmatch / Slipmatch',
+    group: 'media',
+    check: (product) =>
+      product.media.some(
+        (media) =>
+          media.media_type ===
+          'BOOKMATCH_SLIPMATCH'
+      ),
+  },
+];
+
+// ======================================================
+// PRODUCT AUDIT
+// ======================================================
+
+const auditProduct = (product) => {
+  const missingItems =
+    REQUIRED_PRODUCT_FIELDS.filter(
+      (field) =>
+        !field.check(product)
+    ).map((field) => ({
+      key: field.key,
+      label: field.label,
+      group: field.group,
+    }));
+
+  const missingFields =
+    missingItems.map(
+      (item) => item.key
+    );
+
+  const missingFieldLabels =
+    missingItems.map(
+      (item) => item.label
+    );
+
+  const missingGroups =
+    missingItems.reduce(
+      (groups, item) => {
+        if (!groups[item.group]) {
+          groups[item.group] = [];
+        }
+
+        groups[item.group].push({
+          key: item.key,
+          label: item.label,
+        });
+
+        return groups;
       },
-    }),
+      {}
+    );
 
-    prisma.stone_categories.count(),
+  const totalRequiredFields =
+    REQUIRED_PRODUCT_FIELDS.length;
 
-    prisma.activity_logs.findMany({
-      take: 5,
-      orderBy: {
-        created_at: 'desc',
-      },
-      select: {
-        id: true,
-        action: true,
-        module_name: true,
-        description: true,
-        created_by_name: true,
-        created_at: true,
-      },
-    }),
+  const completedFields =
+    totalRequiredFields -
+    missingItems.length;
 
+  const completionPercentage =
+    Math.round(
+      (completedFields /
+        totalRequiredFields) *
+      100
+    );
+
+  let priority = 'low';
+
+  if (
+    missingItems.length >= 8
+  ) {
+    priority = 'high';
+  } else if (
+    missingItems.length >= 4
+  ) {
+    priority = 'medium';
+  }
+
+  return {
+    id: product.id,
+
+    productId:
+      product.product_id,
+
+    name:
+      product.name,
+
+    slug:
+      product.slug,
+
+    categoryId:
+      product.category_id,
+
+    categoryName:
+      product.stone_categories
+        ?.name || 'Uncategorized',
+
+    categorySlug:
+      product.stone_categories
+        ?.slug || null,
+
+    isPublished:
+      Boolean(
+        product.is_published
+      ),
+
+    createdAt:
+      product.created_at,
+
+    updatedAt:
+      product.updated_at,
+
+    missingCount:
+      missingItems.length,
+
+    completedCount:
+      completedFields,
+
+    totalRequiredFields,
+
+    completionPercentage,
+
+    priority,
+
+    missingFields,
+
+    missingFieldLabels,
+
+    missingGroups,
+  };
+};
+
+// ======================================================
+// MISSING REPORTS
+// ======================================================
+
+const createMissingReports = (
+  auditedProducts
+) => {
+  const countMissingField = (
+    field
+  ) =>
+    auditedProducts.filter(
+      (product) =>
+        product.missingFields.includes(
+          field
+        )
+    ).length;
+
+  return {
+    missingFeaturedImages:
+      countMissingField(
+        'closeup_image'
+      ),
+
+    missingGalleryImages:
+      countMissingField(
+        'slab_images'
+      ),
+
+    missingVideos:
+      countMissingField(
+        'featured_video'
+      ),
+
+    missingApplicationImages:
+      countMissingField(
+        'application_image'
+      ),
+
+    missingBookmatchSlipmatch:
+      countMissingField(
+        'bookmatch_slipmatch'
+      ),
+
+    missingSmallDescriptions:
+      countMissingField(
+        'small_description'
+      ),
+
+    missingLongDescriptions:
+      countMissingField(
+        'long_description'
+      ),
+
+    missingOriginCountry:
+      countMissingField(
+        'origin_country'
+      ),
+
+    missingPantoneColour:
+      countMissingField(
+        'pantone_colour'
+      ),
+
+    missingFinishes:
+      countMissingField(
+        'finishes_available'
+      ),
+
+    missingThicknesses:
+      countMissingField(
+        'thicknesses_cm'
+      ),
+
+    missingAverageSizes:
+      countMissingField(
+        'average_sizes_inches'
+      ),
+  };
+};
+
+// ======================================================
+// CATEGORY REPORT
+// ======================================================
+
+const createCategoryAttentionReport = (
+  auditedProducts
+) => {
+  const categoryMap =
+    new Map();
+
+  auditedProducts.forEach(
+    (product) => {
+      const key =
+        product.categoryId ||
+        'uncategorized';
+
+      if (
+        !categoryMap.has(key)
+      ) {
+        categoryMap.set(key, {
+          categoryId:
+            product.categoryId,
+
+          categoryName:
+            product.categoryName,
+
+          categorySlug:
+            product.categorySlug,
+
+          totalProducts: 0,
+
+          productsRequiringAttention:
+            0,
+
+          totalMissingFields: 0,
+        });
+      }
+
+      const category =
+        categoryMap.get(key);
+
+      category.totalProducts += 1;
+
+      if (
+        product.missingCount > 0
+      ) {
+        category.productsRequiringAttention +=
+          1;
+      }
+
+      category.totalMissingFields +=
+        product.missingCount;
+    }
+  );
+
+  return Array.from(
+    categoryMap.values()
+  )
+    .map((category) => ({
+      ...category,
+
+      attentionPercentage:
+        category.totalProducts > 0
+          ? Math.round(
+            (category.productsRequiringAttention /
+              category.totalProducts) *
+            100
+          )
+          : 0,
+    }))
+    .sort(
+      (a, b) =>
+        b.productsRequiringAttention -
+        a.productsRequiringAttention
+    );
+};
+
+// ======================================================
+// COMMON PRODUCT QUERY
+// ======================================================
+
+const getDashboardProducts =
+  async () =>
     prisma.stone_products.findMany({
       where: {
         is_active: true,
       },
 
-      include: {
-        media: true,
-      },
-    }),
-  ]);
-
-const auditedProducts = products.map((product) => {
-  const missingFields = [];
-
-  // BASIC
-
-  if (!product.small_description)
-    missingFields.push('small_description');
-
-  if (!product.long_description)
-    missingFields.push('long_description');
-
-  if (!product.pattern)
-    missingFields.push('pattern');
-
-  if (!product.stone_group)
-    missingFields.push('stone_group');
-
-  if (!product.origin_country)
-    missingFields.push('origin_country');
-
-  if (!product.pantone_colour)
-    missingFields.push('pantone_colour');
-
-  // ARRAYS
-
-  if (!product.finishes_available?.length)
-    missingFields.push('finishes_available');
-
-  if (!product.thicknesses_cm?.length)
-    missingFields.push('thicknesses_cm');
-
-  if (!product.average_sizes_inches?.length)
-    missingFields.push('average_sizes_inches');
-
-  // MEDIA
-
-  const hasCloseupImage = product.media.some(
-    (x) => x.media_type === 'CLOSEUP_IMAGE'
-  );
-
-  if (!hasCloseupImage)
-    missingFields.push('closeup_image');
-
-  const hasSlabImage = product.media.some(
-    (x) => x.media_type === 'SLAB_IMAGE'
-  );
-
-  if (!hasSlabImage)
-    missingFields.push('slab_images');
-
-  const hasVideo = product.media.some(
-    (x) => x.media_type === 'FEATURED_VIDEO'
-  );
-
-  if (!hasVideo)
-    missingFields.push('featured_video');
-
-  const hasApplicationImage = product.media.some(
-    (x) => x.media_type === 'APPLICATION_IMAGE'
-  );
-
-  if (!hasApplicationImage)
-    missingFields.push('application_image');
-
-  const hasBookmatchSlipmatch = product.media.some(
-    (x) => x.media_type === 'BOOKMATCH_SLIPMATCH'
-  );
-
-  if (!hasBookmatchSlipmatch)
-    missingFields.push('bookmatch_slipmatch');
-
-  return {
-    id: product.id,
-    productId: product.product_id,
-    name: product.name,
-    slug: product.slug,
-    missingCount: missingFields.length,
-    missingFields,
-  };
-});
-
-  const attentionRequiredProducts = auditedProducts
-    .filter((x) => x.missingCount > 0)
-    .sort((a, b) => b.missingCount - a.missingCount)
-    .slice(0, 10);
-
-  const missingReports = {
-    missingFeaturedImages: auditedProducts.filter((p) =>
-      p.missingFields.includes('closeup_image')
-    ).length,
-
-    missingGalleryImages: auditedProducts.filter((p) =>
-      p.missingFields.includes('slab_images')
-    ).length,
-
-    missingVideos: auditedProducts.filter((p) =>
-      p.missingFields.includes('featured_video')
-    ).length,
-
-    missingLongDescriptions: auditedProducts.filter((p) =>
-      p.missingFields.includes('long_description')
-    ).length,
-
-    missingOriginCountry: auditedProducts.filter((p) =>
-      p.missingFields.includes('origin_country')
-    ).length,
-  };
-
-return serialize({
-  summaryCards: {
-    totalUsers,
-    totalProducts,
-    totalCategories,
-
-    productsRequiringAttention:
-      attentionRequiredProducts.length,
-  },
-
-  missingReports,
-
-  attentionRequiredProducts,
-
-  dailyActivities: recentActivities,
-});
-};
-
-const getDesignerDashboard = async () => {
-  const [
-    totalUsers,
-    totalProducts,
-    totalCategories,
-    recentActivities,
-    products,
-  ] = await Promise.all([
-    prisma.users.count(),
-
-    prisma.stone_products.count({
-      where: {
-        is_active: true,
-      },
-    }),
-
-    prisma.stone_categories.count(),
-
-    prisma.activity_logs.findMany({
-      take: 5,
-      orderBy: {
-        created_at: 'desc',
-      },
       select: {
         id: true,
-        action: true,
-        module_name: true,
-        description: true,
-        created_by_name: true,
+        product_id: true,
+        category_id: true,
+
+        name: true,
+        slug: true,
+
+        small_description: true,
+        long_description: true,
+
+        pattern: true,
+        stone_group: true,
+        origin_country: true,
+        pantone_colour: true,
+
+        finishes_available: true,
+        thicknesses_cm: true,
+        average_sizes_inches: true,
+
+        is_published: true,
+
         created_at: true,
+        updated_at: true,
+
+        stone_categories: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+
+        media: {
+          select: {
+            media_type: true,
+          },
+        },
       },
-    }),
+    });
 
-    prisma.stone_products.findMany({
-      where: {
-        is_active: true,
-      },
+// ======================================================
+// COMMON DASHBOARD DATA
+// ======================================================
 
-      include: {
-        media: true,
-      },
-    }),
-  ]);
+const getCommonDashboardData =
+  async ({
+    includeActivities = false,
+  } = {}) => {
+    const [
+      totalUsers,
+      totalProducts,
+      totalCategories,
+      products,
+      recentActivities,
+    ] = await Promise.all([
+      prisma.users.count({
+        where: {
+          is_active: true,
+        },
+      }),
 
-const auditedProducts = products.map((product) => {
-  const missingFields = [];
+      prisma.stone_products.count({
+        where: {
+          is_active: true,
+        },
+      }),
 
-  // BASIC
+      prisma.stone_categories.count({
+        where: {
+          is_active: true,
+        },
+      }),
 
-  if (!product.small_description)
-    missingFields.push('small_description');
+      getDashboardProducts(),
 
-  if (!product.long_description)
-    missingFields.push('long_description');
+      includeActivities
+        ? prisma.activity_logs.findMany({
+          take: 5,
 
-  if (!product.pattern)
-    missingFields.push('pattern');
+          orderBy: {
+            created_at: 'desc',
+          },
 
-  if (!product.stone_group)
-    missingFields.push('stone_group');
+          select: {
+            id: true,
+            action: true,
+            module_name: true,
+            description: true,
+            created_by_name: true,
+            created_at: true,
+          },
+        })
+        : Promise.resolve([]),
+    ]);
 
-  if (!product.origin_country)
-    missingFields.push('origin_country');
+    const auditedProducts =
+      products.map(
+        auditProduct
+      );
 
-  if (!product.pantone_colour)
-    missingFields.push('pantone_colour');
+    const incompleteProducts =
+      auditedProducts
+        .filter(
+          (product) =>
+            product.missingCount > 0
+        )
+        .sort((a, b) => {
+          if (
+            b.missingCount !==
+            a.missingCount
+          ) {
+            return (
+              b.missingCount -
+              a.missingCount
+            );
+          }
 
-  // ARRAYS
+          return (
+            a.completionPercentage -
+            b.completionPercentage
+          );
+        });
 
-  if (!product.finishes_available?.length)
-    missingFields.push('finishes_available');
+    const completeProducts =
+      auditedProducts.filter(
+        (product) =>
+          product.missingCount === 0
+      ).length;
 
-  if (!product.thicknesses_cm?.length)
-    missingFields.push('thicknesses_cm');
+    const attentionRequiredProducts = incompleteProducts;
 
-  if (!product.average_sizes_inches?.length)
-    missingFields.push('average_sizes_inches');
+    const averageCompletion =
+      auditedProducts.length > 0
+        ? Math.round(
+          auditedProducts.reduce(
+            (total, product) =>
+              total +
+              product.completionPercentage,
+            0
+          ) /
+          auditedProducts.length
+        )
+        : 0;
 
-  // MEDIA
+    return {
+      summaryCards: {
+        totalUsers,
+        totalProducts,
+        totalCategories,
 
-  const hasCloseupImage = product.media.some(
-    (x) => x.media_type === 'CLOSEUP_IMAGE'
-  );
+        // Total incomplete products,
+        // not only the first ten.
+        productsRequiringAttention:
+          incompleteProducts.length,
 
-  if (!hasCloseupImage)
-    missingFields.push('closeup_image');
+        completeProducts,
 
-  const hasSlabImage = product.media.some(
-    (x) => x.media_type === 'SLAB_IMAGE'
-  );
+        averageProductCompletion:
+          averageCompletion,
 
-  if (!hasSlabImage)
-    missingFields.push('slab_images');
+        publishedProducts:
+          auditedProducts.filter(
+            (product) =>
+              product.isPublished
+          ).length,
 
-  const hasVideo = product.media.some(
-    (x) => x.media_type === 'FEATURED_VIDEO'
-  );
-
-  if (!hasVideo)
-    missingFields.push('featured_video');
-
-  const hasApplicationImage = product.media.some(
-    (x) => x.media_type === 'APPLICATION_IMAGE'
-  );
-
-  if (!hasApplicationImage)
-    missingFields.push('application_image');
-
-  const hasBookmatchSlipmatch = product.media.some(
-    (x) => x.media_type === 'BOOKMATCH_SLIPMATCH'
-  );
-
-  if (!hasBookmatchSlipmatch)
-    missingFields.push('bookmatch_slipmatch');
-
-  return {
-    id: product.id,
-    productId: product.product_id,
-    name: product.name,
-    slug: product.slug,
-    missingCount: missingFields.length,
-    missingFields,
-  };
-});
-
-  const attentionRequiredProducts = auditedProducts
-    .filter((x) => x.missingCount > 0)
-    .sort((a, b) => b.missingCount - a.missingCount)
-    .slice(0, 10);
-
-  const missingReports = {
-    missingFeaturedImages: auditedProducts.filter((p) =>
-      p.missingFields.includes('closeup_image')
-    ).length,
-
-    missingGalleryImages: auditedProducts.filter((p) =>
-      p.missingFields.includes('slab_images')
-    ).length,
-
-    missingVideos: auditedProducts.filter((p) =>
-      p.missingFields.includes('featured_video')
-    ).length,
-
-    missingLongDescriptions: auditedProducts.filter((p) =>
-      p.missingFields.includes('long_description')
-    ).length,
-
-    missingOriginCountry: auditedProducts.filter((p) =>
-      p.missingFields.includes('origin_country')
-    ).length,
-  };
-
-return serialize({
-  summaryCards: {
-    totalUsers,
-    totalProducts,
-    totalCategories,
-
-    productsRequiringAttention:
-      attentionRequiredProducts.length,
-  },
-
-  missingReports,
-
-  attentionRequiredProducts,
-
-  // dailyActivities: recentActivities,
-});
-};
-
-const getSeoDashboard = async () => {
- const [
-    totalUsers,
-    totalProducts,
-    totalCategories,
-    recentActivities,
-    products,
-  ] = await Promise.all([
-    prisma.users.count(),
-
-    prisma.stone_products.count({
-      where: {
-        is_active: true,
-      },
-    }),
-
-    prisma.stone_categories.count(),
-
-    prisma.activity_logs.findMany({
-      take: 5,
-      orderBy: {
-        created_at: 'desc',
-      },
-      select: {
-        id: true,
-        action: true,
-        module_name: true,
-        description: true,
-        created_by_name: true,
-        created_at: true,
-      },
-    }),
-
-    prisma.stone_products.findMany({
-      where: {
-        is_active: true,
+        unpublishedProducts:
+          auditedProducts.filter(
+            (product) =>
+              !product.isPublished
+          ).length,
       },
 
-      include: {
-        media: true,
-      },
-    }),
-  ]);
+      missingReports:
+        createMissingReports(
+          auditedProducts
+        ),
 
-const auditedProducts = products.map((product) => {
-  const missingFields = [];
+      attentionRequiredProducts,
 
-  // BASIC
+      categoryAttentionReport:
+        createCategoryAttentionReport(
+          auditedProducts
+        ),
 
-  if (!product.small_description)
-    missingFields.push('small_description');
-
-  if (!product.long_description)
-    missingFields.push('long_description');
-
-  if (!product.pattern)
-    missingFields.push('pattern');
-
-  if (!product.stone_group)
-    missingFields.push('stone_group');
-
-  if (!product.origin_country)
-    missingFields.push('origin_country');
-
-  if (!product.pantone_colour)
-    missingFields.push('pantone_colour');
-
-  // ARRAYS
-
-  if (!product.finishes_available?.length)
-    missingFields.push('finishes_available');
-
-  if (!product.thicknesses_cm?.length)
-    missingFields.push('thicknesses_cm');
-
-  if (!product.average_sizes_inches?.length)
-    missingFields.push('average_sizes_inches');
-
-  // MEDIA
-
-  const hasCloseupImage = product.media.some(
-    (x) => x.media_type === 'CLOSEUP_IMAGE'
-  );
-
-  if (!hasCloseupImage)
-    missingFields.push('closeup_image');
-
-  const hasSlabImage = product.media.some(
-    (x) => x.media_type === 'SLAB_IMAGE'
-  );
-
-  if (!hasSlabImage)
-    missingFields.push('slab_images');
-
-  const hasVideo = product.media.some(
-    (x) => x.media_type === 'FEATURED_VIDEO'
-  );
-
-  if (!hasVideo)
-    missingFields.push('featured_video');
-
-  const hasApplicationImage = product.media.some(
-    (x) => x.media_type === 'APPLICATION_IMAGE'
-  );
-
-  if (!hasApplicationImage)
-    missingFields.push('application_image');
-
-  const hasBookmatchSlipmatch = product.media.some(
-    (x) => x.media_type === 'BOOKMATCH_SLIPMATCH'
-  );
-
-  if (!hasBookmatchSlipmatch)
-    missingFields.push('bookmatch_slipmatch');
-
-  return {
-    id: product.id,
-    productId: product.product_id,
-    name: product.name,
-    slug: product.slug,
-    missingCount: missingFields.length,
-    missingFields,
-  };
-});
-
-  const attentionRequiredProducts = auditedProducts
-    .filter((x) => x.missingCount > 0)
-    .sort((a, b) => b.missingCount - a.missingCount)
-    .slice(0, 10);
-
-  const missingReports = {
-    missingFeaturedImages: auditedProducts.filter((p) =>
-      p.missingFields.includes('closeup_image')
-    ).length,
-
-    missingGalleryImages: auditedProducts.filter((p) =>
-      p.missingFields.includes('slab_images')
-    ).length,
-
-    missingVideos: auditedProducts.filter((p) =>
-      p.missingFields.includes('featured_video')
-    ).length,
-
-    missingLongDescriptions: auditedProducts.filter((p) =>
-      p.missingFields.includes('long_description')
-    ).length,
-
-    missingOriginCountry: auditedProducts.filter((p) =>
-      p.missingFields.includes('origin_country')
-    ).length,
+      dailyActivities:
+        recentActivities,
+    };
   };
 
-return serialize({
-  summaryCards: {
-    totalUsers,
-    totalProducts,
-    totalCategories,
+// ======================================================
+// ADMIN DASHBOARD
+// ======================================================
 
-    productsRequiringAttention:
-      attentionRequiredProducts.length,
-  },
+const getAdminDashboard =
+  async () => {
+    const data =
+      await getCommonDashboardData({
+        includeActivities: true,
+      });
 
-  missingReports,
-
-  attentionRequiredProducts,
-
-  // dailyActivities: recentActivities,
-});
-};
-
-const getBlogDashboard = async () => {
-const [
-    totalUsers,
-    totalProducts,
-    totalCategories,
-    recentActivities,
-    products,
-  ] = await Promise.all([
-    prisma.users.count(),
-
-    prisma.stone_products.count({
-      where: {
-        is_active: true,
-      },
-    }),
-
-    prisma.stone_categories.count(),
-
-    prisma.activity_logs.findMany({
-      take: 5,
-      orderBy: {
-        created_at: 'desc',
-      },
-      select: {
-        id: true,
-        action: true,
-        module_name: true,
-        description: true,
-        created_by_name: true,
-        created_at: true,
-      },
-    }),
-
-    prisma.stone_products.findMany({
-      where: {
-        is_active: true,
-      },
-
-      include: {
-        media: true,
-      },
-    }),
-  ]);
-
-const auditedProducts = products.map((product) => {
-  const missingFields = [];
-
-  // BASIC
-
-  if (!product.small_description)
-    missingFields.push('small_description');
-
-  if (!product.long_description)
-    missingFields.push('long_description');
-
-  if (!product.pattern)
-    missingFields.push('pattern');
-
-  if (!product.stone_group)
-    missingFields.push('stone_group');
-
-  if (!product.origin_country)
-    missingFields.push('origin_country');
-
-  if (!product.pantone_colour)
-    missingFields.push('pantone_colour');
-
-  // ARRAYS
-
-  if (!product.finishes_available?.length)
-    missingFields.push('finishes_available');
-
-  if (!product.thicknesses_cm?.length)
-    missingFields.push('thicknesses_cm');
-
-  if (!product.average_sizes_inches?.length)
-    missingFields.push('average_sizes_inches');
-
-  // MEDIA
-
-  const hasCloseupImage = product.media.some(
-    (x) => x.media_type === 'CLOSEUP_IMAGE'
-  );
-
-  if (!hasCloseupImage)
-    missingFields.push('closeup_image');
-
-  const hasSlabImage = product.media.some(
-    (x) => x.media_type === 'SLAB_IMAGE'
-  );
-
-  if (!hasSlabImage)
-    missingFields.push('slab_images');
-
-  const hasVideo = product.media.some(
-    (x) => x.media_type === 'FEATURED_VIDEO'
-  );
-
-  if (!hasVideo)
-    missingFields.push('featured_video');
-
-  const hasApplicationImage = product.media.some(
-    (x) => x.media_type === 'APPLICATION_IMAGE'
-  );
-
-  if (!hasApplicationImage)
-    missingFields.push('application_image');
-
-  const hasBookmatchSlipmatch = product.media.some(
-    (x) => x.media_type === 'BOOKMATCH_SLIPMATCH'
-  );
-
-  if (!hasBookmatchSlipmatch)
-    missingFields.push('bookmatch_slipmatch');
-
-  return {
-    id: product.id,
-    productId: product.product_id,
-    name: product.name,
-    slug: product.slug,
-    missingCount: missingFields.length,
-    missingFields,
-  };
-});
-
-  const attentionRequiredProducts = auditedProducts
-    .filter((x) => x.missingCount > 0)
-    .sort((a, b) => b.missingCount - a.missingCount)
-    .slice(0, 10);
-
-  const missingReports = {
-    missingFeaturedImages: auditedProducts.filter((p) =>
-      p.missingFields.includes('closeup_image')
-    ).length,
-
-    missingGalleryImages: auditedProducts.filter((p) =>
-      p.missingFields.includes('slab_images')
-    ).length,
-
-    missingVideos: auditedProducts.filter((p) =>
-      p.missingFields.includes('featured_video')
-    ).length,
-
-    missingLongDescriptions: auditedProducts.filter((p) =>
-      p.missingFields.includes('long_description')
-    ).length,
-
-    missingOriginCountry: auditedProducts.filter((p) =>
-      p.missingFields.includes('origin_country')
-    ).length,
+    return serialize(data);
   };
 
-return serialize({
-  summaryCards: {
-    totalUsers,
-    totalProducts,
-    totalCategories,
+// ======================================================
+// DESIGNER DASHBOARD
+// ======================================================
 
-    productsRequiringAttention:
-      attentionRequiredProducts.length,
-  },
+const getDesignerDashboard =
+  async () => {
+    const data =
+      await getCommonDashboardData({
+        includeActivities: false,
+      });
 
-  missingReports,
+    delete data.dailyActivities;
 
-  attentionRequiredProducts,
+    return serialize(data);
+  };
 
-  // dailyActivities: recentActivities,
-});
-};
+// ======================================================
+// SEO DASHBOARD
+// ======================================================
+
+const getSeoDashboard =
+  async () => {
+    const data =
+      await getCommonDashboardData({
+        includeActivities: false,
+      });
+
+    delete data.dailyActivities;
+
+    return serialize(data);
+  };
+
+// ======================================================
+// BLOG DASHBOARD
+// ======================================================
+
+const getBlogDashboard =
+  async () => {
+    const data =
+      await getCommonDashboardData({
+        includeActivities: false,
+      });
+
+    delete data.dailyActivities;
+
+    return serialize(data);
+  };
 
 module.exports = {
   getAdminDashboard,
