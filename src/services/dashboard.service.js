@@ -41,7 +41,9 @@ const REQUIRED_PRODUCT_FIELDS = [
     label: 'Pattern',
     group: 'basic',
     check: (product) =>
-      Boolean(product.pattern?.trim()),
+      Boolean(
+        product.pattern?.trim()
+      ),
   },
   {
     key: 'stone_group',
@@ -79,7 +81,7 @@ const REQUIRED_PRODUCT_FIELDS = [
         product.finishes_available
       ) &&
       product.finishes_available.length >
-      0,
+        0,
   },
   {
     key: 'thicknesses_cm',
@@ -90,7 +92,7 @@ const REQUIRED_PRODUCT_FIELDS = [
         product.thicknesses_cm
       ) &&
       product.thicknesses_cm.length >
-      0,
+        0,
   },
   {
     key: 'average_sizes_inches',
@@ -161,19 +163,82 @@ const REQUIRED_PRODUCT_FIELDS = [
 ];
 
 // ======================================================
+// REMARK HELPERS
+// ======================================================
+
+const getRemarkUserName = (
+  user
+) => {
+  if (!user) {
+    return 'Unknown User';
+  }
+
+  const firstName =
+    user.first_name?.trim() || '';
+
+  const lastName =
+    user.last_name?.trim() || '';
+
+  const fullName =
+    `${firstName} ${lastName}`.trim();
+
+  return (
+    fullName ||
+    user.email ||
+    'Unknown User'
+  );
+};
+
+const formatProductRemarks = (
+  productRemarks = []
+) =>
+  productRemarks.map((item) => ({
+    id: item.id,
+
+    remark:
+      item.remark,
+
+    isEdited:
+      Boolean(item.is_edited),
+
+    createdAt:
+      item.created_at,
+
+    updatedAt:
+      item.updated_at,
+
+    user: {
+      id:
+        item.users?.id || null,
+
+      name:
+        getRemarkUserName(
+          item.users
+        ),
+
+      email:
+        item.users?.email || null,
+    },
+  }));
+
+// ======================================================
 // PRODUCT AUDIT
 // ======================================================
 
-const auditProduct = (product) => {
+const auditProduct = (
+  product
+) => {
   const missingItems =
-    REQUIRED_PRODUCT_FIELDS.filter(
-      (field) =>
-        !field.check(product)
-    ).map((field) => ({
-      key: field.key,
-      label: field.label,
-      group: field.group,
-    }));
+    REQUIRED_PRODUCT_FIELDS
+      .filter(
+        (field) =>
+          !field.check(product)
+      )
+      .map((field) => ({
+        key: field.key,
+        label: field.label,
+        group: field.group,
+      }));
 
   const missingFields =
     missingItems.map(
@@ -188,7 +253,9 @@ const auditProduct = (product) => {
   const missingGroups =
     missingItems.reduce(
       (groups, item) => {
-        if (!groups[item.group]) {
+        if (
+          !groups[item.group]
+        ) {
           groups[item.group] = [];
         }
 
@@ -211,9 +278,10 @@ const auditProduct = (product) => {
 
   const completionPercentage =
     Math.round(
-      (completedFields /
-        totalRequiredFields) *
-      100
+      (
+        completedFields /
+        totalRequiredFields
+      ) * 100
     );
 
   let priority = 'low';
@@ -228,8 +296,17 @@ const auditProduct = (product) => {
     priority = 'medium';
   }
 
+  const remarks =
+    formatProductRemarks(
+      product.product_remarks || []
+    );
+
+  const latestRemark =
+    remarks[0] || null;
+
   return {
-    id: product.id,
+    id:
+      product.id,
 
     productId:
       product.product_id,
@@ -245,11 +322,13 @@ const auditProduct = (product) => {
 
     categoryName:
       product.stone_categories
-        ?.name || 'Uncategorized',
+        ?.name ||
+      'Uncategorized',
 
     categorySlug:
       product.stone_categories
-        ?.slug || null,
+        ?.slug ||
+      null,
 
     isPublished:
       Boolean(
@@ -279,6 +358,13 @@ const auditProduct = (product) => {
     missingFieldLabels,
 
     missingGroups,
+
+    remarks,
+
+    remarksCount:
+      remarks.length,
+
+    latestRemark,
   };
 };
 
@@ -363,7 +449,7 @@ const createMissingReports = (
 };
 
 // ======================================================
-// CATEGORY REPORT
+// CATEGORY ATTENTION REPORT
 // ======================================================
 
 const createCategoryAttentionReport = (
@@ -393,8 +479,14 @@ const createCategoryAttentionReport = (
 
           totalProducts: 0,
 
+          completeProducts: 0,
+
           productsRequiringAttention:
             0,
+
+          productsWithRemarks: 0,
+
+          totalRemarks: 0,
 
           totalMissingFields: 0,
         });
@@ -405,15 +497,28 @@ const createCategoryAttentionReport = (
 
       category.totalProducts += 1;
 
+      category.totalMissingFields +=
+        product.missingCount;
+
+      category.totalRemarks +=
+        product.remarksCount;
+
       if (
         product.missingCount > 0
       ) {
         category.productsRequiringAttention +=
           1;
+      } else {
+        category.completeProducts +=
+          1;
       }
 
-      category.totalMissingFields +=
-        product.missingCount;
+      if (
+        product.remarksCount > 0
+      ) {
+        category.productsWithRemarks +=
+          1;
+      }
     }
   );
 
@@ -426,10 +531,21 @@ const createCategoryAttentionReport = (
       attentionPercentage:
         category.totalProducts > 0
           ? Math.round(
-            (category.productsRequiringAttention /
-              category.totalProducts) *
-            100
-          )
+              (
+                category.productsRequiringAttention /
+                category.totalProducts
+              ) * 100
+            )
+          : 0,
+
+      completionPercentage:
+        category.totalProducts > 0
+          ? Math.round(
+              (
+                category.completeProducts /
+                category.totalProducts
+              ) * 100
+            )
           : 0,
     }))
     .sort(
@@ -483,9 +599,41 @@ const getDashboardProducts =
           },
         },
 
+        // Only media_type is needed
+        // for completeness checks.
         media: {
           select: {
             media_type: true,
+          },
+        },
+
+        // Include product remarks and
+        // the user who wrote each remark.
+        product_remarks: {
+          orderBy: [
+            {
+              created_at: 'desc',
+            },
+            {
+              id: 'desc',
+            },
+          ],
+
+          select: {
+            id: true,
+            remark: true,
+            is_edited: true,
+            created_at: true,
+            updated_at: true,
+
+            users: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+              },
+            },
           },
         },
       },
@@ -528,21 +676,21 @@ const getCommonDashboardData =
 
       includeActivities
         ? prisma.activity_logs.findMany({
-          take: 5,
+            take: 5,
 
-          orderBy: {
-            created_at: 'desc',
-          },
+            orderBy: {
+              created_at: 'desc',
+            },
 
-          select: {
-            id: true,
-            action: true,
-            module_name: true,
-            description: true,
-            created_by_name: true,
-            created_at: true,
-          },
-        })
+            select: {
+              id: true,
+              action: true,
+              module_name: true,
+              description: true,
+              created_by_name: true,
+              created_at: true,
+            },
+          })
         : Promise.resolve([]),
     ]);
 
@@ -568,6 +716,16 @@ const getCommonDashboardData =
             );
           }
 
+          if (
+            b.remarksCount !==
+            a.remarksCount
+          ) {
+            return (
+              b.remarksCount -
+              a.remarksCount
+            );
+          }
+
           return (
             a.completionPercentage -
             b.completionPercentage
@@ -580,29 +738,70 @@ const getCommonDashboardData =
           product.missingCount === 0
       ).length;
 
-    const attentionRequiredProducts = incompleteProducts;
+    // Return every incomplete product.
+    // Frontend pagination handles display.
+    const attentionRequiredProducts =
+      incompleteProducts;
 
     const averageCompletion =
       auditedProducts.length > 0
         ? Math.round(
-          auditedProducts.reduce(
-            (total, product) =>
-              total +
-              product.completionPercentage,
-            0
-          ) /
-          auditedProducts.length
-        )
+            auditedProducts.reduce(
+              (
+                total,
+                product
+              ) =>
+                total +
+                product.completionPercentage,
+              0
+            ) /
+              auditedProducts.length
+          )
         : 0;
+
+    const publishedProducts =
+      auditedProducts.filter(
+        (product) =>
+          product.isPublished
+      ).length;
+
+    const unpublishedProducts =
+      auditedProducts.filter(
+        (product) =>
+          !product.isPublished
+      ).length;
+
+    const productsWithRemarks =
+      auditedProducts.filter(
+        (product) =>
+          product.remarksCount > 0
+      ).length;
+
+    const totalRemarks =
+      auditedProducts.reduce(
+        (
+          total,
+          product
+        ) =>
+          total +
+          product.remarksCount,
+        0
+      );
+
+    const attentionProductsWithRemarks =
+      incompleteProducts.filter(
+        (product) =>
+          product.remarksCount > 0
+      ).length;
 
     return {
       summaryCards: {
         totalUsers,
+
         totalProducts,
+
         totalCategories,
 
-        // Total incomplete products,
-        // not only the first ten.
         productsRequiringAttention:
           incompleteProducts.length,
 
@@ -611,17 +810,15 @@ const getCommonDashboardData =
         averageProductCompletion:
           averageCompletion,
 
-        publishedProducts:
-          auditedProducts.filter(
-            (product) =>
-              product.isPublished
-          ).length,
+        publishedProducts,
 
-        unpublishedProducts:
-          auditedProducts.filter(
-            (product) =>
-              !product.isPublished
-          ).length,
+        unpublishedProducts,
+
+        productsWithRemarks,
+
+        totalRemarks,
+
+        attentionProductsWithRemarks,
       },
 
       missingReports:
