@@ -10,6 +10,12 @@ router.post(
   pageController.uploadPageImage
 );
 
+router.post(
+  "/upload-pdf",
+  upload.single("pdf"),
+  pageController.uploadPagePdf
+);
+
 router.post("/", pageController.createPage);
 router.put("/:id", pageController.updatePage);
 router.get("/:slug", pageController.getPageBySlug);

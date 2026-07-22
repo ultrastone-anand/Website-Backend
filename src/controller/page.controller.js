@@ -69,3 +69,79 @@ exports.uploadPageImage = async (req, res) => {
   }
 
 };
+
+exports.uploadPagePdf = async (req, res, next) => {
+
+  try {
+
+    if (!req.file) {
+
+      return res.status(400).json({
+
+        success: false,
+
+        message: "PDF file is required.",
+
+      });
+
+    }
+
+    const isPdf =
+
+      req.file.mimetype === "application/pdf" &&
+
+      path.extname(req.file.originalname).toLowerCase() === ".pdf";
+
+    if (!isPdf) {
+
+      if (fs.existsSync(req.file.path)) {
+
+        fs.unlinkSync(req.file.path);
+
+      }
+
+      return res.status(400).json({
+
+        success: false,
+
+        message: "Only PDF files are allowed.",
+
+      });
+
+    }
+
+    const pdfUrl = `${req.protocol}://${req.get("host")}/uploads/${
+
+      req.file.filename
+
+    }`;
+
+    return res.status(201).json({
+
+      success: true,
+
+      data: {
+
+        fileName: req.file.originalname,
+
+        storedFileName: req.file.filename,
+
+        pdfUrl,
+
+        relativeUrl: `/uploads/${req.file.filename}`,
+
+        size: req.file.size,
+
+        mimeType: req.file.mimetype,
+
+      },
+
+    });
+
+  } catch (error) {
+
+    next(error);
+
+  }
+
+};
