@@ -141,9 +141,28 @@ const deleteCategory = async (id) => {
   });
 };
 
-const getImages = async ({ categoryId, limit = 20 }) => {
+const getImages = async ({
+  categoryId,
+  page = 1,
+  limit = 20,
+}) => {
   const parsedCategoryId = Number(categoryId);
-  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 50);
+
+  const safePage = Math.max(
+    Number(page) || 1,
+    1
+  );
+
+  const safeLimit = Math.min(
+    Math.max(Number(limit) || 20, 1),
+    50
+  );
+
+  const skip =
+    (safePage - 1) * safeLimit;
+
+  const endIndex =
+    skip + safeLimit;
 
   const imageSelect = {
     id: true,
@@ -152,6 +171,7 @@ const getImages = async ({ categoryId, limit = 20 }) => {
     image_alt: true,
     title: true,
     sort_order: true,
+    created_at: true,
     inspiration_gallery_categories: {
       select: {
         id: true,
@@ -162,39 +182,65 @@ const getImages = async ({ categoryId, limit = 20 }) => {
   };
 
   /*
-   * Category selected:
-   * Return up to 20 images belonging only to that category.
+   * A category was selected.
+   * Return paginated images for only that category.
    */
   if (parsedCategoryId) {
-    return prisma.inspiration_gallery_images.findMany({
-      where: {
-        is_active: true,
-        category_id: parsedCategoryId,
-        inspiration_gallery_categories: {
-          is: {
-            is_active: true,
-          },
+    const where = {
+      is_active: true,
+      category_id: parsedCategoryId,
+      inspiration_gallery_categories: {
+        is: {
+          is_active: true,
         },
       },
-      select: imageSelect,
-      orderBy: [
-        {
-          sort_order: "asc",
-        },
-        {
-          created_at: "desc",
-        },
-        {
-          id: "desc",
-        },
-      ],
-      take: safeLimit,
-    });
+    };
+
+    const [images, total] =
+      await Promise.all([
+        prisma.inspiration_gallery_images.findMany({
+          where,
+          select: imageSelect,
+          orderBy: [
+            {
+              sort_order: "asc",
+            },
+            {
+              created_at: "desc",
+            },
+            {
+              id: "desc",
+            },
+          ],
+          skip,
+          take: safeLimit,
+        }),
+
+        prisma.inspiration_gallery_images.count({
+          where,
+        }),
+      ]);
+
+    const totalPages = Math.ceil(
+      total / safeLimit
+    );
+
+    return {
+      images,
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        totalPages,
+        hasMore:
+          safePage < totalPages,
+      },
+    };
   }
 
   /*
-   * No category selected:
-   * Fetch active categories first.
+   * No category was selected.
+   * Retrieve all active categories.
    */
   const categories =
     await prisma.inspiration_gallery_categories.findMany({
@@ -204,67 +250,104 @@ const getImages = async ({ categoryId, limit = 20 }) => {
       select: {
         id: true,
       },
-      orderBy: {
-        sort_order: "asc",
-      },
+      orderBy: [
+        {
+          sort_order: "asc",
+        },
+        {
+          id: "asc",
+        },
+      ],
     });
 
   if (!categories.length) {
-    return [];
+    return {
+      images: [],
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total: 0,
+        totalPages: 0,
+        hasMore: false,
+      },
+    };
   }
 
-  /*
-   * Fetch images separately for every category.
-   *
-   * We fetch up to safeLimit per category so categories with fewer
-   * images do not prevent the final response from reaching 20.
-   */
-  const categoryImageGroups = await Promise.all(
-    categories.map((category) =>
-      prisma.inspiration_gallery_images.findMany({
-        where: {
-          is_active: true,
-          category_id: category.id,
-        },
-        select: imageSelect,
-        orderBy: [
-          {
-            sort_order: "asc",
-          },
-          {
-            created_at: "desc",
-          },
-          {
-            id: "desc",
-          },
-        ],
-        take: safeLimit,
-      })
-    )
+  const categoryIds = categories.map(
+    (category) => category.id
   );
 
+  const total =
+    await prisma.inspiration_gallery_images.count({
+      where: {
+        is_active: true,
+        category_id: {
+          in: categoryIds,
+        },
+      },
+    });
+
   /*
-   * Round-robin mixing:
+   * Fetch enough images from every category to construct
+   * all round-robin results through the requested page.
    *
-   * First image from every category,
-   * then second image from every category,
-   * then third image, and so on.
+   * Example:
+   * Page 2, limit 50:
+   * skip = 50
+   * endIndex = 100
+   *
+   * The round-robin list is built through item 100,
+   * then sliced from 50 to 100.
    */
+  const categoryImageGroups =
+    await Promise.all(
+      categories.map((category) =>
+        prisma.inspiration_gallery_images.findMany({
+          where: {
+            is_active: true,
+            category_id: category.id,
+          },
+          select: imageSelect,
+          orderBy: [
+            {
+              sort_order: "asc",
+            },
+            {
+              created_at: "desc",
+            },
+            {
+              id: "desc",
+            },
+          ],
+          take: endIndex,
+        })
+      )
+    );
+
   const mixedImages = [];
   let imageIndex = 0;
 
-  while (mixedImages.length < safeLimit) {
+  while (
+    mixedImages.length < endIndex
+  ) {
     let imageAdded = false;
 
-    for (const categoryImages of categoryImageGroups) {
-      const image = categoryImages[imageIndex];
+    for (
+      const categoryImages of
+      categoryImageGroups
+    ) {
+      const image =
+        categoryImages[imageIndex];
 
       if (image) {
         mixedImages.push(image);
         imageAdded = true;
       }
 
-      if (mixedImages.length >= safeLimit) {
+      if (
+        mixedImages.length >=
+        endIndex
+      ) {
         break;
       }
     }
@@ -276,7 +359,27 @@ const getImages = async ({ categoryId, limit = 20 }) => {
     imageIndex += 1;
   }
 
-  return mixedImages;
+  const paginatedImages =
+    mixedImages.slice(
+      skip,
+      endIndex
+    );
+
+  const totalPages = Math.ceil(
+    total / safeLimit
+  );
+
+  return {
+    images: paginatedImages,
+    pagination: {
+      page: safePage,
+      limit: safeLimit,
+      total,
+      totalPages,
+      hasMore:
+        safePage < totalPages,
+    },
+  };
 };
 
 const createImageUploadUrls = async (body) => {

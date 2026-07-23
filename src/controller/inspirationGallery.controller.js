@@ -65,42 +65,31 @@ const deleteCategory = async (req, res) => {
   }
 };
 
-
-
 const getImages = async (req, res) => {
-
   try {
-
-    const images = await service.getImages({
-
+    const result = await service.getImages({
       categoryId: req.query.categoryId,
-
+      page: req.query.page,
       limit: req.query.limit,
-
     });
 
     return res.status(200).json({
-
       success: true,
-
-      data: images,
-
+      data: result,
     });
-
   } catch (error) {
-
-    console.error("Get inspiration gallery images error:", error);
+    console.error(
+      "Get inspiration gallery images error:",
+      error
+    );
 
     return res.status(500).json({
-
       success: false,
-
-      message: error.message || "Failed to fetch inspiration gallery images",
-
+      message:
+        error.message ||
+        "Failed to fetch inspiration gallery images",
     });
-
   }
-
 };
 const createImageUploadUrls = async (req, res) => {
   try {
