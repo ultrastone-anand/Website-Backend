@@ -2201,144 +2201,219 @@ const deleteProduct = async (id, audit = {}) => {
 
 };
 
+const makeSlug = (value) => {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+};
+
 const bulkCreateProducts = async (
   products,
   audit = {}
 ) => {
-
   return await auditService.track({
-
     audit,
 
     action: "BULK_CREATE",
 
     resourceType: "PRODUCT",
 
-    moduleName:
-      "Stone Management",
+    moduleName: "Stone Management",
 
     operation: async () => {
+      if (!Array.isArray(products) || products.length === 0) {
+        return serialize({
+          count: 0,
+          products: [],
+        });
+      }
+
+      /*
+       * Generate the base slugs from the supplied slug or product name.
+       */
+      const preparedProducts = products.map(
+        (product, index) => {
+          const baseSlug =
+            makeSlug(product.slug || product.name) ||
+            `stone-product-${index + 1}`;
+
+          return {
+            ...product,
+            baseSlug,
+          };
+        }
+      );
+
+      /*
+       * Get existing slugs beginning with any of the uploaded base slugs.
+       *
+       * Fetching all slugs is acceptable when the products table is not
+       * extremely large. It also correctly detects values such as:
+       * calacatta-gold
+       * calacatta-gold-2
+       * calacatta-gold-3
+       */
+      const existingProducts =
+        await prisma.stone_products.findMany({
+          select: {
+            slug: true,
+          },
+        });
+
+      const usedSlugs = new Set(
+        existingProducts
+          .map((product) => product.slug)
+          .filter(Boolean)
+      );
+
+      /*
+       * Assign a unique slug before starting the transaction.
+       * The Set also catches duplicate rows inside the current upload.
+       */
+      const productsWithUniqueSlugs =
+        preparedProducts.map((product) => {
+          let uniqueSlug = product.baseSlug;
+          let counter = 2;
+
+          while (usedSlugs.has(uniqueSlug)) {
+            uniqueSlug = `${product.baseSlug}-${counter}`;
+            counter += 1;
+          }
+
+          usedSlugs.add(uniqueSlug);
+
+          const {
+            baseSlug,
+            ...cleanProduct
+          } = product;
+
+          return {
+            ...cleanProduct,
+            slug: uniqueSlug,
+          };
+        });
 
       const createdProducts =
         await prisma.$transaction(
-          products.map((product) =>
-            prisma.stone_products.create({
-              data: {
-                name: product.name,
-                slug: product.slug,
+          productsWithUniqueSlugs.map(
+            (product) =>
+              prisma.stone_products.create({
+                data: {
+                  name: product.name,
+                  slug: product.slug,
 
-                category_id:
-                  product.category_id,
+                  category_id:
+                    product.category_id,
 
-                stone_group:
-                  product.stone_group,
+                  stone_group:
+                    product.stone_group,
 
-                origin_country:
-                  product.origin_country,
+                  origin_country:
+                    product.origin_country,
 
-                abrasion_resistance:
-                  product.abrasion_resistance,
+                  abrasion_resistance:
+                    product.abrasion_resistance,
 
-                stain_resistance:
-                  product.stain_resistance,
+                  stain_resistance:
+                    product.stain_resistance,
 
-                etching_resistance:
-                  product.etching_resistance,
+                  etching_resistance:
+                    product.etching_resistance,
 
-                heat_resistance:
-                  product.heat_resistance,
+                  heat_resistance:
+                    product.heat_resistance,
 
-                uv_resistance:
-                  product.uv_resistance,
+                  uv_resistance:
+                    product.uv_resistance,
 
-                color_range:
-                  product.color_range,
+                  color_range:
+                    product.color_range,
 
-                movement_index:
-                  product.movement_index,
+                  movement_index:
+                    product.movement_index,
 
-                color_enhancing:
-                  product.color_enhancing,
+                  color_enhancing:
+                    product.color_enhancing,
 
-                countertops_vanities:
-                  product.countertops_vanities,
+                  countertops_vanities:
+                    product.countertops_vanities,
 
-                interior_floor:
-                  product.interior_floor,
+                  interior_floor:
+                    product.interior_floor,
 
-                fireplace:
-                  product.fireplace,
+                  fireplace:
+                    product.fireplace,
 
-                shower_wall:
-                  product.shower_wall,
+                  shower_wall:
+                    product.shower_wall,
 
-                shower_floor:
-                  product.shower_floor,
+                  shower_floor:
+                    product.shower_floor,
 
-                exterior_floor:
-                  product.exterior_floor,
+                  exterior_floor:
+                    product.exterior_floor,
 
-                exterior_wall:
-                  product.exterior_wall,
+                  exterior_wall:
+                    product.exterior_wall,
 
-                pool_fountain:
-                  product.pool_fountain,
+                  pool_fountain:
+                    product.pool_fountain,
 
-                furniture_top:
-                  product.furniture_top,
+                  furniture_top:
+                    product.furniture_top,
 
-                translucent:
-                  product.translucent,
+                  translucent:
+                    product.translucent,
 
-                cut_to_size:
-                  product.cut_to_size,
+                  cut_to_size:
+                    product.cut_to_size,
 
-                pattern:
-                  product.pattern,
+                  pattern:
+                    product.pattern,
 
-                sealer:
-                  product.sealer,
+                  sealer:
+                    product.sealer,
 
-                thicknesses_cm:
-                  product.thicknesses_cm,
+                  thicknesses_cm:
+                    product.thicknesses_cm,
 
-                finishes_available:
-                  product.finishes_available,
+                  finishes_available:
+                    product.finishes_available,
 
-                average_sizes_inches:
-                  product.average_sizes_inches,
+                  average_sizes_inches:
+                    product.average_sizes_inches,
 
-                is_active: true,
+                  is_active: true,
 
-                stone_product_seo: {
-                  create: {
-                    meta_title:
-                      product.name,
+                  stone_product_seo: {
+                    create: {
+                      meta_title:
+                        product.name,
 
-                    meta_description:
-                      product.name,
+                      meta_description:
+                        product.name,
 
-                    robots_index: true,
+                      robots_index: true,
 
-                    robots_follow: true,
+                      robots_follow: true,
+                    },
                   },
                 },
-              },
-            })
+              })
           )
         );
 
       return serialize({
-        count:
-          createdProducts.length,
-
-        products:
-          createdProducts,
+        count: createdProducts.length,
+        products: createdProducts,
       });
-
     },
   });
-
 };
 
 const bulkDeactivateProducts = async (
