@@ -382,6 +382,53 @@ const getImages = async ({
   };
 };
 
+const getImagesBySlug = async (slug) => {
+  const normalizedSlug = String(slug || "")
+    .trim()
+    .toLowerCase();
+
+  if (!normalizedSlug) {
+    throw new Error("Product slug is required");
+  }
+
+  return prisma.inspiration_gallery_images.findMany({
+    where: {
+      is_active: true,
+      image_url: {
+        contains: normalizedSlug,
+        mode: "insensitive",
+      },
+    },
+    select: {
+      id: true,
+      category_id: true,
+      image_url: true,
+      image_alt: true,
+      title: true,
+      sort_order: true,
+      created_at: true,
+      inspiration_gallery_categories: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+    },
+    orderBy: [
+      {
+        sort_order: "asc",
+      },
+      {
+        created_at: "desc",
+      },
+      {
+        id: "desc",
+      },
+    ],
+  });
+};
+
 const createImageUploadUrls = async (body) => {
   const { category_id, files = [] } = body;
 
@@ -518,6 +565,7 @@ module.exports = {
   deleteCategory,
 
   getImages,
+  getImagesBySlug,
   createImageUploadUrls,
   saveUploadedImages,
   deleteImage,

@@ -91,6 +91,42 @@ const getImages = async (req, res) => {
     });
   }
 };
+
+const getImagesBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const images =
+      await service.getImagesBySlug(slug);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        images,
+        count: images.length,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Get inspiration images by slug error:",
+      error
+    );
+
+    const statusCode =
+      error.message ===
+      "Product slug is required"
+        ? 400
+        : 500;
+
+    return res.status(statusCode).json({
+      success: false,
+      message:
+        error.message ||
+        "Failed to fetch product inspiration images",
+    });
+  }
+};
+
 const createImageUploadUrls = async (req, res) => {
   try {
     const data = await service.createImageUploadUrls(req.body);
@@ -164,6 +200,7 @@ module.exports = {
   deleteCategory,
 
   getImages,
+  getImagesBySlug,
   createImageUploadUrls,
   saveUploadedImages,
   deleteImage,

@@ -12,7 +12,8 @@ router.delete("/categories/:id", controller.deleteCategory);
 
 // Images
 router.get("/images", controller.getImages);
-
+// Product inspiration images by product slug
+router.get("/images/product/:slug",controller.getImagesBySlug);
 
 // NEW direct R2 upload
 router.post("/images/presign", controller.createImageUploadUrls);
