@@ -231,6 +231,7 @@ const searchProducts = async (
 
 const createCategory = async (req, res) => {
   let uploadedThumbnailKey = null;
+  let uploadedDatasheetKey = null;
 
   try {
     const payload = {
@@ -258,10 +259,19 @@ const createCategory = async (req, res) => {
         uploadedThumbnail.public_id;
     }
 
-    // Keep silica PDF in local /uploads folder
+    // Upload silica datasheet PDF to Cloudflare R2
     if (silicaDatasheetFile) {
+      const uploadedDatasheet =
+        await uploadToR2(
+          silicaDatasheetFile,
+          'category-silica-datasheets'
+        );
+
       payload.silica_datasheet_url =
-        `/uploads/${silicaDatasheetFile.filename}`;
+        uploadedDatasheet.secure_url;
+
+      uploadedDatasheetKey =
+        uploadedDatasheet.public_id;
     }
 
     const data =
@@ -275,18 +285,37 @@ const createCategory = async (req, res) => {
       data,
     });
   } catch (error) {
-    // If database creation fails after R2 upload,
-    // delete the orphaned thumbnail.
+    const cleanupPromises = [];
+
+    // Delete orphaned thumbnail if DB creation fails.
     if (uploadedThumbnailKey) {
-      await deleteFileFromR2(
-        uploadedThumbnailKey
-      ).catch((deleteError) => {
-        console.error(
-          'Failed to clean uploaded thumbnail:',
-          deleteError
-        );
-      });
+      cleanupPromises.push(
+        deleteFileFromR2(
+          uploadedThumbnailKey
+        ).catch((deleteError) => {
+          console.error(
+            'Failed to clean uploaded thumbnail:',
+            deleteError
+          );
+        })
+      );
     }
+
+    // Delete orphaned PDF if DB creation fails.
+    if (uploadedDatasheetKey) {
+      cleanupPromises.push(
+        deleteFileFromR2(
+          uploadedDatasheetKey
+        ).catch((deleteError) => {
+          console.error(
+            'Failed to clean uploaded datasheet:',
+            deleteError
+          );
+        })
+      );
+    }
+
+    await Promise.all(cleanupPromises);
 
     if (error.code === 'P2002') {
       const target =
@@ -313,9 +342,17 @@ const createCategory = async (req, res) => {
 
 const updateCategory = async (req, res) => {
   let newlyUploadedThumbnailKey = null;
+  let newlyUploadedDatasheetKey = null;
 
   try {
     const categoryId = Number(req.params.id);
+
+    if (!Number.isInteger(categoryId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid category ID',
+      });
+    }
 
     const existingCategory =
       await prisma.stone_categories.findUnique({
@@ -341,6 +378,7 @@ const updateCategory = async (req, res) => {
     const silicaDatasheetFile =
       req.files?.silica_datasheet?.[0];
 
+    // Upload new thumbnail to R2.
     if (thumbnailFile) {
       const uploadedThumbnail =
         await uploadToR2(
@@ -355,9 +393,19 @@ const updateCategory = async (req, res) => {
         uploadedThumbnail.public_id;
     }
 
+    // Upload new silica datasheet PDF to R2.
     if (silicaDatasheetFile) {
+      const uploadedDatasheet =
+        await uploadToR2(
+          silicaDatasheetFile,
+          'category-silica-datasheets'
+        );
+
       payload.silica_datasheet_url =
-        `/uploads/${silicaDatasheetFile.filename}`;
+        uploadedDatasheet.secure_url;
+
+      newlyUploadedDatasheetKey =
+        uploadedDatasheet.public_id;
     }
 
     const data =
@@ -366,6 +414,8 @@ const updateCategory = async (req, res) => {
         payload,
         getAuditContext(req)
       );
+
+    const cleanupPromises = [];
 
     // Delete old thumbnail only after successful DB update.
     if (
@@ -380,33 +430,83 @@ const updateCategory = async (req, res) => {
         );
 
       if (oldThumbnailKey) {
-        await deleteFileFromR2(
-          oldThumbnailKey
-        ).catch((deleteError) => {
-          console.error(
-            'Failed to delete previous thumbnail:',
-            deleteError
-          );
-        });
+        cleanupPromises.push(
+          deleteFileFromR2(
+            oldThumbnailKey
+          ).catch((deleteError) => {
+            console.error(
+              'Failed to delete previous thumbnail:',
+              deleteError
+            );
+          })
+        );
       }
     }
+
+    // Delete old PDF only after successful DB update.
+    if (
+      silicaDatasheetFile &&
+      existingCategory.silica_datasheet_url &&
+      existingCategory.silica_datasheet_url !==
+        payload.silica_datasheet_url
+    ) {
+      const oldDatasheetKey =
+        getR2ObjectKeyFromUrl(
+          existingCategory.silica_datasheet_url
+        );
+
+      if (oldDatasheetKey) {
+        cleanupPromises.push(
+          deleteFileFromR2(
+            oldDatasheetKey
+          ).catch((deleteError) => {
+            console.error(
+              'Failed to delete previous datasheet:',
+              deleteError
+            );
+          })
+        );
+      }
+    }
+
+    await Promise.all(cleanupPromises);
 
     return res.status(200).json({
       success: true,
       data,
     });
   } catch (error) {
-    // Delete newly uploaded image if database update fails.
+    const cleanupPromises = [];
+
+    // Delete newly uploaded thumbnail if DB update fails.
     if (newlyUploadedThumbnailKey) {
-      await deleteFileFromR2(
-        newlyUploadedThumbnailKey
-      ).catch((deleteError) => {
-        console.error(
-          'Failed to clean uploaded thumbnail:',
-          deleteError
-        );
-      });
+      cleanupPromises.push(
+        deleteFileFromR2(
+          newlyUploadedThumbnailKey
+        ).catch((deleteError) => {
+          console.error(
+            'Failed to clean uploaded thumbnail:',
+            deleteError
+          );
+        })
+      );
     }
+
+    // Delete newly uploaded PDF if DB update fails.
+    if (newlyUploadedDatasheetKey) {
+      cleanupPromises.push(
+        deleteFileFromR2(
+          newlyUploadedDatasheetKey
+        ).catch((deleteError) => {
+          console.error(
+            'Failed to clean uploaded datasheet:',
+            deleteError
+          );
+        })
+      );
+    }
+
+    await Promise.all(cleanupPromises);
 
     if (error.code === 'P2002') {
       const target =
@@ -439,96 +539,242 @@ const updateCategory = async (req, res) => {
     });
   }
 };
-
 // ================== PRODUCT CRUD ==================
 
 const createProduct = async (
   req,
   res
 ) => {
+  let uploadedDatasheetKey = null;
 
   try {
-
     const payload = {
       ...req.body,
     };
 
-    if (req.files?.silica_datasheet?.[0]) {
+    const silicaDatasheetFile =
+      req.files?.silica_datasheet?.[0];
+
+    // Upload silica datasheet PDF to R2
+    if (silicaDatasheetFile) {
+      const uploadedDatasheet =
+        await uploadToR2(
+          silicaDatasheetFile,
+          "ultrastones/products/silica-datasheets"
+        );
+
       payload.silica_datasheet_url =
-        `/uploads/${req.files.silica_datasheet[0].filename}`;
+        uploadedDatasheet.secure_url;
+
+      uploadedDatasheetKey =
+        uploadedDatasheet.public_id;
     }
+
+    /*
+     * Remove silica_datasheet from files because
+     * it has already been uploaded to R2.
+     *
+     * All other product files remain unchanged.
+     */
+    const serviceFiles = {
+      ...(req.files || {}),
+    };
+
+    delete serviceFiles.silica_datasheet;
 
     const data =
       await stoneservice.createProduct(
-        req.body,
-        req.files,
+        payload,
+        serviceFiles,
         getAuditContext(req)
       );
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      data
+      data,
     });
-
   } catch (error) {
+    /*
+     * If R2 upload succeeded but database creation
+     * failed, delete the orphaned PDF.
+     */
+    if (uploadedDatasheetKey) {
+      await deleteFileFromR2(
+        uploadedDatasheetKey
+      ).catch((deleteError) => {
+        console.error(
+          "Failed to clean uploaded product datasheet:",
+          deleteError
+        );
+      });
+    }
 
-    console.log(error);
+    console.error(
+      "createProduct error:",
+      error
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: error.message
+      message:
+        error.message ||
+        "Failed to create product",
     });
-
   }
-
 };
 
-const updateProduct = async (
-  req,
-  res
-) => {
+const updateProduct = async (req, res) => {
+  let newlyUploadedDatasheetKey = null;
 
   try {
+    let productId;
+
+    try {
+      productId = BigInt(req.params.id);
+    } catch {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product ID",
+      });
+    }
+
+    const existingProduct =
+      await prisma.stone_products.findUnique({
+        where: {
+          id: productId,
+        },
+
+        select: {
+          id: true,
+          silica_datasheet_url: true,
+        },
+      });
+
+    if (!existingProduct) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
 
     const payload = {
       ...req.body,
     };
 
-    if (req.files?.silica_datasheet?.[0]) {
+    const silicaDatasheetFile =
+      req.files?.silica_datasheet?.[0];
+
+    if (silicaDatasheetFile) {
+      const uploadedDatasheet =
+        await uploadToR2(
+          silicaDatasheetFile,
+          "ultrastones/products/silica-datasheets"
+        );
+
       payload.silica_datasheet_url =
-        `/uploads/${req.files.silica_datasheet[0].filename}`;
+        uploadedDatasheet.secure_url;
+
+      newlyUploadedDatasheetKey =
+        uploadedDatasheet.public_id;
     }
+
+    /*
+     * The PDF is already uploaded by the controller.
+     * Other product media still goes to the service.
+     */
+    const serviceFiles = {
+      ...(req.files || {}),
+    };
+
+    delete serviceFiles.silica_datasheet;
 
     const data =
       await stoneservice.updateProduct(
-
         req.params.id,
-
-        req.body,
-
-        req.files,
-
+        payload,
+        serviceFiles,
         getAuditContext(req)
-
       );
 
-    res.status(200).json({
+    /*
+     * Delete the old R2 PDF only after the database
+     * update succeeds.
+     */
+    if (
+      silicaDatasheetFile &&
+      existingProduct.silica_datasheet_url &&
+      existingProduct.silica_datasheet_url !==
+        payload.silica_datasheet_url
+    ) {
+      const oldDatasheetKey =
+        getR2ObjectKeyFromUrl(
+          existingProduct.silica_datasheet_url
+        );
+
+      if (oldDatasheetKey) {
+        await deleteFileFromR2(
+          oldDatasheetKey
+        ).catch((deleteError) => {
+          console.error(
+            "Failed to delete previous product datasheet:",
+            deleteError
+          );
+        });
+      }
+    }
+
+    return res.status(200).json({
       success: true,
-      data
+      data,
     });
-
   } catch (error) {
+    /*
+     * The new PDF reached R2, but the service or
+     * database update failed.
+     */
+    if (newlyUploadedDatasheetKey) {
+      await deleteFileFromR2(
+        newlyUploadedDatasheetKey
+      ).catch((deleteError) => {
+        console.error(
+          "Failed to remove orphaned product datasheet:",
+          deleteError
+        );
+      });
+    }
 
-    console.log(error);
+    console.error(
+      "updateProduct error:",
+      error
+    );
 
-    res.status(500).json({
+    if (
+      error.message ===
+      "Product not found"
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (error.code === "P2002") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Product name or slug already exists",
+      });
+    }
+
+    return res.status(500).json({
       success: false,
-      message: error.message
+      message:
+        error.message ||
+        "Failed to update product",
     });
-
   }
-
 };
+
 
 const deleteProduct = async (
   req,

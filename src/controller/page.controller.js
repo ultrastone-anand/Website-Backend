@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 const pageService = require("../services/page.service");
+const { uploadToR2 } = require("../utils/uploadToR2");
 
 exports.createPage = async (req, res) => {
   try {
@@ -73,58 +74,77 @@ exports.uploadPageImage = async (req, res) => {
 
 };
 
-exports.uploadPagePdf = async (req, res, next) => {
+// =====================================
+
+// UPLOAD PAGE PDF TO R2
+
+// =====================================
+
+exports.uploadPagePdf = async (
+  req,
+  res
+) => {
   try {
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        message: "PDF file is required.",
+        message:
+          "PDF file is required.",
       });
     }
-
     const extension = path
       .extname(req.file.originalname)
       .toLowerCase();
-
     const isPdf =
-      req.file.mimetype === "application/pdf" &&
+      req.file.mimetype ===
+        "application/pdf" &&
       extension === ".pdf";
-
     if (!isPdf) {
-      if (
-        req.file.path &&
-        fs.existsSync(req.file.path)
-      ) {
-        fs.unlinkSync(req.file.path);
+      if (req.file.path) {
+        await fs
+          .unlink(req.file.path)
+          .catch(() => null);
       }
-
       return res.status(400).json({
         success: false,
-        message: "Only PDF files are allowed.",
+        message:
+          "Only PDF files are allowed.",
       });
     }
-
-    const relativeUrl = `/uploads/${req.file.filename}`;
-
-    const baseUrl =
-      process.env.PUBLIC_API_URL ||
-      `${req.protocol}://${req.get("host")}`;
-
-    const pdfUrl = `${baseUrl}${relativeUrl}`;
-
+    const uploadedPdf =
+      await uploadToR2(
+        req.file,
+        "page-pdfs"
+      );
     return res.status(201).json({
       success: true,
-      message: "PDF uploaded successfully",
+      message:
+        "PDF uploaded successfully",
       data: {
-        fileName: req.file.originalname,
-        storedFileName: req.file.filename,
-        pdfUrl,
-        relativeUrl,
-        size: req.file.size,
-        mimeType: req.file.mimetype,
+        fileName:
+          req.file.originalname,
+        storedFileName:
+          uploadedPdf.public_id,
+        pdfUrl:
+          uploadedPdf.secure_url,
+        publicId:
+          uploadedPdf.public_id,
+        size:
+          req.file.size,
+        mimeType:
+          req.file.mimetype,
       },
     });
   } catch (error) {
-    next(error);
+    console.error(
+      "Page PDF upload error:",
+      error
+    );
+    return res.status(500).json({
+      success: false,
+      message:
+        error.message ||
+        "Failed to upload PDF",
+    });
   }
 };
