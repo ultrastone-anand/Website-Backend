@@ -391,7 +391,7 @@ const getImagesBySlug = async (slug) => {
     throw new Error("Product slug is required");
   }
 
-  return prisma.inspiration_gallery_images.findMany({
+  const images = await prisma.inspiration_gallery_images.findMany({
     where: {
       is_active: true,
       image_url: {
@@ -416,16 +416,32 @@ const getImagesBySlug = async (slug) => {
       },
     },
     orderBy: [
-      {
-        sort_order: "asc",
-      },
-      {
-        created_at: "desc",
-      },
-      {
-        id: "desc",
-      },
+      { sort_order: "asc" },
+      { created_at: "desc" },
+      { id: "desc" },
     ],
+  });
+
+  return images.filter((image) => {
+    try {
+      const pathname = decodeURIComponent(new URL(image.image_url).pathname);
+      const filename = pathname.split("/").pop()?.toLowerCase() || "";
+
+      // Removes the upload timestamp and UUID prefix:
+      // 1784829523172-3099b783-dafd-4756-be68-adf9bd8feb56-
+      const cleanFilename = filename.replace(
+        /^\d+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i,
+        ""
+      );
+
+      return (
+        cleanFilename === normalizedSlug ||
+        cleanFilename.startsWith(`${normalizedSlug}-`) ||
+        cleanFilename.startsWith(`${normalizedSlug}.`)
+      );
+    } catch {
+      return false;
+    }
   });
 };
 
