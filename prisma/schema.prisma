@@ -149,6 +149,7 @@ model stone_products {
   is_published           Boolean?              @default(false)
   product_faqs           product_faqs[]
   product_remarks        product_remarks[]
+  stone_product_lots     stone_product_lots[]
   media                  stone_product_media[]
   stone_product_seo      stone_product_seo?
   stone_categories       stone_categories      @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -530,6 +531,42 @@ model integration_credentials {
   is_active               Boolean   @default(true)
   created_at              DateTime  @default(now()) @db.Timestamptz(6)
   updated_at              DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model stone_product_lot_images {
+  id                 BigInt             @id @default(autoincrement())
+  lot_id             BigInt
+  image_url          String
+  public_id          String?
+  alt_text           String?
+  file_name          String?            @db.VarChar(255)
+  mime_type          String?            @db.VarChar(100)
+  file_size          BigInt?
+  display_order      Int?               @default(0)
+  is_primary         Boolean?           @default(false)
+  is_active          Boolean?           @default(true)
+  created_at         DateTime?          @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?          @default(now()) @db.Timestamp(6)
+  stone_product_lots stone_product_lots @relation(fields: [lot_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_stone_product_lot_images_lot")
+
+  @@index([lot_id, display_order], map: "idx_stone_product_lot_images_display_order")
+  @@index([lot_id], map: "idx_stone_product_lot_images_lot_id")
+}
+
+model stone_product_lots {
+  id                       BigInt                     @id @default(autoincrement())
+  product_id               BigInt
+  lot_name                 String                     @db.VarChar(150)
+  display_order            Int?                       @default(0)
+  is_active                Boolean?                   @default(true)
+  created_at               DateTime?                  @default(now()) @db.Timestamp(6)
+  updated_at               DateTime?                  @default(now()) @db.Timestamp(6)
+  stone_product_lot_images stone_product_lot_images[]
+  stone_products           stone_products             @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_stone_product_lots_product")
+
+  @@unique([product_id, lot_name], map: "uq_stone_product_lots_product_name")
+  @@index([product_id, display_order], map: "idx_stone_product_lots_display_order")
+  @@index([product_id], map: "idx_stone_product_lots_product_id")
 }
 
 enum blog_media_type {
