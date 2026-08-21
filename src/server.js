@@ -22,6 +22,7 @@ const newsLetterRoutes = require('./routes/newsletter.routes');
 const contactRoutes = require('./routes/contactEnquiry.routes');
 const GlobalSerchRoutes = require('./routes/globalsearch.route');
 const ProductRemarkRoutes =require('./routes/productRemark.routes');
+const sampleRequestRoutes = require("./routes/sampleRequest.routes");
 const bulkDescriptionRoutes = require("./routes/bulkDescription.routes");
 const inspirationGalleryRoutes = require("./routes/inspirationGallery.routes");
 
@@ -75,9 +76,9 @@ app.use('/api/instagram', instagramRoutes);
 app.use("/api/lot-images",lotImagesRoutes);
 app.use('/api/newsletter', newsLetterRoutes);
 app.use('/api/products', ProductRemarkRoutes);
+app.use("/api/sample-requests",sampleRequestRoutes);
 app.use("/api/bulk-descriptions",bulkDescriptionRoutes);
 app.use("/api/inspiration-gallery", inspirationGalleryRoutes);
-
 
 const frontendDistPath = path.join(__dirname, "../dist");
 const frontendIndexPath = path.join(frontendDistPath, "index.html");
