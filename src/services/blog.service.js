@@ -669,16 +669,39 @@ const getBlogById = async (
   blogId
 ) => {
 
+  const value =
+    String(
+      blogId || ""
+    ).trim();
+
+  if (!value) {
+
+    throw new Error(
+      "Blog post not found"
+    );
+
+  }
+
+  const isNumeric =
+    /^\d+$/.test(value);
+
   const post =
     await prisma.blog_posts.findFirst({
 
       where: {
 
-        id:
-          BigInt(blogId),
-
         deleted_at:
-          null
+          null,
+
+        ...(isNumeric
+          ? {
+              id:
+                BigInt(value)
+            }
+          : {
+              slug:
+                value
+            })
 
       }
 
