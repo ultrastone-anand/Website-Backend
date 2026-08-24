@@ -241,294 +241,331 @@ const sendSampleRequest =
        HTML EMAIL
     ===================================================== */
 
-    const mailHtml = `
-      <!doctype html>
+const mailHtml = `
+  <!doctype html>
 
-      <html>
-        <body
+  <html>
+    <body
+      style="
+        margin:0;
+        padding:0;
+        background:#f4f4f4;
+        font-family:Arial, Helvetica, sans-serif;
+        color:#161412;
+      "
+    >
+      <div
+        style="
+          width:100%;
+          padding:30px 15px;
+          box-sizing:border-box;
+        "
+      >
+        <div
           style="
-            margin:0;
-            padding:0;
-            background:#f4f4f4;
-            font-family:Arial, Helvetica, sans-serif;
-            color:#161412;
+            max-width:700px;
+            margin:0 auto;
+            background:#ffffff;
+            border:1px solid #e4e4e4;
           "
         >
 
+          <!-- HEADER -->
+
           <div
             style="
-              width:100%;
-              padding:30px 15px;
-              box-sizing:border-box;
+              background:#161412;
+              color:#ffffff;
+              padding:30px 32px;
             "
           >
+            <div
+              style="
+                font-size:11px;
+                letter-spacing:3px;
+                text-transform:uppercase;
+                color:#bbbbbb;
+                margin-bottom:8px;
+              "
+            >
+              ULTRA STONES
+            </div>
 
             <div
               style="
-                max-width:700px;
-                margin:0 auto;
-                background:#ffffff;
-                border:1px solid #e4e4e4;
+                font-size:28px;
+                line-height:1.2;
+                font-weight:700;
               "
             >
-
-              <!-- HEADER -->
-
-              <div
-                style="
-                  background:#161412;
-                  color:#ffffff;
-                  padding:28px 32px;
-                "
-              >
-
-                <div
-                  style="
-                    font-size:11px;
-                    letter-spacing:3px;
-                    text-transform:uppercase;
-                    color:#bbbbbb;
-                    margin-bottom:8px;
-                  "
-                >
-                  ULTRA STONES
-                </div>
-
-                <div
-                  style="
-                    font-size:27px;
-                    font-weight:700;
-                  "
-                >
-                  New Sample Request
-                </div>
-
-              </div>
-
-              <!-- CONTENT -->
-
-              <div
-                style="
-                  padding:32px;
-                "
-              >
-
-                <p
-                  style="
-                    margin:0 0 28px;
-                    font-size:14px;
-                    line-height:1.6;
-                    color:#666666;
-                  "
-                >
-                  A new sample request has been submitted through the Ultra Stones website.
-                </p>
-
-                <!-- PRODUCT -->
-
-                <div
-                  style="
-                    font-size:13px;
-                    font-weight:700;
-                    text-transform:uppercase;
-                    letter-spacing:1px;
-                    margin-bottom:12px;
-                  "
-                >
-                  Product Information
-                </div>
-
-                <table
-                  width="100%"
-                  cellpadding="0"
-                  cellspacing="0"
-                  style="
-                    border-collapse:collapse;
-                    margin-bottom:30px;
-                  "
-                >
-
-                  ${tableRow(
-                    "Material",
-                    product_name
-                  )}
-
-                  ${tableRow(
-                    "Category",
-                    category_name
-                  )}
-
-                  ${tableRow(
-                    "Product ID",
-                    product_id
-                  )}
-
-                  ${tableRow(
-                    "No. of Samples",
-                    quantity
-                  )}
-
-                </table>
-
-                <!-- CUSTOMER -->
-
-                <div
-                  style="
-                    font-size:13px;
-                    font-weight:700;
-                    text-transform:uppercase;
-                    letter-spacing:1px;
-                    margin-bottom:12px;
-                  "
-                >
-                  Customer Information
-                </div>
-
-                <table
-                  width="100%"
-                  cellpadding="0"
-                  cellspacing="0"
-                  style="
-                    border-collapse:collapse;
-                    margin-bottom:30px;
-                  "
-                >
-
-                  ${tableRow(
-                    "First Name",
-                    first_name
-                  )}
-
-                  ${tableRow(
-                    "Last Name",
-                    last_name
-                  )}
-
-                  ${tableRow(
-                    "Company",
-                    company_name || "-"
-                  )}
-
-                  ${tableRow(
-                    "Email",
-                    email
-                  )}
-
-                  ${tableRow(
-                    "Phone Number",
-                    phone
-                  )}
-
-                </table>
-
-                <!-- SHIPPING -->
-
-                <div
-                  style="
-                    font-size:13px;
-                    font-weight:700;
-                    text-transform:uppercase;
-                    letter-spacing:1px;
-                    margin-bottom:12px;
-                  "
-                >
-                  Shipping Address
-                </div>
-
-                <table
-                  width="100%"
-                  cellpadding="0"
-                  cellspacing="0"
-                  style="
-                    border-collapse:collapse;
-                    margin-bottom:30px;
-                  "
-                >
-
-                  ${tableRow(
-                    "Street Address",
-                    street_address
-                  )}
-
-                  ${tableRow(
-                    "City",
-                    city
-                  )}
-
-                  ${tableRow(
-                    "County",
-                    county || "-"
-                  )}
-
-                  ${tableRow(
-                    "State",
-                    state
-                  )}
-
-                  ${tableRow(
-                    "ZIP Code",
-                    zip_code
-                  )}
-
-                  ${tableRow(
-                    "Full Address",
-                    formattedAddress
-                  )}
-
-                </table>
-
-                <!-- REMARKS -->
-
-                <div
-                  style="
-                    font-size:13px;
-                    font-weight:700;
-                    text-transform:uppercase;
-                    letter-spacing:1px;
-                    margin-bottom:12px;
-                  "
-                >
-                  Additional Information
-                </div>
-
-                <table
-                  width="100%"
-                  cellpadding="0"
-                  cellspacing="0"
-                  style="
-                    border-collapse:collapse;
-                    margin-bottom:30px;
-                  "
-                >
-
-                  ${tableRow(
-                    "Remarks",
-                    remarks || "-"
-                  )}
-
-                </table>
-
-                <div
-                  style="
-                    border-top:1px solid #eeeeee;
-                    padding-top:20px;
-                    color:#888888;
-                    font-size:11px;
-                    line-height:1.6;
-                  "
-                >
-                  This email was automatically generated from an Ultra Stones website sample request.
-                </div>
-
-              </div>
-
+              New Sample Request
             </div>
-
           </div>
 
-        </body>
-      </html>
-    `;
+          <!-- CONTENT -->
+
+          <div
+            style="
+              padding:32px;
+            "
+          >
+
+            <!-- PRODUCT INTRO -->
+
+            <div
+              style="
+                margin-bottom:32px;
+                padding-bottom:24px;
+                border-bottom:1px solid #eeeeee;
+              "
+            >
+              <div
+                style="
+                  font-size:24px;
+                  font-weight:700;
+                  line-height:1.25;
+                  margin-bottom:6px;
+                "
+              >
+                ${escapeHtml(product_name)}
+              </div>
+
+              <div
+                style="
+                  font-size:13px;
+                  color:#777777;
+                  text-transform:uppercase;
+                  letter-spacing:1px;
+                "
+              >
+                ${escapeHtml(category_name)}
+              </div>
+            </div>
+
+            <!-- SAMPLE DETAILS -->
+
+            <div
+              style="
+                font-size:12px;
+                font-weight:700;
+                text-transform:uppercase;
+                letter-spacing:1.2px;
+                margin-bottom:12px;
+              "
+            >
+              Sample Details
+            </div>
+
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              style="
+                border-collapse:collapse;
+                margin-bottom:32px;
+              "
+            >
+              ${tableRow(
+                "Material",
+                product_name
+              )}
+
+              ${tableRow(
+                "Category",
+                category_name
+              )}
+
+              ${tableRow(
+                "Quantity",
+                `${quantity} ${
+                  Number(quantity) === 1
+                    ? "Sample"
+                    : "Samples"
+                }`
+              )}
+            </table>
+
+            <!-- CUSTOMER INFORMATION -->
+
+            <div
+              style="
+                font-size:12px;
+                font-weight:700;
+                text-transform:uppercase;
+                letter-spacing:1.2px;
+                margin-bottom:12px;
+              "
+            >
+              Customer Information
+            </div>
+
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              style="
+                border-collapse:collapse;
+                margin-bottom:32px;
+              "
+            >
+              ${tableRow(
+                "Name",
+                fullName
+              )}
+
+              ${
+                company_name
+                  ? tableRow(
+                      "Company",
+                      company_name
+                    )
+                  : ""
+              }
+
+              ${tableRow(
+                "Email",
+                email
+              )}
+
+              ${tableRow(
+                "Phone",
+                phone
+              )}
+            </table>
+
+            <!-- SHIPPING ADDRESS -->
+
+            <div
+              style="
+                font-size:12px;
+                font-weight:700;
+                text-transform:uppercase;
+                letter-spacing:1.2px;
+                margin-bottom:12px;
+              "
+            >
+              Shipping Address
+            </div>
+
+            <div
+              style="
+                background:#f7f7f7;
+                border:1px solid #e2e2e2;
+                padding:20px;
+                margin-bottom:32px;
+                font-size:14px;
+                line-height:1.8;
+                color:#242424;
+              "
+            >
+              <div>
+                ${escapeHtml(
+                  street_address
+                )}
+              </div>
+
+              <div>
+                ${escapeHtml(city)}${
+                  county
+                    ? `, ${escapeHtml(
+                        county
+                      )}`
+                    : ""
+                }
+              </div>
+
+              <div>
+                ${escapeHtml(
+                  state
+                )} ${escapeHtml(
+                  zip_code
+                )}
+              </div>
+            </div>
+
+            <!-- REMARKS -->
+
+            ${
+              remarks
+                ? `
+                  <div
+                    style="
+                      font-size:12px;
+                      font-weight:700;
+                      text-transform:uppercase;
+                      letter-spacing:1.2px;
+                      margin-bottom:12px;
+                    "
+                  >
+                    Remarks
+                  </div>
+
+                  <div
+                    style="
+                      background:#f7f7f7;
+                      border-left:3px solid #c91f26;
+                      padding:18px 20px;
+                      margin-bottom:32px;
+                      font-size:14px;
+                      line-height:1.7;
+                      color:#444444;
+                    "
+                  >
+                    ${escapeHtml(
+                      remarks
+                    )}
+                  </div>
+                `
+                : ""
+            }
+
+            <!-- CONTACT ACTION -->
+
+            <div
+              style="
+                padding-top:4px;
+                margin-bottom:30px;
+              "
+            >
+              <a
+                href="mailto:${escapeHtml(
+                  email
+                )}"
+                style="
+                  display:inline-block;
+                  background:#161412;
+                  color:#ffffff;
+                  text-decoration:none;
+                  padding:13px 22px;
+                  font-size:11px;
+                  font-weight:700;
+                  text-transform:uppercase;
+                  letter-spacing:1px;
+                "
+              >
+                Reply to Customer
+              </a>
+            </div>
+
+            <!-- FOOTER -->
+
+            <div
+              style="
+                border-top:1px solid #eeeeee;
+                padding-top:20px;
+                color:#999999;
+                font-size:11px;
+                line-height:1.6;
+              "
+            >
+              Submitted through the Ultra Stones website.
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+  </html>
+`;
 
     /* =====================================================
        TOKEN
