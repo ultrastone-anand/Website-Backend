@@ -18,6 +18,7 @@ const createSampleRequest =
         company_name,
 
         street_address,
+        suite_number,
         city,
         county,
         state,
@@ -26,6 +27,7 @@ const createSampleRequest =
         email,
         phone,
 
+        finish,
         quantity,
         remarks,
       } = req.body;
@@ -111,6 +113,11 @@ const createSampleRequest =
                 street_address
               ).trim(),
 
+            suite_number:
+              String(
+                suite_number || ""
+              ).trim(),
+
             city:
               String(
                 city
@@ -139,6 +146,11 @@ const createSampleRequest =
             phone:
               String(
                 phone
+              ).trim(),
+
+            finish:
+              String(
+                finish || ""
               ).trim(),
 
             quantity:

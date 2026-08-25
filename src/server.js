@@ -19,10 +19,12 @@ const dasboardRoutes = require('./routes/dashboard.routes');
 const lotImagesRoutes = require("./routes/lotImages.routes");
 const instagramRoutes = require('./routes/instagram.routes');
 const newsLetterRoutes = require('./routes/newsletter.routes');
+const ceuRequestRoutes = require("./routes/ceuRequest.routes");
 const contactRoutes = require('./routes/contactEnquiry.routes');
 const GlobalSerchRoutes = require('./routes/globalsearch.route');
 const ProductRemarkRoutes =require('./routes/productRemark.routes');
 const sampleRequestRoutes = require("./routes/sampleRequest.routes");
+const contactRequestRoutes = require("./routes/contactRequest.routes");
 const bulkDescriptionRoutes = require("./routes/bulkDescription.routes");
 const inspirationGalleryRoutes = require("./routes/inspirationGallery.routes");
 
@@ -76,7 +78,9 @@ app.use('/api/instagram', instagramRoutes);
 app.use("/api/lot-images",lotImagesRoutes);
 app.use('/api/newsletter', newsLetterRoutes);
 app.use('/api/products', ProductRemarkRoutes);
+app.use('/api/ceu-request', ceuRequestRoutes);
 app.use("/api/sample-requests",sampleRequestRoutes);
+app.use("/api/contact-request",contactRequestRoutes);
 app.use("/api/bulk-descriptions",bulkDescriptionRoutes);
 app.use("/api/inspiration-gallery", inspirationGalleryRoutes);
 

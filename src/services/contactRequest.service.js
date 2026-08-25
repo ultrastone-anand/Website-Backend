@@ -1,4 +1,4 @@
-// services/sampleRequest.service.js
+// services/contactRequest.service.js
 
 /* =========================================================
    HELPERS
@@ -70,7 +70,7 @@ const tableRow = (
         "
       >
         ${escapeHtml(
-          value ?? "-"
+          value || "-"
         )}
       </td>
     </tr>
@@ -156,6 +156,10 @@ const getAccessToken =
       "client_credentials"
     );
 
+    console.log(
+      "🔐 Getting Microsoft Graph token for contact request..."
+    );
+
     const response =
       await fetch(
         tokenUrl,
@@ -176,6 +180,11 @@ const getAccessToken =
     const data =
       await response.json();
 
+    console.log(
+      "🔐 CONTACT TOKEN STATUS:",
+      response.status
+    );
+
     if (!response.ok) {
       console.error(
         "❌ MICROSOFT TOKEN ERROR:",
@@ -188,64 +197,63 @@ const getAccessToken =
       );
     }
 
+    if (
+      !data.access_token
+    ) {
+      throw new Error(
+        "Microsoft Graph did not return an access token."
+      );
+    }
+
+    console.log(
+      "✅ Microsoft Graph token received"
+    );
+
     return data.access_token;
   };
 
 /* =========================================================
-   SEND SAMPLE REQUEST
+   SEND CONTACT REQUEST
 ========================================================= */
 
-const sendSampleRequest =
+const sendContactRequest =
   async (data) => {
     const {
-      product_id,
-      product_name,
-      category_name,
-
-      first_name,
-      last_name,
-      company_name,
-
-      street_address,
-      suite_number,
-      city,
-      county,
-      state,
-      zip_code,
-
+      name,
+      subject,
       email,
       phone,
-
-      finish,
-      quantity,
-      remarks,
+      message,
     } = data;
 
     const {
       senderEmail,
     } = getGraphConfig();
 
-    const fullName =
-      `${first_name} ${last_name}`.trim();
+    console.log(
+      "========================================"
+    );
 
-    const formattedAddress = [
-      street_address,
+    console.log(
+      "📩 CONTACT REQUEST SERVICE STARTED"
+    );
 
-      suite_number
-        ? suite_number
-        : null,
-
-      county
-        ? `${city}, ${county}`
-        : city,
-
-      `${state} ${zip_code}`,
-    ]
-      .filter(Boolean)
-      .join(", ");
+    console.log(
+      "📦 CONTACT REQUEST DATA:",
+      {
+        name,
+        subject,
+        email,
+        phone,
+        messagePresent:
+          Boolean(
+            message
+          ),
+      }
+    );
 
     /* =====================================================
-       HTML EMAIL
+       EMAIL HTML
     ===================================================== */
 
     const mailHtml = `
@@ -284,6 +292,7 @@ const sendSampleRequest =
                   background:#161412;
                   color:#ffffff;
                   padding:30px 32px;
+                  border-top:4px solid #c91f26;
                 "
               >
                 <div
@@ -305,7 +314,7 @@ const sendSampleRequest =
                     font-weight:700;
                   "
                 >
-                  New Sample Request
+                  New Contact Enquiry
                 </div>
               </div>
 
@@ -317,7 +326,7 @@ const sendSampleRequest =
                 "
               >
 
-                <!-- PRODUCT INTRO -->
+                <!-- SUBJECT -->
 
                 <div
                   style="
@@ -328,32 +337,32 @@ const sendSampleRequest =
                 >
                   <div
                     style="
-                      font-size:24px;
+                      font-size:11px;
                       font-weight:700;
-                      line-height:1.25;
-                      margin-bottom:6px;
+                      text-transform:uppercase;
+                      letter-spacing:1.2px;
+                      color:#777777;
+                      margin-bottom:10px;
                     "
                   >
-                    ${escapeHtml(
-                      product_name
-                    )}
+                    Subject
                   </div>
 
                   <div
                     style="
-                      font-size:13px;
-                      color:#777777;
-                      text-transform:uppercase;
-                      letter-spacing:1px;
+                      font-size:24px;
+                      font-weight:700;
+                      line-height:1.3;
+                      color:#161412;
                     "
                   >
                     ${escapeHtml(
-                      category_name
+                      subject
                     )}
                   </div>
                 </div>
 
-                <!-- SAMPLE DETAILS -->
+                <!-- CONTACT INFORMATION -->
 
                 <div
                   style="
@@ -364,61 +373,7 @@ const sendSampleRequest =
                     margin-bottom:12px;
                   "
                 >
-                  Sample Details
-                </div>
-
-                <table
-                  width="100%"
-                  cellpadding="0"
-                  cellspacing="0"
-                  style="
-                    border-collapse:collapse;
-                    margin-bottom:32px;
-                  "
-                >
-                  ${tableRow(
-                    "Material",
-                    product_name
-                  )}
-
-                  ${tableRow(
-                    "Category",
-                    category_name
-                  )}
-
-                  ${
-                    finish
-                      ? tableRow(
-                          "Finish",
-                          finish
-                        )
-                      : ""
-                  }
-
-                  ${tableRow(
-                    "Quantity",
-                    `${quantity} ${
-                      Number(
-                        quantity
-                      ) === 1
-                        ? "Sample"
-                        : "Samples"
-                    }`
-                  )}
-                </table>
-
-                <!-- CUSTOMER INFORMATION -->
-
-                <div
-                  style="
-                    font-size:12px;
-                    font-weight:700;
-                    text-transform:uppercase;
-                    letter-spacing:1.2px;
-                    margin-bottom:12px;
-                  "
-                >
-                  Customer Information
+                  Contact Information
                 </div>
 
                 <table
@@ -432,17 +387,8 @@ const sendSampleRequest =
                 >
                   ${tableRow(
                     "Name",
-                    fullName
+                    name
                   )}
-
-                  ${
-                    company_name
-                      ? tableRow(
-                          "Company",
-                          company_name
-                        )
-                      : ""
-                  }
 
                   ${tableRow(
                     "Email",
@@ -455,90 +401,10 @@ const sendSampleRequest =
                   )}
                 </table>
 
-                <!-- SHIPPING ADDRESS -->
-
-                <div
-                  style="
-                    font-size:12px;
-                    font-weight:700;
-                    text-transform:uppercase;
-                    letter-spacing:1.2px;
-                    margin-bottom:12px;
-                  "
-                >
-                  Shipping Address
-                </div>
-
-                <div
-                  style="
-                    background:#f7f7f7;
-                    border:1px solid #e2e2e2;
-                    padding:20px;
-                    margin-bottom:32px;
-                    font-size:14px;
-                    line-height:1.8;
-                    color:#242424;
-                  "
-                >
-                  <div>
-                    ${escapeHtml(
-                      street_address
-                    )}
-                  </div>
-
-                  ${
-                    suite_number
-                      ? `
-                        <div>
-                          ${escapeHtml(
-                            suite_number
-                          )}
-                        </div>
-                      `
-                      : ""
-                  }
-
-                  <div>
-                    ${escapeHtml(
-                      city
-                    )}${
-                      county
-                        ? `, ${escapeHtml(
-                            county
-                          )}`
-                        : ""
-                    }
-                  </div>
-
-                  <div>
-                    ${escapeHtml(
-                      state
-                    )} ${escapeHtml(
-                      zip_code
-                    )}
-                  </div>
-                </div>
-
-                <!-- OPTIONAL FULL ADDRESS -->
-
-                <div
-                  style="
-                    font-size:11px;
-                    color:#888888;
-                    margin-top:-20px;
-                    margin-bottom:32px;
-                    line-height:1.6;
-                  "
-                >
-                  ${escapeHtml(
-                    formattedAddress
-                  )}
-                </div>
-
-                <!-- REMARKS -->
+                <!-- MESSAGE -->
 
                 ${
-                  remarks
+                  message
                     ? `
                       <div
                         style="
@@ -549,7 +415,7 @@ const sendSampleRequest =
                           margin-bottom:12px;
                         "
                       >
-                        Remarks
+                        Message
                       </div>
 
                       <div
@@ -564,14 +430,14 @@ const sendSampleRequest =
                         "
                       >
                         ${escapeHtml(
-                          remarks
+                          message
                         )}
                       </div>
                     `
                     : ""
                 }
 
-                <!-- CONTACT ACTION -->
+                <!-- ACTION -->
 
                 <div
                   style="
@@ -610,7 +476,7 @@ const sendSampleRequest =
                     line-height:1.6;
                   "
                 >
-                  Submitted through the Ultra Stones website.
+                  Submitted through the Ultra Stones contact page.
                 </div>
               </div>
             </div>
@@ -620,34 +486,41 @@ const sendSampleRequest =
     `;
 
     /* =====================================================
-       TOKEN
-    ===================================================== */
-
-    console.log(
-      "🔐 Getting Microsoft Graph token..."
-    );
-
-    const accessToken =
-      await getAccessToken();
-
-    console.log(
-      "✅ Microsoft Graph token received"
-    );
-
-    /* =====================================================
        RECIPIENTS
     ===================================================== */
 
+    const rawTo =
+      process.env
+        .CONTACT_REQUEST_EMAIL;
+
+    const rawCc =
+      process.env
+        .CONTACT_REQUEST_CC;
+
+    console.log(
+      "📧 CONTACT ENV CHECK:",
+      {
+        sender:
+          senderEmail,
+
+        to:
+          rawTo ||
+          null,
+
+        cc:
+          rawCc ||
+          null,
+      }
+    );
+
     const toRecipients =
       parseEmailList(
-        process.env
-          .SAMPLE_REQUEST_EMAIL
+        rawTo
       );
 
     const ccRecipients =
       parseEmailList(
-        process.env
-          .SAMPLE_REQUEST_CC
+        rawCc
       );
 
     if (
@@ -655,18 +528,25 @@ const sendSampleRequest =
       0
     ) {
       throw new Error(
-        "No sample request recipients configured."
+        "No contact request recipients configured."
       );
     }
 
     /* =====================================================
-       GRAPH MESSAGE
+       TOKEN
+    ===================================================== */
+
+    const accessToken =
+      await getAccessToken();
+
+    /* =====================================================
+       GRAPH PAYLOAD
     ===================================================== */
 
     const graphPayload = {
       message: {
         subject:
-          `New Sample Request - ${product_name} - ${fullName}`,
+          `New Contact Enquiry - ${subject} - ${name}`,
 
         body: {
           contentType:
@@ -694,6 +574,36 @@ const sendSampleRequest =
         true,
     };
 
+    console.log(
+      "📦 CONTACT GRAPH PAYLOAD:",
+      {
+        subject:
+          graphPayload
+            .message
+            .subject,
+
+        sender:
+          senderEmail,
+
+        to:
+          toRecipients.map(
+            (item) =>
+              item.emailAddress
+                .address
+          ),
+
+        cc:
+          ccRecipients.map(
+            (item) =>
+              item.emailAddress
+                .address
+          ),
+
+        replyTo:
+          email,
+      }
+    );
+
     /* =====================================================
        SEND THROUGH GRAPH
     ===================================================== */
@@ -702,37 +612,6 @@ const sendSampleRequest =
       `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(
         senderEmail
       )}/sendMail`;
-
-    console.log(
-      "📧 Sending Graph email:",
-      {
-        sender:
-          senderEmail,
-
-        to:
-          process.env
-            .SAMPLE_REQUEST_EMAIL,
-
-        cc:
-          process.env
-            .SAMPLE_REQUEST_CC,
-
-        replyTo:
-          email,
-
-        subject:
-          graphPayload
-            .message
-            .subject,
-
-        finish:
-          finish || null,
-
-        suiteNumber:
-          suite_number ||
-          null,
-      }
-    );
 
     const response =
       await fetch(
@@ -756,10 +635,15 @@ const sendSampleRequest =
         }
       );
 
-    /*
-     * Microsoft Graph normally returns
-     * 202 Accepted when sendMail succeeds.
-     */
+    console.log(
+      "📬 CONTACT GRAPH STATUS:",
+      response.status,
+      response.statusText
+    );
+
+    /* =====================================================
+       GRAPH ERROR
+    ===================================================== */
 
     if (!response.ok) {
       let errorData;
@@ -768,14 +652,21 @@ const sendSampleRequest =
         errorData =
           await response.json();
       } catch {
-        errorData = {
-          message:
-            await response.text(),
-        };
+        try {
+          errorData = {
+            message:
+              await response.text(),
+          };
+        } catch {
+          errorData = {
+            message:
+              "Unknown Microsoft Graph error.",
+          };
+        }
       }
 
       console.error(
-        "❌ MICROSOFT GRAPH SEND ERROR:",
+        "❌ MICROSOFT GRAPH CONTACT SEND ERROR:",
         errorData
       );
 
@@ -789,8 +680,21 @@ const sendSampleRequest =
       );
     }
 
+    /* =====================================================
+       SUCCESS
+    ===================================================== */
+
     console.log(
-      "✅ Sample request email accepted by Microsoft Graph"
+      "✅ CONTACT EMAIL ACCEPTED BY MICROSOFT GRAPH"
+    );
+
+    console.log(
+      "✅ CONTACT GRAPH STATUS:",
+      response.status
+    );
+
+    console.log(
+      "========================================"
     );
 
     return {
@@ -802,11 +706,27 @@ const sendSampleRequest =
       sender:
         senderEmail,
 
+      recipients: {
+        to:
+          toRecipients.map(
+            (item) =>
+              item.emailAddress
+                .address
+          ),
+
+        cc:
+          ccRecipients.map(
+            (item) =>
+              item.emailAddress
+                .address
+          ),
+      },
+
       message:
-        "Email accepted by Microsoft Graph.",
+        "Contact request email accepted by Microsoft Graph.",
     };
   };
 
 module.exports = {
-  sendSampleRequest,
+  sendContactRequest,
 };
