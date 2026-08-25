@@ -623,16 +623,10 @@ const sendSampleRequest =
        TOKEN
     ===================================================== */
 
-    console.log(
-      "🔐 Getting Microsoft Graph token..."
-    );
 
     const accessToken =
       await getAccessToken();
 
-    console.log(
-      "✅ Microsoft Graph token received"
-    );
 
     /* =====================================================
        RECIPIENTS
@@ -703,36 +697,6 @@ const sendSampleRequest =
         senderEmail
       )}/sendMail`;
 
-    console.log(
-      "📧 Sending Graph email:",
-      {
-        sender:
-          senderEmail,
-
-        to:
-          process.env
-            .SAMPLE_REQUEST_EMAIL,
-
-        cc:
-          process.env
-            .SAMPLE_REQUEST_CC,
-
-        replyTo:
-          email,
-
-        subject:
-          graphPayload
-            .message
-            .subject,
-
-        finish:
-          finish || null,
-
-        suiteNumber:
-          suite_number ||
-          null,
-      }
-    );
 
     const response =
       await fetch(
@@ -789,9 +753,6 @@ const sendSampleRequest =
       );
     }
 
-    console.log(
-      "✅ Sample request email accepted by Microsoft Graph"
-    );
 
     return {
       success: true,

@@ -156,9 +156,7 @@ const getAccessToken =
       "client_credentials"
     );
 
-    console.log(
-      "🔐 Getting Microsoft Graph token for contact request..."
-    );
+  
 
     const response =
       await fetch(
@@ -180,10 +178,6 @@ const getAccessToken =
     const data =
       await response.json();
 
-    console.log(
-      "🔐 CONTACT TOKEN STATUS:",
-      response.status
-    );
 
     if (!response.ok) {
       console.error(
@@ -205,9 +199,6 @@ const getAccessToken =
       );
     }
 
-    console.log(
-      "✅ Microsoft Graph token received"
-    );
 
     return data.access_token;
   };
@@ -230,27 +221,7 @@ const sendContactRequest =
       senderEmail,
     } = getGraphConfig();
 
-    console.log(
-      "========================================"
-    );
-
-    console.log(
-      "📩 CONTACT REQUEST SERVICE STARTED"
-    );
-
-    console.log(
-      "📦 CONTACT REQUEST DATA:",
-      {
-        name,
-        subject,
-        email,
-        phone,
-        messagePresent:
-          Boolean(
-            message
-          ),
-      }
-    );
+    
 
     /* =====================================================
        EMAIL HTML
@@ -497,21 +468,6 @@ const sendContactRequest =
       process.env
         .CONTACT_REQUEST_CC;
 
-    console.log(
-      "📧 CONTACT ENV CHECK:",
-      {
-        sender:
-          senderEmail,
-
-        to:
-          rawTo ||
-          null,
-
-        cc:
-          rawCc ||
-          null,
-      }
-    );
 
     const toRecipients =
       parseEmailList(
@@ -574,35 +530,6 @@ const sendContactRequest =
         true,
     };
 
-    console.log(
-      "📦 CONTACT GRAPH PAYLOAD:",
-      {
-        subject:
-          graphPayload
-            .message
-            .subject,
-
-        sender:
-          senderEmail,
-
-        to:
-          toRecipients.map(
-            (item) =>
-              item.emailAddress
-                .address
-          ),
-
-        cc:
-          ccRecipients.map(
-            (item) =>
-              item.emailAddress
-                .address
-          ),
-
-        replyTo:
-          email,
-      }
-    );
 
     /* =====================================================
        SEND THROUGH GRAPH
@@ -635,11 +562,7 @@ const sendContactRequest =
         }
       );
 
-    console.log(
-      "📬 CONTACT GRAPH STATUS:",
-      response.status,
-      response.statusText
-    );
+
 
     /* =====================================================
        GRAPH ERROR
@@ -684,18 +607,7 @@ const sendContactRequest =
        SUCCESS
     ===================================================== */
 
-    console.log(
-      "✅ CONTACT EMAIL ACCEPTED BY MICROSOFT GRAPH"
-    );
-
-    console.log(
-      "✅ CONTACT GRAPH STATUS:",
-      response.status
-    );
-
-    console.log(
-      "========================================"
-    );
+    
 
     return {
       success: true,

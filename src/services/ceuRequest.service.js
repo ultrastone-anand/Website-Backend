@@ -133,29 +133,7 @@ const getGraphConfig =
       process.env
         .MS_SENDER_EMAIL;
 
-    console.log(
-      "🔎 GRAPH CONFIG CHECK:",
-      {
-        tenantIdPresent:
-          Boolean(
-            tenantId
-          ),
 
-        clientIdPresent:
-          Boolean(
-            clientId
-          ),
-
-        clientSecretPresent:
-          Boolean(
-            clientSecret
-          ),
-
-        senderEmail:
-          senderEmail ||
-          null,
-      }
-    );
 
     if (
       !tenantId ||
@@ -214,9 +192,7 @@ const getAccessToken =
       "client_credentials"
     );
 
-    console.log(
-      "🔐 REQUESTING MICROSOFT GRAPH TOKEN..."
-    );
+
 
     const response =
       await fetch(
@@ -238,10 +214,7 @@ const getAccessToken =
     const data =
       await response.json();
 
-    console.log(
-      "🔐 TOKEN RESPONSE STATUS:",
-      response.status
-    );
+
 
     if (!response.ok) {
       console.error(
@@ -268,9 +241,6 @@ const getAccessToken =
       );
     }
 
-    console.log(
-      "✅ MICROSOFT GRAPH TOKEN RECEIVED"
-    );
 
     return data.access_token;
   };
@@ -292,35 +262,7 @@ const sendCeuRequest =
       message,
     } = data;
 
-    console.log(
-      "========================================"
-    );
-
-    console.log(
-      "📚 CEU REQUEST SERVICE STARTED"
-    );
-
-    console.log(
-      "📦 RECEIVED CEU DATA:",
-      {
-        course,
-        name,
-        email,
-        phone,
-        company,
-        role:
-          role || null,
-
-        preferredDate:
-          preferredDate ||
-          null,
-
-        messagePresent:
-          Boolean(
-            message
-          ),
-      }
-    );
+    
 
     const {
       senderEmail,
@@ -625,22 +567,6 @@ const sendCeuRequest =
       process.env
         .CEU_REQUEST_CC;
 
-    console.log(
-      "📧 CEU ENV CHECK:",
-      {
-        sender:
-          senderEmail,
-
-        rawTo:
-          rawTo ||
-          null,
-
-        rawCc:
-          rawCc ||
-          null,
-      }
-    );
-
     const toRecipients =
       parseEmailList(
         rawTo
@@ -650,14 +576,6 @@ const sendCeuRequest =
       parseEmailList(
         rawCc
       );
-
-    console.log(
-      "📧 PARSED RECIPIENTS:",
-      {
-        toRecipients,
-        ccRecipients,
-      }
-    );
 
     if (
       toRecipients.length ===
@@ -710,38 +628,7 @@ const sendCeuRequest =
         true,
     };
 
-    console.log(
-      "📦 GRAPH PAYLOAD SUMMARY:",
-      {
-        subject:
-          graphPayload
-            .message
-            .subject,
 
-        sender:
-          senderEmail,
-
-        to:
-          toRecipients.map(
-            (item) =>
-              item.emailAddress
-                .address
-          ),
-
-        cc:
-          ccRecipients.map(
-            (item) =>
-              item.emailAddress
-                .address
-          ),
-
-        replyTo:
-          email,
-
-        htmlLength:
-          mailHtml.length,
-      }
-    );
 
     /* =====================================================
        SEND THROUGH MICROSOFT GRAPH
@@ -752,14 +639,7 @@ const sendCeuRequest =
         senderEmail
       )}/sendMail`;
 
-    console.log(
-      "📡 GRAPH SEND URL:",
-      sendUrl
-    );
-
-    console.log(
-      "📨 SENDING CEU EMAIL THROUGH MICROSOFT GRAPH..."
-    );
+    
 
     const response =
       await fetch(
@@ -783,11 +663,7 @@ const sendCeuRequest =
         }
       );
 
-    console.log(
-      "📬 GRAPH RESPONSE STATUS:",
-      response.status,
-      response.statusText
-    );
+
 
     /* =====================================================
        ERROR RESPONSE
@@ -818,10 +694,6 @@ const sendCeuRequest =
         errorData
       );
 
-      console.log(
-        "========================================"
-      );
-
       throw new Error(
         errorData
           ?.error
@@ -836,27 +708,7 @@ const sendCeuRequest =
        SUCCESS
     ===================================================== */
 
-    console.log(
-      "✅ CEU EMAIL ACCEPTED BY MICROSOFT GRAPH"
-    );
-
-    console.log(
-      "✅ EXPECTED GRAPH STATUS: 202"
-    );
-
-    console.log(
-      "✅ ACTUAL GRAPH STATUS:",
-      response.status
-    );
-
-    console.log(
-      "✅ CHECK SENT ITEMS FOR:",
-      senderEmail
-    );
-
-    console.log(
-      "========================================"
-    );
+    
 
     return {
       success: true,

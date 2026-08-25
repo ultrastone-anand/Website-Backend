@@ -20,14 +20,7 @@ const downloadTemplate = async (
   res,
   next
 ) => {
-  console.log(
-    "[Bulk Description Controller] Route called:",
-    {
-      categoryId: req.params.categoryId,
-      query: req.query,
-      time: new Date().toISOString(),
-    }
-  );
+
 
   try {
     const categoryId = Number.parseInt(
@@ -51,18 +44,7 @@ const downloadTemplate = async (
         categoryId
       );
 
-    console.log(
-      "[Bulk Description Controller] Sending file:",
-      {
-        fileName: result.fileName,
-        totalProducts:
-          result.totalProducts,
-        bufferLength:
-          result.buffer.length,
-        isBuffer:
-          Buffer.isBuffer(result.buffer),
-      }
-    );
+    
 
     res.status(200);
 

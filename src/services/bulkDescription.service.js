@@ -21,7 +21,6 @@ const MAX_IMPORT_ROWS = 10000;
 // ======================================================
 
 const logBulkDesc = (label, value = "") => {
-  console.log(`[Bulk Description] ${label}`, value);
 };
 
 const createServiceError = (

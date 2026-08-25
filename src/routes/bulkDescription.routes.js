@@ -7,16 +7,10 @@ const bulkDescriptionController = require(
 
 const router = express.Router();
 
-console.log(
-  "[Bulk Description Routes] File loaded"
-);
+
 
 router.use((req, res, next) => {
-  console.log(
-    "[Bulk Description Routes] Incoming request:",
-    req.method,
-    req.originalUrl
-  );
+
 
   res.setHeader(
     "Cache-Control",
@@ -65,9 +59,6 @@ const upload = multer({
 router.get(
   "/test",
   (req, res) => {
-    console.log(
-      "[Bulk Description Routes] Test route reached"
-    );
 
     return res.status(200).json({
       success: true,
