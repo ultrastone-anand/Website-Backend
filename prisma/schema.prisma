@@ -569,6 +569,105 @@ model stone_product_lots {
   @@index([product_id], map: "idx_stone_product_lots_product_id")
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model home_hero_campaigns {
+  id                      Int                       @id @default(autoincrement())
+  name                    String                    @db.VarChar(255)
+  status                  home_hero_campaign_status @default(DRAFT)
+  is_enabled              Boolean                   @default(true)
+  priority                Int                       @default(500)
+  media_type              home_hero_media_type      @default(IMAGE)
+  media_url               String
+  poster_url              String?
+  mobile_media_url        String?
+  mobile_poster_url       String?
+  alt_text                String?                   @db.VarChar(500)
+  heading                 String                    @db.VarChar(500)
+  description             String?
+  text_animation          home_hero_animation       @default(SLIDE_UP)
+  text_start_delay        Int                       @default(150)
+  text_animation_duration Int                       @default(1400)
+  description_delay       Int                       @default(450)
+  text_visible_duration   Int                       @default(3100)
+  text_fade_duration      Int                       @default(700)
+  video_load_delay        Int                       @default(1800)
+  overlay_opacity         Int                       @default(35)
+  start_at                DateTime                  @db.Timestamptz(6)
+  end_at                  DateTime                  @db.Timestamptz(6)
+  timezone                String                    @default("America/New_York") @db.VarChar(100)
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime                  @default(now()) @db.Timestamptz(6)
+
+  @@index([priority(sort: Desc)], map: "idx_home_hero_campaigns_priority")
+  @@index([created_at(sort: Desc)], map: "idx_home_hero_campaigns_created")
+  @@index([is_enabled, status, start_at, end_at], map: "idx_home_hero_campaigns_resolver")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model home_hero_default {
+  id                      Int                  @id @default(1)
+  media_type              home_hero_media_type @default(IMAGE)
+  media_url               String
+  poster_url              String?
+  mobile_media_url        String?
+  mobile_poster_url       String?
+  alt_text                String?              @db.VarChar(500)
+  heading                 String               @db.VarChar(500)
+  description             String?
+  text_animation          home_hero_animation  @default(SLIDE_UP)
+  text_start_delay        Int                  @default(150)
+  text_animation_duration Int                  @default(1400)
+  description_delay       Int                  @default(450)
+  text_visible_duration   Int                  @default(3100)
+  text_fade_duration      Int                  @default(700)
+  video_load_delay        Int                  @default(1800)
+  overlay_opacity         Int                  @default(35)
+  created_at              DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime             @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model home_hero_holidays {
+  id                          Int                     @id @default(autoincrement())
+  event                       home_hero_event         @unique
+  name                        String                  @db.VarChar(255)
+  is_enabled                  Boolean                 @default(false)
+  priority                    Int                     @default(100)
+  media_type                  home_hero_media_type    @default(IMAGE)
+  media_url                   String?
+  poster_url                  String?
+  mobile_media_url            String?
+  mobile_poster_url           String?
+  alt_text                    String?                 @db.VarChar(500)
+  heading                     String?                 @db.VarChar(500)
+  description                 String?
+  text_animation              home_hero_animation     @default(SLIDE_UP)
+  text_start_delay            Int                     @default(150)
+  text_animation_duration     Int                     @default(1400)
+  description_delay           Int                     @default(450)
+  text_visible_duration       Int                     @default(3100)
+  text_fade_duration          Int                     @default(700)
+  video_load_delay            Int                     @default(1800)
+  overlay_opacity             Int                     @default(35)
+  duration_mode               home_hero_duration_mode @default(DAY)
+  custom_start_offset_hours   Int?
+  custom_end_offset_hours     Int?
+  timezone                    String                  @default("America/New_York") @db.VarChar(100)
+  enable_countdown            Boolean                 @default(false)
+  countdown_heading           String?                 @db.VarChar(500)
+  countdown_description       String?
+  countdown_media_type        home_hero_media_type?
+  countdown_media_url         String?
+  countdown_poster_url        String?
+  countdown_mobile_media_url  String?
+  countdown_mobile_poster_url String?
+  created_at                  DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime                @default(now()) @db.Timestamptz(6)
+
+  @@index([is_enabled], map: "idx_home_hero_holidays_enabled")
+  @@index([priority(sort: Desc)], map: "idx_home_hero_holidays_priority")
+}
+
 enum blog_media_type {
   COVER
   CONTENT
@@ -620,4 +719,44 @@ enum career_work_mode {
   ONSITE
   REMOTE
   HYBRID
+}
+
+enum home_hero_animation {
+  NONE
+  FADE
+  SLIDE_UP
+  SLIDE_DOWN
+  SLIDE_LEFT
+  SLIDE_RIGHT
+  ZOOM_IN
+  ZOOM_OUT
+}
+
+enum home_hero_campaign_status {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  ARCHIVED
+}
+
+enum home_hero_duration_mode {
+  DAY
+  TWO_DAYS
+  WEEK
+  CUSTOM
+}
+
+enum home_hero_event {
+  NEW_YEAR
+  MEMORIAL_DAY
+  INDEPENDENCE_DAY
+  LABOR_DAY
+  HALLOWEEN
+  THANKSGIVING
+  CHRISTMAS
+}
+
+enum home_hero_media_type {
+  IMAGE
+  VIDEO
 }
