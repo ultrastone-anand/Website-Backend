@@ -459,6 +459,39 @@ const toggleHoliday =
     }
   };
 
+  const forceHoliday =
+  async (
+    req,
+    res
+  ) => {
+    try {
+      const data =
+        await service
+          .forceHoliday(
+            req.params.id,
+            req.body
+          );
+
+      return sendSuccess(
+        res,
+        {
+          message:
+            data.force_active
+              ? "Holiday forced live successfully"
+              : "Holiday force mode disabled successfully",
+
+          data,
+        }
+      );
+    } catch (error) {
+      return sendError(
+        res,
+        error,
+        "Failed to update holiday force status"
+      );
+    }
+  };
+
 /* =========================================================
    MEDIA
 ========================================================= */
@@ -538,6 +571,7 @@ module.exports = {
   getHolidayById,
   updateHoliday,
   toggleHoliday,
+  forceHoliday,
 
   createMediaUploadUrls,
   deleteMedia,

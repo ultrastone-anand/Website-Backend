@@ -146,18 +146,18 @@ const parseBoolean = (
 
   if (
     normalized ===
-      "true" ||
+    "true" ||
     normalized ===
-      "1"
+    "1"
   ) {
     return true;
   }
 
   if (
     normalized ===
-      "false" ||
+    "false" ||
     normalized ===
-      "0"
+    "0"
   ) {
     return false;
   }
@@ -443,6 +443,19 @@ const buildHeroUpdateData = (
       body.text_animation;
   }
 
+  /*
+   * Keep text permanently visible.
+   */
+  if (
+    body.keep_text_visible !==
+    undefined
+  ) {
+    data.keep_text_visible =
+      parseBoolean(
+        body.keep_text_visible
+      );
+  }
+
   const numericFields = [
     "text_start_delay",
     "text_animation_duration",
@@ -469,7 +482,6 @@ const buildHeroUpdateData = (
 
   return data;
 };
-
 /* =========================================================
    DEFAULT HERO FORMAT
 ========================================================= */
@@ -548,13 +560,13 @@ const updateDefaultHero =
     const heading =
       normalizeString(
         body.heading ??
-          existing?.heading
+        existing?.heading
       );
 
     const mediaUrl =
       normalizeString(
         body.media_url ??
-          existing?.media_url
+        existing?.media_url
       );
 
     if (!heading) {
@@ -635,6 +647,12 @@ const updateDefaultHero =
             text_animation:
               body.text_animation ||
               "SLIDE_UP",
+
+            keep_text_visible:
+              parseBoolean(
+                body.keep_text_visible,
+                false
+              ),
 
             text_start_delay:
               parseInteger(
@@ -783,7 +801,7 @@ const validateCampaign = (
 
   validateEnum(
     body.status ??
-      existing?.status,
+    existing?.status,
     CAMPAIGN_STATUSES,
     "campaign status"
   );
@@ -796,19 +814,19 @@ const validateCampaign = (
   const name =
     normalizeString(
       body.name ??
-        existing?.name
+      existing?.name
     );
 
   const heading =
     normalizeString(
       body.heading ??
-        existing?.heading
+      existing?.heading
     );
 
   const mediaUrl =
     normalizeString(
       body.media_url ??
-        existing?.media_url
+      existing?.media_url
     );
 
   if (!name) {
@@ -832,14 +850,14 @@ const validateCampaign = (
   const startAt =
     parseDate(
       body.start_at ??
-        existing?.start_at,
+      existing?.start_at,
       "Campaign start date"
     );
 
   const endAt =
     parseDate(
       body.end_at ??
-        existing?.end_at,
+      existing?.end_at,
       "Campaign end date"
     );
 
@@ -885,11 +903,11 @@ const getCampaigns =
 
     if (
       isEnabled !==
-        undefined &&
+      undefined &&
       isEnabled !==
-        null &&
+      null &&
       isEnabled !==
-        ""
+      ""
     ) {
       where.is_enabled =
         parseBoolean(
@@ -1050,6 +1068,12 @@ const createCampaign =
             text_animation:
               body.text_animation ||
               "SLIDE_UP",
+
+            keep_text_visible:
+              parseBoolean(
+                body.keep_text_visible,
+                false
+              ),
 
             text_start_delay:
               parseInteger(
@@ -1261,11 +1285,11 @@ const toggleCampaign =
 
     const isEnabled =
       body.is_enabled ===
-      undefined
+        undefined
         ? !existing.is_enabled
         : parseBoolean(
-            body.is_enabled
-          );
+          body.is_enabled
+        );
 
     const updated =
       await prisma
@@ -1545,7 +1569,7 @@ const getNthWeekdayOfMonth = (
         occurrence -
         1
       ) *
-        7,
+      7,
   };
 };
 
@@ -1685,7 +1709,7 @@ const getHolidayWindow = (
     ONE_DAY;
 
   switch (
-    holiday.duration_mode
+  holiday.duration_mode
   ) {
     case "TWO_DAYS":
       /*
@@ -1708,7 +1732,7 @@ const getHolidayWindow = (
       startTimestamp =
         eventTimestamp -
         6 *
-          ONE_DAY;
+        ONE_DAY;
 
       endTimestamp =
         eventTimestamp +
@@ -1727,13 +1751,13 @@ const getHolidayWindow = (
 
       if (
         startOffset ===
-          null ||
+        null ||
         startOffset ===
-          undefined ||
+        undefined ||
         endOffset ===
-          null ||
+        null ||
         endOffset ===
-          undefined
+        undefined
       ) {
         return null;
       }
@@ -1748,12 +1772,12 @@ const getHolidayWindow = (
       startTimestamp =
         eventTimestamp +
         startOffset *
-          ONE_HOUR;
+        ONE_HOUR;
 
       endTimestamp =
         eventTimestamp +
         endOffset *
-          ONE_HOUR;
+        ONE_HOUR;
 
       break;
     }
@@ -1809,11 +1833,11 @@ const findActiveHolidayWindow = (
 
     if (
       currentTimestamp >=
-        window
-          .startTimestamp &&
+      window
+        .startTimestamp &&
       currentTimestamp <
-        window
-          .endTimestamp
+      window
+        .endTimestamp
     ) {
       return window;
     }
@@ -1832,7 +1856,7 @@ const resolveNewYearCountdown = (
 ) => {
   if (
     holiday.event !==
-      "NEW_YEAR" ||
+    "NEW_YEAR" ||
     !holiday
       .enable_countdown
   ) {
@@ -1848,9 +1872,9 @@ const resolveNewYearCountdown = (
 
   if (
     currentParts.month !==
-      12 ||
+    12 ||
     currentParts.day !==
-      31
+    31
   ) {
     return null;
   }
@@ -1934,13 +1958,14 @@ const resolveNewYearCountdown = (
     text_animation:
       holiday.text_animation,
 
-    text_start_delay:
-      holiday
-        .text_start_delay,
+text_animation:
+  holiday.text_animation,
 
-    text_animation_duration:
-      holiday
-        .text_animation_duration,
+keep_text_visible:
+  holiday.keep_text_visible,
+
+text_start_delay:
+  holiday.text_start_delay,
 
     description_delay:
       holiday
@@ -2087,9 +2112,11 @@ const resolveHoliday = (
     text_animation:
       holiday.text_animation,
 
+    keep_text_visible:
+      holiday.keep_text_visible,
+
     text_start_delay:
-      holiday
-        .text_start_delay,
+      holiday.text_start_delay,
 
     text_animation_duration:
       holiday
@@ -2174,7 +2201,7 @@ const getNextEventDate = (
       getHolidayDate(
         event,
         current.year +
-          1
+        1
       );
   }
 
@@ -2212,7 +2239,7 @@ const formatHoliday = (
       getNextEventDate(
         holiday.event,
         holiday.timezone ||
-          DEFAULT_TIMEZONE,
+        DEFAULT_TIMEZONE,
         now
       ),
   };
@@ -2434,9 +2461,9 @@ const updateHoliday =
 
         if (
           body[field] ===
-            null ||
+          null ||
           body[field] ===
-            ""
+          ""
         ) {
           data[field] =
             null;
@@ -2515,20 +2542,20 @@ const updateHoliday =
     const finalStartOffset =
       data
         .custom_start_offset_hours !==
-      undefined
+        undefined
         ? data
-            .custom_start_offset_hours
+          .custom_start_offset_hours
         : existing
-            .custom_start_offset_hours;
+          .custom_start_offset_hours;
 
     const finalEndOffset =
       data
         .custom_end_offset_hours !==
-      undefined
+        undefined
         ? data
-            .custom_end_offset_hours
+          .custom_end_offset_hours
         : existing
-            .custom_end_offset_hours;
+          .custom_end_offset_hours;
 
     if (
       finalDurationMode ===
@@ -2536,13 +2563,13 @@ const updateHoliday =
     ) {
       if (
         finalStartOffset ===
-          null ||
+        null ||
         finalStartOffset ===
-          undefined ||
+        undefined ||
         finalEndOffset ===
-          null ||
+        null ||
         finalEndOffset ===
-          undefined
+        undefined
       ) {
         throwError(
           "Custom start and end offsets are required"
@@ -2608,11 +2635,11 @@ const toggleHoliday =
 
     const isEnabled =
       body.is_enabled ===
-      undefined
+        undefined
         ? !existing.is_enabled
         : parseBoolean(
-            body.is_enabled
-          );
+          body.is_enabled
+        );
 
     if (
       isEnabled &&
@@ -2624,22 +2651,263 @@ const toggleHoliday =
     }
 
     const updated =
-      await prisma
-        .home_hero_holidays
-        .update({
-          where: {
-            id,
-          },
+  await prisma
+    .home_hero_holidays
+    .update({
+      where: {
+        id,
+      },
 
-          data: {
-            is_enabled:
-              isEnabled,
-          },
-        });
+      data: {
+        is_enabled:
+          isEnabled,
+
+        ...(!isEnabled && {
+          force_active:
+            false,
+        }),
+      },
+    });
 
     return formatHoliday(
       updated
     );
+  };
+
+
+/* =========================================================
+ FORCE HOLIDAY
+========================================================= */
+
+const forceHoliday =
+  async (
+    value,
+    body = {}
+  ) => {
+    const id =
+      parseId(
+        value,
+        "holiday"
+      );
+
+    const existing =
+      await prisma
+        .home_hero_holidays
+        .findUnique({
+          where: {
+            id,
+          },
+        });
+
+    if (!existing) {
+      throwError(
+        "Holiday hero not found",
+        404
+      );
+    }
+
+    const forceActive =
+      body.force_active ===
+        undefined
+        ? !existing.force_active
+        : parseBoolean(
+          body.force_active
+        );
+
+    if (
+      forceActive &&
+      !existing.media_url
+    ) {
+      throwError(
+        "Holiday hero media is required before forcing it live"
+      );
+    }
+
+    /*
+     * Only ONE holiday may be forced
+     * at a time.
+     */
+    const updated =
+      await prisma
+        .$transaction(
+          async (
+            tx
+          ) => {
+            if (
+              forceActive
+            ) {
+              await tx
+                .home_hero_holidays
+                .updateMany({
+                  where: {
+                    force_active:
+                      true,
+
+                    id: {
+                      not: id,
+                    },
+                  },
+
+                  data: {
+                    force_active:
+                      false,
+                  },
+                });
+            }
+
+            return tx
+              .home_hero_holidays
+              .update({
+                where: {
+                  id,
+                },
+
+                data: {
+                  /*
+                   * Forcing live also ensures
+                   * the holiday is enabled.
+                   */
+                  is_enabled:
+                    forceActive
+                      ? true
+                      : existing.is_enabled,
+
+                  force_active:
+                    forceActive,
+                },
+              });
+          }
+        );
+
+    return formatHoliday(
+      updated
+    );
+  };
+
+/* =========================================================
+ FORCED HOLIDAY
+========================================================= */
+
+const getForcedHoliday =
+  async () => {
+    const holiday =
+      await prisma
+        .home_hero_holidays
+        .findFirst({
+          where: {
+            force_active:
+              true,
+
+            is_enabled:
+              true,
+          },
+
+          orderBy: [
+            {
+              priority:
+                "desc",
+            },
+
+            {
+              id:
+                "asc",
+            },
+          ],
+        });
+
+    if (!holiday) {
+      return null;
+    }
+
+    if (!holiday.media_url) {
+      return null;
+    }
+
+    return {
+      source_type:
+        "HOLIDAY",
+
+      phase:
+        "HERO",
+
+      id:
+        holiday.id,
+
+      event:
+        holiday.event,
+
+      name:
+        holiday.name,
+
+      priority:
+        holiday.priority,
+
+      timezone:
+        holiday.timezone,
+
+      duration_mode:
+        holiday.duration_mode,
+
+      media_type:
+        holiday.media_type,
+
+      media_url:
+        holiday.media_url,
+
+      poster_url:
+        holiday.poster_url,
+
+      mobile_media_url:
+        holiday.mobile_media_url,
+
+      mobile_poster_url:
+        holiday.mobile_poster_url,
+
+      alt_text:
+        holiday.alt_text,
+
+      heading:
+        holiday.heading,
+
+      description:
+        holiday.description,
+
+      text_animation:
+        holiday.text_animation,
+
+      keep_text_visible:
+        holiday.keep_text_visible,
+
+      text_start_delay:
+        holiday.text_start_delay,
+
+      text_animation_duration:
+        holiday.text_animation_duration,
+
+      description_delay:
+        holiday.description_delay,
+
+      text_visible_duration:
+        holiday.text_visible_duration,
+
+      text_fade_duration:
+        holiday.text_fade_duration,
+
+      video_load_delay:
+        holiday.video_load_delay,
+
+      overlay_opacity:
+        holiday.overlay_opacity,
+
+      force_active:
+        true,
+
+      runtime_status:
+        "FORCED",
+
+      is_live:
+        true,
+    };
   };
 
 /* =========================================================
@@ -2691,7 +2959,7 @@ const getActiveHoliday =
       if (
         !selected ||
         resolved.priority >
-          selected.priority
+        selected.priority
       ) {
         selected =
           resolved;
@@ -2711,10 +2979,18 @@ const getActiveHero =
       new Date();
 
     /*
-     * Campaign and holiday can
-     * be resolved in parallel.
+     * FORCE LIVE always wins.
      */
+    const forcedHoliday =
+      await getForcedHoliday();
 
+    if (forcedHoliday) {
+      return forcedHoliday;
+    }
+
+    /*
+     * Normal automatic resolution.
+     */
     const [
       campaign,
       holiday,
@@ -2728,14 +3004,6 @@ const getActiveHero =
           now
         ),
       ]);
-
-    /*
-     * Both live:
-     * highest priority wins.
-     *
-     * Equal priority:
-     * custom campaign wins.
-     */
 
     if (
       campaign &&
@@ -2759,14 +3027,8 @@ const getActiveHero =
       return holiday;
     }
 
-    /*
-     * Database fallback only
-     * when no special hero exists.
-     */
-
     return getDefaultHero();
   };
-
 /* =========================================================
    MEDIA UPLOAD URLS
 ========================================================= */
@@ -2994,6 +3256,7 @@ module.exports = {
   getHolidayById,
   updateHoliday,
   toggleHoliday,
+  forceHoliday,
 
   /* Media */
   createMediaUploadUrls,

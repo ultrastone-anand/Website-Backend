@@ -597,6 +597,7 @@ model home_hero_campaigns {
   timezone                String                    @default("America/New_York") @db.VarChar(100)
   created_at              DateTime                  @default(now()) @db.Timestamptz(6)
   updated_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  keep_text_visible       Boolean                   @default(false)
 
   @@index([priority(sort: Desc)], map: "idx_home_hero_campaigns_priority")
   @@index([created_at(sort: Desc)], map: "idx_home_hero_campaigns_created")
@@ -624,6 +625,7 @@ model home_hero_default {
   overlay_opacity         Int                  @default(35)
   created_at              DateTime             @default(now()) @db.Timestamptz(6)
   updated_at              DateTime             @default(now()) @db.Timestamptz(6)
+  keep_text_visible       Boolean              @default(false)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -663,9 +665,12 @@ model home_hero_holidays {
   countdown_mobile_poster_url String?
   created_at                  DateTime                @default(now()) @db.Timestamptz(6)
   updated_at                  DateTime                @default(now()) @db.Timestamptz(6)
+  force_active                Boolean                 @default(false)
+  keep_text_visible           Boolean                 @default(false)
 
   @@index([is_enabled], map: "idx_home_hero_holidays_enabled")
   @@index([priority(sort: Desc)], map: "idx_home_hero_holidays_priority")
+  @@index([force_active], map: "idx_home_hero_holidays_force_active")
 }
 
 enum blog_media_type {

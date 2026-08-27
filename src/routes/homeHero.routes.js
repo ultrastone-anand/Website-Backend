@@ -140,6 +140,11 @@ router.patch(
   controller.toggleHoliday
 );
 
+router.patch(
+  "/holidays/:id/force",
+  controller.forceHoliday
+);
+
 /* =========================================================
    MEDIA
 ========================================================= */
