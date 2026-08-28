@@ -382,67 +382,323 @@ const getImages = async ({
   };
 };
 
-const getImagesBySlug = async (slug) => {
-  const normalizedSlug = String(slug || "")
+
+/* =========================================================
+   PRODUCT IMAGE MATCHING HELPERS
+========================================================= */
+
+const normalizeProductValue = (value = "") => {
+  return String(value)
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/%20/g, " ")
+    .replace(/[_\s]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+};
+
+const removeUploadPrefix = (filename = "") => {
+  return String(filename).replace(
+    /^\d+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i,
+    ""
+  );
+};
+
+const removeFileExtension = (filename = "") => {
+  return String(filename).replace(
+    /\.[a-z0-9]+$/i,
+    ""
+  );
+};
+
+const getNormalizedImageFilename = (
+  imageUrl = ""
+) => {
+  try {
+    const pathname =
+      decodeURIComponent(
+        new URL(imageUrl).pathname
+      );
+
+    const filename =
+      pathname
+        .split("/")
+        .pop() || "";
+
+    const cleanFilename =
+      removeUploadPrefix(
+        filename
+      );
+
+    const filenameWithoutExtension =
+      removeFileExtension(
+        cleanFilename
+      );
+
+    return normalizeProductValue(
+      filenameWithoutExtension
+    );
+  } catch {
+    return "";
+  }
+};
+/* =========================================================
+   GET IMAGES BY PRODUCT SLUG
+========================================================= */
+
+const getImagesBySlug = async (
+  slug
+) => {
+  const normalizedSlug =
+    normalizeProductValue(
+      slug
+    );
 
   if (!normalizedSlug) {
-    throw new Error("Product slug is required");
+    throw new Error(
+      "Product slug is required"
+    );
   }
 
-  const images = await prisma.inspiration_gallery_images.findMany({
-    where: {
-      is_active: true,
-      image_url: {
-        contains: normalizedSlug,
-        mode: "insensitive",
-      },
-    },
-    select: {
-      id: true,
-      category_id: true,
-      image_url: true,
-      image_alt: true,
-      title: true,
-      sort_order: true,
-      created_at: true,
-      inspiration_gallery_categories: {
+  /*
+   * Support all historical filename styles:
+   *
+   * ariston-leather
+   * ariston_leather
+   * ariston leather
+   */
+
+  const underscoreSlug =
+    normalizedSlug.replace(
+      /-/g,
+      "_"
+    );
+
+  const spaceSlug =
+    normalizedSlug.replace(
+      /-/g,
+      " "
+    );
+
+  /*
+   * Database pre-filter.
+   *
+   * We cannot search only for:
+   *
+   * ariston-leather
+   *
+   * because existing R2 files may contain:
+   *
+   * ariston_leather
+   */
+
+  const images =
+    await prisma
+      .inspiration_gallery_images
+      .findMany({
+        where: {
+          is_active: true,
+
+          OR: [
+            {
+              image_url: {
+                contains:
+                  normalizedSlug,
+                mode:
+                  "insensitive",
+              },
+            },
+
+            {
+              image_url: {
+                contains:
+                  underscoreSlug,
+                mode:
+                  "insensitive",
+              },
+            },
+
+            {
+              image_url: {
+                contains:
+                  spaceSlug,
+                mode:
+                  "insensitive",
+              },
+            },
+          ],
+        },
+
         select: {
           id: true,
-          name: true,
-          slug: true,
+          category_id: true,
+          image_url: true,
+          image_alt: true,
+          title: true,
+          sort_order: true,
+          created_at: true,
+
+          inspiration_gallery_categories:
+            {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
         },
-      },
-    },
-    orderBy: [
-      { sort_order: "asc" },
-      { created_at: "desc" },
-      { id: "desc" },
-    ],
-  });
 
-  return images.filter((image) => {
-    try {
-      const pathname = decodeURIComponent(new URL(image.image_url).pathname);
-      const filename = pathname.split("/").pop()?.toLowerCase() || "";
+        orderBy: [
+          {
+            sort_order:
+              "asc",
+          },
+          {
+            created_at:
+              "desc",
+          },
+          {
+            id: "desc",
+          },
+        ],
+      });
 
-      // Removes the upload timestamp and UUID prefix:
-      // 1784829523172-3099b783-dafd-4756-be68-adf9bd8feb56-
-      const cleanFilename = filename.replace(
-        /^\d+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i,
-        ""
-      );
+  return images.filter(
+    (image) => {
+      const filename =
+        getNormalizedImageFilename(
+          image.image_url
+        );
 
-      return (
-        cleanFilename === normalizedSlug ||
-        cleanFilename.startsWith(`${normalizedSlug}-`) ||
-        cleanFilename.startsWith(`${normalizedSlug}.`)
-      );
-    } catch {
+      if (!filename) {
+        return false;
+      }
+
+      /*
+       * Exact filename.
+       *
+       * ariston-leather.jpg
+       */
+      if (
+        filename ===
+        normalizedSlug
+      ) {
+        return true;
+      }
+
+      if (
+        !filename.startsWith(
+          `${normalizedSlug}-`
+        )
+      ) {
+        return false;
+      }
+
+      /*
+       * Everything appearing after
+       * the requested product slug.
+       *
+       * havana-uq1184
+       *
+       * requested:
+       * havana
+       *
+       * remainder:
+       * uq1184
+       */
+      const remainder =
+        filename.slice(
+          normalizedSlug.length +
+            1
+        );
+
+      if (!remainder) {
+        return true;
+      }
+
+      const firstPart =
+        remainder
+          .split("-")[0]
+          ?.trim();
+
+      if (!firstPart) {
+        return true;
+      }
+
+      /*
+       * Product/code identifiers commonly used
+       * in your gallery filenames.
+       *
+       * Examples:
+       *
+       * havana-uq1184
+       * lincoln-uq2024
+       * calacatta-...-uq2070
+       *
+       * These are allowed.
+       */
+      const codePattern =
+        /^(?:uq)?\d+[a-z]*$/i;
+
+      if (
+        codePattern.test(
+          firstPart
+        )
+      ) {
+        return true;
+      }
+
+      /*
+       * Common camera / image identifiers.
+       *
+       * Example:
+       *
+       * product-dsc033
+       */
+      const cameraPattern =
+        /^(?:dsc|img|image|photo|render)\d*$/i;
+
+      if (
+        cameraPattern.test(
+          firstPart
+        )
+      ) {
+        return true;
+      }
+
+      /*
+       * IMPORTANT:
+       *
+       * Reject another product-name word.
+       *
+       * Example:
+       *
+       * requested:
+       * havana
+       *
+       * filename:
+       * havana-gold-uq1234
+       *
+       * remainder:
+       * gold-uq1234
+       *
+       * firstPart:
+       * gold
+       *
+       * => false
+       *
+       *
+       * requested:
+       * lincoln
+       *
+       * filename:
+       * lincoln-gold-dsc033
+       *
+       * => false
+       */
       return false;
     }
-  });
+  );
 };
 
 const createImageUploadUrls = async (body) => {
