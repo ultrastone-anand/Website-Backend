@@ -1,4 +1,5 @@
-// services/ceuRequest.service.js
+const fs = require("fs");
+const path = require("path");
 
 /* =========================================================
    HELPERS
@@ -23,6 +24,41 @@ const parseEmailList = (value = "") => {
         address: email,
       },
     }));
+};
+
+/* =========================================================
+   EMAIL LOGO ATTACHMENT
+========================================================= */
+
+const getLogoAttachment = () => {
+  const logoPath = path.join(
+    __dirname,
+    "../assets/ultrastones.png"
+  );
+
+  const logoBase64 = fs
+    .readFileSync(logoPath)
+    .toString("base64");
+
+  return {
+    "@odata.type":
+      "#microsoft.graph.fileAttachment",
+
+    name:
+      "ultrastones.png",
+
+    contentType:
+      "image/png",
+
+    contentBytes:
+      logoBase64,
+
+    isInline:
+      true,
+
+    contentId:
+      "ultrastones-logo",
+  };
 };
 
 /* =========================================================
@@ -352,16 +388,24 @@ const buildInternalEmail = ({
                 border-top:4px solid #c91f26;
               "
             >
+
               <div
                 style="
-                  font-size:11px;
-                  letter-spacing:3px;
-                  text-transform:uppercase;
-                  color:#bbbbbb;
-                  margin-bottom:8px;
+                  margin-bottom:18px;
                 "
               >
-                ULTRA STONES
+                <img
+                  src="cid:ultrastones-logo"
+                  alt="Ultra Stones"
+                  width="170"
+                  style="
+                    display:block;
+                    width:170px;
+                    max-width:170px;
+                    height:auto;
+                    border:0;
+                  "
+                />
               </div>
 
               <div
@@ -645,16 +689,24 @@ const buildCustomerEmail = ({
                 border-top:4px solid #c91f26;
               "
             >
+
               <div
                 style="
-                  font-size:11px;
-                  letter-spacing:3px;
-                  text-transform:uppercase;
-                  color:#bbbbbb;
-                  margin-bottom:8px;
+                  margin-bottom:18px;
                 "
               >
-                ULTRA STONES
+                <img
+                  src="cid:ultrastones-logo"
+                  alt="Ultra Stones"
+                  width="170"
+                  style="
+                    display:block;
+                    width:170px;
+                    max-width:170px;
+                    height:auto;
+                    border:0;
+                  "
+                />
               </div>
 
               <div
@@ -973,6 +1025,10 @@ const sendCeuRequest = async (data) => {
         internalMailHtml,
     },
 
+    attachments: [
+      getLogoAttachment(),
+    ],
+
     toRecipients,
 
     ...(ccRecipients.length > 0
@@ -1044,6 +1100,10 @@ const sendCeuRequest = async (data) => {
           customerMailHtml,
       },
 
+      attachments: [
+        getLogoAttachment(),
+      ],
+
       toRecipients: [
         {
           emailAddress: {
@@ -1086,7 +1146,6 @@ const sendCeuRequest = async (data) => {
         course,
 
         preferredDate:
-
           preferredDate ||
           null,
 
