@@ -226,6 +226,848 @@ const parseBigIntId = (
   }
 };
 
+const escapeHtml = (
+  value = ''
+) =>
+  String(value)
+    .replace(
+      /&/g,
+      '&amp;'
+    )
+    .replace(
+      /</g,
+      '&lt;'
+    )
+    .replace(
+      />/g,
+      '&gt;'
+    )
+    .replace(
+      /"/g,
+      '&quot;'
+    )
+    .replace(
+      /'/g,
+      '&#039;'
+    );
+
+const parseEmailList = (
+  value = ''
+) =>
+  String(value)
+    .split(',')
+    .map((email) =>
+      email.trim()
+    )
+    .filter(Boolean)
+    .map((email) => ({
+      emailAddress: {
+        address:
+          email,
+      },
+    }));
+
+const formatApplicationType = (
+  value
+) => {
+  if (
+    value ===
+    'GENERAL_RESUME'
+  ) {
+    return 'General Resume';
+  }
+
+  return 'Job Application';
+};
+
+const formatExperienceLevel = (
+  value
+) => {
+  const labels = {
+    ZERO_TO_TWO:
+      '0–2 Years',
+
+    THREE_TO_FIVE:
+      '3–5 Years',
+
+    FIVE_PLUS:
+      '5+ Years',
+  };
+
+  return (
+    labels[value] ||
+    value ||
+    'Not Provided'
+  );
+};
+
+const tableRow = (
+  label,
+  value
+) => {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ''
+  ) {
+    return '';
+  }
+
+  return `
+    <tr>
+      <td
+        style="
+          width:190px;
+          padding:13px 15px;
+          background:#f6f6f6;
+          border:1px solid #e2e2e2;
+          font-size:11px;
+          font-weight:700;
+          text-transform:uppercase;
+          letter-spacing:.5px;
+          color:#555555;
+          vertical-align:top;
+        "
+      >
+        ${escapeHtml(label)}
+      </td>
+
+      <td
+        style="
+          padding:13px 15px;
+          border:1px solid #e2e2e2;
+          font-size:14px;
+          color:#222222;
+          line-height:1.6;
+          vertical-align:top;
+        "
+      >
+        ${escapeHtml(value)}
+      </td>
+    </tr>
+  `;
+};
+
+// ======================================================
+// MICROSOFT GRAPH EMAIL
+// ======================================================
+
+const getMicrosoftGraphAccessToken =
+  async () => {
+    const tenantId =
+      process.env
+        .MS_TENANT_ID;
+
+    const clientId =
+      process.env
+        .MS_CLIENT_ID;
+
+    const clientSecret =
+      process.env
+        .MS_CLIENT_SECRET;
+
+    if (
+      !tenantId ||
+      !clientId ||
+      !clientSecret
+    ) {
+      throw new Error(
+        'Microsoft Graph email configuration is missing'
+      );
+    }
+
+    const tokenUrl =
+      `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+
+    const params =
+      new URLSearchParams();
+
+    params.append(
+      'client_id',
+      clientId
+    );
+
+    params.append(
+      'client_secret',
+      clientSecret
+    );
+
+    params.append(
+      'scope',
+      'https://graph.microsoft.com/.default'
+    );
+
+    params.append(
+      'grant_type',
+      'client_credentials'
+    );
+
+    const response =
+      await fetch(
+        tokenUrl,
+        {
+          method:
+            'POST',
+
+          headers: {
+            'Content-Type':
+              'application/x-www-form-urlencoded',
+          },
+
+          body:
+            params.toString(),
+        }
+      );
+
+    if (
+      !response.ok
+    ) {
+      const errorText =
+        await response.text();
+
+      throw new Error(
+        `Failed to get Microsoft Graph access token: ${errorText}`
+      );
+    }
+
+    const data =
+      await response.json();
+
+    if (
+      !data.access_token
+    ) {
+      throw new Error(
+        'Microsoft Graph access token was not returned'
+      );
+    }
+
+    return data.access_token;
+  };
+
+const sendMicrosoftGraphEmail =
+  async ({
+    accessToken,
+    toRecipients,
+    subject,
+    html,
+    replyTo,
+  }) => {
+    const senderEmail =
+      process.env
+        .MS_SENDER_EMAIL;
+
+    if (!senderEmail) {
+      throw new Error(
+        'MS_SENDER_EMAIL is not configured'
+      );
+    }
+
+    const recipients =
+      parseEmailList(
+        toRecipients
+      );
+
+    if (
+      recipients.length ===
+      0
+    ) {
+      throw new Error(
+        'Career application email recipient is not configured'
+      );
+    }
+
+    const message = {
+      subject,
+
+      body: {
+        contentType:
+          'HTML',
+
+        content:
+          html,
+      },
+
+      toRecipients:
+        recipients,
+    };
+
+    if (
+      replyTo &&
+      validateEmail(
+        replyTo
+      )
+    ) {
+      message.replyTo = [
+        {
+          emailAddress: {
+            address:
+              replyTo,
+          },
+        },
+      ];
+    }
+
+    const response =
+      await fetch(
+        `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(
+          senderEmail
+        )}/sendMail`,
+        {
+          method:
+            'POST',
+
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
+
+            'Content-Type':
+              'application/json',
+          },
+
+          body:
+            JSON.stringify({
+              message,
+
+              saveToSentItems:
+                true,
+            }),
+        }
+      );
+
+    if (
+      !response.ok
+    ) {
+      const errorText =
+        await response.text();
+
+      throw new Error(
+        `Microsoft Graph email failed: ${errorText}`
+      );
+    }
+
+    return {
+      success:
+        true,
+
+      status:
+        response.status,
+    };
+  };
+
+// ======================================================
+// CAREER APPLICATION EMAIL
+// ======================================================
+
+const buildCareerApplicationEmail =
+  ({
+    application,
+    job,
+  }) => {
+    const fullName =
+      `${application.first_name || ''} ${
+        application.last_name || ''
+      }`.trim();
+
+    const isGeneralResume =
+      application.application_type ===
+      'GENERAL_RESUME';
+
+    const jobTitle =
+      job?.title ||
+      'General Resume Submission';
+
+    const subject =
+      isGeneralResume
+        ? `New General Resume Submission — ${fullName}`
+        : `New Job Application — ${jobTitle} — ${fullName}`;
+
+    const resumeButton =
+      application.resume_url
+        ? `
+          <a
+            href="${escapeHtml(
+              application.resume_url
+            )}"
+            target="_blank"
+            style="
+              display:inline-block;
+              padding:12px 20px;
+              background:#e42733;
+              color:#ffffff;
+              text-decoration:none;
+              font-size:13px;
+              font-weight:700;
+              border-radius:3px;
+              margin-right:8px;
+              margin-bottom:8px;
+            "
+          >
+            View Resume
+          </a>
+        `
+        : '';
+
+    const coverLetterButton =
+      application
+        .cover_letter_url
+        ? `
+          <a
+            href="${escapeHtml(
+              application.cover_letter_url
+            )}"
+            target="_blank"
+            style="
+              display:inline-block;
+              padding:12px 20px;
+              background:#333333;
+              color:#ffffff;
+              text-decoration:none;
+              font-size:13px;
+              font-weight:700;
+              border-radius:3px;
+              margin-bottom:8px;
+            "
+          >
+            View Cover Letter
+          </a>
+        `
+        : '';
+
+    const messageSection =
+      application.message
+        ? `
+          <div
+            style="
+              margin-top:25px;
+            "
+          >
+            <div
+              style="
+                font-size:12px;
+                font-weight:700;
+                text-transform:uppercase;
+                letter-spacing:.7px;
+                color:#555555;
+                margin-bottom:8px;
+              "
+            >
+              Applicant Message
+            </div>
+
+            <div
+              style="
+                padding:16px;
+                background:#f8f8f8;
+                border-left:3px solid #e42733;
+                font-size:14px;
+                line-height:1.7;
+                color:#333333;
+                white-space:pre-line;
+              "
+            >
+              ${escapeHtml(
+                application.message
+              )}
+            </div>
+          </div>
+        `
+        : '';
+
+    const html = `
+      <!DOCTYPE html>
+
+      <html>
+        <head>
+          <meta
+            charset="UTF-8"
+          />
+        </head>
+
+        <body
+          style="
+            margin:0;
+            padding:0;
+            background:#f3f3f3;
+            font-family:Arial, Helvetica, sans-serif;
+          "
+        >
+          <div
+            style="
+              width:100%;
+              background:#f3f3f3;
+              padding:35px 15px;
+              box-sizing:border-box;
+            "
+          >
+            <div
+              style="
+                max-width:720px;
+                margin:0 auto;
+                background:#ffffff;
+                border:1px solid #e4e4e4;
+              "
+            >
+
+              <!-- HEADER -->
+
+              <div
+                style="
+                  background:#111111;
+                  padding:28px 30px;
+                  border-bottom:4px solid #e42733;
+                "
+              >
+                <div
+                  style="
+                    font-size:11px;
+                    font-weight:700;
+                    color:#e42733;
+                    text-transform:uppercase;
+                    letter-spacing:1.5px;
+                    margin-bottom:7px;
+                  "
+                >
+                  Ultra Stones Careers
+                </div>
+
+                <div
+                  style="
+                    color:#ffffff;
+                    font-size:25px;
+                    font-weight:700;
+                    line-height:1.3;
+                  "
+                >
+                  ${
+                    isGeneralResume
+                      ? 'New General Resume Submission'
+                      : 'New Job Application'
+                  }
+                </div>
+              </div>
+
+              <!-- CONTENT -->
+
+              <div
+                style="
+                  padding:30px;
+                "
+              >
+
+                <div
+                  style="
+                    font-size:15px;
+                    color:#333333;
+                    line-height:1.7;
+                    margin-bottom:25px;
+                  "
+                >
+                  A new career submission has been received through the
+                  Ultra Stones website.
+                </div>
+
+                ${
+                  !isGeneralResume
+                    ? `
+                      <div
+                        style="
+                          margin-bottom:25px;
+                          padding:18px;
+                          background:#fff6f6;
+                          border-left:4px solid #e42733;
+                        "
+                      >
+                        <div
+                          style="
+                            font-size:11px;
+                            text-transform:uppercase;
+                            letter-spacing:.7px;
+                            font-weight:700;
+                            color:#777777;
+                            margin-bottom:6px;
+                          "
+                        >
+                          Position Applied For
+                        </div>
+
+                        <div
+                          style="
+                            font-size:19px;
+                            font-weight:700;
+                            color:#111111;
+                          "
+                        >
+                          ${escapeHtml(
+                            jobTitle
+                          )}
+                        </div>
+
+                        ${
+                          job?.department
+                            ? `
+                              <div
+                                style="
+                                  font-size:13px;
+                                  color:#666666;
+                                  margin-top:5px;
+                                "
+                              >
+                                ${escapeHtml(
+                                  job.department
+                                )}
+                                ${
+                                  job.location
+                                    ? ` • ${escapeHtml(
+                                        job.location
+                                      )}`
+                                    : ''
+                                }
+                              </div>
+                            `
+                            : ''
+                        }
+                      </div>
+                    `
+                    : ''
+                }
+
+                <div
+                  style="
+                    font-size:13px;
+                    font-weight:700;
+                    text-transform:uppercase;
+                    letter-spacing:.8px;
+                    color:#222222;
+                    margin-bottom:10px;
+                  "
+                >
+                  Applicant Information
+                </div>
+
+                <table
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  width="100%"
+                  style="
+                    border-collapse:collapse;
+                  "
+                >
+                  ${tableRow(
+                    'Name',
+                    fullName
+                  )}
+
+                  ${tableRow(
+                    'Email',
+                    application.email
+                  )}
+
+                  ${tableRow(
+                    'Phone',
+                    application.phone
+                  )}
+
+                  ${tableRow(
+                    'Department',
+                    application.department ||
+                      job?.department
+                  )}
+
+                  ${tableRow(
+                    'Application Type',
+                    formatApplicationType(
+                      application.application_type
+                    )
+                  )}
+
+                  ${tableRow(
+                    'Experience Level',
+                    formatExperienceLevel(
+                      application.experience_level
+                    )
+                  )}
+
+                  ${tableRow(
+                    'Years of Experience',
+                    application.years_of_experience
+                  )}
+                </table>
+
+                ${messageSection}
+
+                <!-- DOCUMENTS -->
+
+                <div
+                  style="
+                    margin-top:28px;
+                    padding-top:25px;
+                    border-top:1px solid #e5e5e5;
+                  "
+                >
+                  <div
+                    style="
+                      font-size:13px;
+                      font-weight:700;
+                      text-transform:uppercase;
+                      letter-spacing:.8px;
+                      color:#222222;
+                      margin-bottom:13px;
+                    "
+                  >
+                    Applicant Documents
+                  </div>
+
+                  ${resumeButton}
+
+                  ${coverLetterButton}
+                </div>
+
+                <!-- META -->
+
+                <div
+                  style="
+                    margin-top:28px;
+                    padding:15px;
+                    background:#f8f8f8;
+                    font-size:11px;
+                    line-height:1.7;
+                    color:#777777;
+                  "
+                >
+                  ${
+                    application
+                      .resume_filename
+                      ? `
+                        <div>
+                          <strong>
+                            Resume File:
+                          </strong>
+                          ${escapeHtml(
+                            application.resume_filename
+                          )}
+                        </div>
+                      `
+                      : ''
+                  }
+
+                  ${
+                    application
+                      .cover_letter_filename
+                      ? `
+                        <div>
+                          <strong>
+                            Cover Letter:
+                          </strong>
+                          ${escapeHtml(
+                            application.cover_letter_filename
+                          )}
+                        </div>
+                      `
+                      : ''
+                  }
+
+                  ${
+                    application
+                      .source_page
+                      ? `
+                        <div>
+                          <strong>
+                            Source Page:
+                          </strong>
+                          ${escapeHtml(
+                            application.source_page
+                          )}
+                        </div>
+                      `
+                      : ''
+                  }
+
+                  <div>
+                    <strong>
+                      Application ID:
+                    </strong>
+                    ${escapeHtml(
+                      application.id
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- FOOTER -->
+
+              <div
+                style="
+                  padding:20px 30px;
+                  background:#f5f5f5;
+                  border-top:1px solid #e3e3e3;
+                  font-size:11px;
+                  color:#777777;
+                  line-height:1.6;
+                  text-align:center;
+                "
+              >
+                This is an automated notification from the
+                Ultra Stones Careers website.
+                <br />
+                Replying to this email will reply directly to
+                the applicant.
+              </div>
+
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    return {
+      subject,
+      html,
+    };
+  };
+
+const sendCareerApplicationNotification =
+  async ({
+    application,
+    job,
+  }) => {
+    const recipients =
+      process.env
+        .CAREER_APPLICATION_EMAIL ||
+      'Admin@ultrastones.com,Hr@ultrastones.com';
+
+    const {
+      subject,
+      html,
+    } =
+      buildCareerApplicationEmail({
+        application,
+        job,
+      });
+
+    const accessToken =
+      await getMicrosoftGraphAccessToken();
+
+    return sendMicrosoftGraphEmail({
+      accessToken,
+
+      toRecipients:
+        recipients,
+
+      subject,
+
+      html,
+
+      replyTo:
+        application.email,
+    });
+  };
+
+// ======================================================
+// VALIDATORS
+// ======================================================
+
 const validateJobStatus = (
   status
 ) => {
@@ -359,7 +1201,9 @@ const validateJobPayload = (
     );
   }
 
-  if (data.status) {
+  if (
+    data.status
+  ) {
     validateJobStatus(
       data.status
     );
@@ -369,7 +1213,9 @@ const validateJobPayload = (
     'vacancies' in data
   ) {
     const vacancies =
-      Number(data.vacancies);
+      Number(
+        data.vacancies
+      );
 
     if (
       !Number.isInteger(
@@ -416,6 +1262,10 @@ const getPagination = (
       safeLimit,
   };
 };
+
+// ======================================================
+// JOB DATA HELPERS
+// ======================================================
 
 const getJobCreateData = (
   body
@@ -608,7 +1458,8 @@ const getJobUpdateData = (
   validateJobPayload(
     body,
     {
-      partial: true,
+      partial:
+        true,
     }
   );
 
@@ -650,7 +1501,8 @@ const getJobUpdateData = (
   );
 
   if (
-    'employment_type' in body
+    'employment_type' in
+    body
   ) {
     updateData.employment_type =
       body.employment_type;
@@ -664,7 +1516,8 @@ const getJobUpdateData = (
   }
 
   if (
-    'responsibilities' in body
+    'responsibilities' in
+    body
   ) {
     updateData.responsibilities =
       parseArray(
@@ -821,15 +1674,19 @@ const getPublishedJobs =
       where.department = {
         equals:
           department,
+
         mode:
           'insensitive',
       };
     }
 
-    if (location) {
+    if (
+      location
+    ) {
       where.location = {
         contains:
           location,
+
         mode:
           'insensitive',
       };
@@ -846,7 +1703,9 @@ const getPublishedJobs =
         employmentType;
     }
 
-    if (workMode) {
+    if (
+      workMode
+    ) {
       validateWorkMode(
         workMode
       );
@@ -864,6 +1723,7 @@ const getPublishedJobs =
             title: {
               contains:
                 search.trim(),
+
               mode:
                 'insensitive',
             },
@@ -872,6 +1732,7 @@ const getPublishedJobs =
             department: {
               contains:
                 search.trim(),
+
               mode:
                 'insensitive',
             },
@@ -880,6 +1741,7 @@ const getPublishedJobs =
             location: {
               contains:
                 search.trim(),
+
               mode:
                 'insensitive',
             },
@@ -888,6 +1750,7 @@ const getPublishedJobs =
             short_description: {
               contains:
                 search.trim(),
+
               mode:
                 'insensitive',
             },
@@ -996,10 +1859,14 @@ const getPublicJobFilters =
         },
 
         select: {
-          department: true,
-          location: true,
-          employment_type: true,
-          work_mode: true,
+          department:
+            true,
+          location:
+            true,
+          employment_type:
+            true,
+          work_mode:
+            true,
         },
       });
 
@@ -1012,10 +1879,18 @@ const getPublicJobFilters =
             Boolean
           )
         ),
-      ].sort((a, b) =>
-        String(a).localeCompare(
-          String(b)
-        )
+      ].sort(
+        (
+          a,
+          b
+        ) =>
+          String(
+            a
+          ).localeCompare(
+            String(
+              b
+            )
+          )
       );
 
     return {
@@ -1065,6 +1940,7 @@ const getPublishedJobBySlug =
       await prisma.career_jobs.findFirst({
         where: {
           slug,
+
           status:
             'PUBLISHED',
 
@@ -1083,195 +1959,212 @@ const getPublishedJobBySlug =
         },
       });
 
-    if (!job) {
+    if (
+      !job
+    ) {
       throw new Error(
         'Job not found'
       );
     }
 
-    return serialize(job);
+    return serialize(
+      job
+    );
   };
 
 // ======================================================
 // CMS GET JOBS
 // ======================================================
 
-const getJobs = async ({
-  page = 1,
-  limit = 20,
-  search,
-  status,
-  department,
-  location,
-  employmentType,
-  workMode,
-} = {}) => {
-  const pagination =
-    getPagination(
-      page,
-      limit,
-      100
-    );
+const getJobs =
+  async ({
+    page = 1,
+    limit = 20,
+    search,
+    status,
+    department,
+    location,
+    employmentType,
+    workMode,
+  } = {}) => {
+    const pagination =
+      getPagination(
+        page,
+        limit,
+        100
+      );
 
-  const where = {};
+    const where = {};
 
-  if (status) {
-    validateJobStatus(
+    if (
       status
-    );
+    ) {
+      validateJobStatus(
+        status
+      );
 
-    where.status =
-      status;
-  }
+      where.status =
+        status;
+    }
 
-  if (
-    department
-  ) {
-    where.department = {
-      equals:
-        department,
-      mode:
-        'insensitive',
-    };
-  }
+    if (
+      department
+    ) {
+      where.department = {
+        equals:
+          department,
 
-  if (location) {
-    where.location = {
-      contains:
-        location,
-      mode:
-        'insensitive',
-    };
-  }
+        mode:
+          'insensitive',
+      };
+    }
 
-  if (
-    employmentType
-  ) {
-    validateEmploymentType(
+    if (
+      location
+    ) {
+      where.location = {
+        contains:
+          location,
+
+        mode:
+          'insensitive',
+      };
+    }
+
+    if (
       employmentType
-    );
+    ) {
+      validateEmploymentType(
+        employmentType
+      );
 
-    where.employment_type =
-      employmentType;
-  }
+      where.employment_type =
+        employmentType;
+    }
 
-  if (workMode) {
-    validateWorkMode(
+    if (
       workMode
-    );
+    ) {
+      validateWorkMode(
+        workMode
+      );
 
-    where.work_mode =
-      workMode;
-  }
+      where.work_mode =
+        workMode;
+    }
 
-  if (
-    search?.trim()
-  ) {
-    where.OR = [
-      {
-        title: {
-          contains:
-            search.trim(),
-          mode:
-            'insensitive',
-        },
-      },
-      {
-        slug: {
-          contains:
-            search.trim(),
-          mode:
-            'insensitive',
-        },
-      },
-      {
-        department: {
-          contains:
-            search.trim(),
-          mode:
-            'insensitive',
-        },
-      },
-      {
-        location: {
-          contains:
-            search.trim(),
-          mode:
-            'insensitive',
-        },
-      },
-    ];
-  }
+    if (
+      search?.trim()
+    ) {
+      where.OR = [
+        {
+          title: {
+            contains:
+              search.trim(),
 
-  const [
-    jobs,
-    total,
-  ] =
-    await prisma.$transaction([
-      prisma.career_jobs.findMany({
-        where,
-
-        skip:
-          pagination.skip,
-
-        take:
-          pagination.limit,
-
-        orderBy: [
-          {
-            display_order:
-              'asc',
+            mode:
+              'insensitive',
           },
-          {
-            created_at:
-              'desc',
-          },
-        ],
+        },
+        {
+          slug: {
+            contains:
+              search.trim(),
 
-        include: {
-          _count: {
-            select: {
-              career_applications:
-                true,
+            mode:
+              'insensitive',
+          },
+        },
+        {
+          department: {
+            contains:
+              search.trim(),
+
+            mode:
+              'insensitive',
+          },
+        },
+        {
+          location: {
+            contains:
+              search.trim(),
+
+            mode:
+              'insensitive',
+          },
+        },
+      ];
+    }
+
+    const [
+      jobs,
+      total,
+    ] =
+      await prisma.$transaction([
+        prisma.career_jobs.findMany({
+          where,
+
+          skip:
+            pagination.skip,
+
+          take:
+            pagination.limit,
+
+          orderBy: [
+            {
+              display_order:
+                'asc',
+            },
+            {
+              created_at:
+                'desc',
+            },
+          ],
+
+          include: {
+            _count: {
+              select: {
+                career_applications:
+                  true,
+              },
             },
           },
-        },
-      }),
+        }),
 
-      prisma.career_jobs.count({
-        where,
-      }),
-    ]);
+        prisma.career_jobs.count({
+          where,
+        }),
+      ]);
 
-  return serialize({
-    jobs,
+    return serialize({
+      jobs,
 
-    pagination: {
-      page:
-        pagination.page,
+      pagination: {
+        page:
+          pagination.page,
 
-      limit:
-        pagination.limit,
+        limit:
+          pagination.limit,
 
-      total,
-
-      totalPages:
-        Math.ceil(
-          total /
-            pagination.limit
-        ),
-
-      hasNextPage:
-        pagination.page *
-          pagination.limit <
         total,
 
-      hasPreviousPage:
-        pagination.page >
-        1,
-    },
-  });
-};
+        totalPages:
+          Math.ceil(
+            total /
+              pagination.limit
+          ),
+
+        hasNextPage:
+          pagination.page *
+            pagination.limit <
+          total,
+
+        hasPreviousPage:
+          pagination.page >
+          1,
+      },
+    });
+  };
 
 // ======================================================
 // JOB STATS
@@ -1357,121 +2250,135 @@ const getJobById =
         },
       });
 
-    if (!job) {
+    if (
+      !job
+    ) {
       throw new Error(
         'Job not found'
       );
     }
 
-    return serialize(job);
+    return serialize(
+      job
+    );
   };
 
 // ======================================================
 // CREATE JOB
 // ======================================================
 
-const createJob = async (
-  body,
-  audit = {}
-) => {
-  const createData =
-    getJobCreateData(
-      body
-    );
+const createJob =
+  async (
+    body,
+    audit = {}
+  ) => {
+    const createData =
+      getJobCreateData(
+        body
+      );
 
-  return auditService.track({
-    audit,
+    return auditService.track({
+      audit,
 
-    action:
-      'CREATE',
+      action:
+        'CREATE',
 
-    resourceType:
-      'CAREER_JOB',
+      resourceType:
+        'CAREER_JOB',
 
-    moduleName:
-      'Career Management',
+      moduleName:
+        'Career Management',
 
-    operation: async () => {
-      const job =
-        await prisma.career_jobs.create({
-          data:
-            createData,
-        });
+      operation:
+        async () => {
+          const job =
+            await prisma.career_jobs.create({
+              data:
+                createData,
+            });
 
-      return serialize(job);
-    },
-  });
-};
+          return serialize(
+            job
+          );
+        },
+    });
+  };
 
 // ======================================================
 // UPDATE JOB
 // ======================================================
 
-const updateJob = async (
-  jobId,
-  body,
-  audit = {}
-) => {
-  const id =
-    parseBigIntId(
-      jobId,
-      'Invalid job ID'
-    );
+const updateJob =
+  async (
+    jobId,
+    body,
+    audit = {}
+  ) => {
+    const id =
+      parseBigIntId(
+        jobId,
+        'Invalid job ID'
+      );
 
-  const existingJob =
-    await prisma.career_jobs.findUnique({
-      where: {
-        id,
-      },
-    });
+    const existingJob =
+      await prisma.career_jobs.findUnique({
+        where: {
+          id,
+        },
+      });
 
-  if (!existingJob) {
-    throw new Error(
-      'Job not found'
-    );
-  }
+    if (
+      !existingJob
+    ) {
+      throw new Error(
+        'Job not found'
+      );
+    }
 
-  const updateData =
-    getJobUpdateData(
-      body,
-      existingJob
-    );
-
-  return auditService.track({
-    audit,
-
-    action:
-      'UPDATE',
-
-    resourceType:
-      'CAREER_JOB',
-
-    resourceId:
-      existingJob.id,
-
-    moduleName:
-      'Career Management',
-
-    oldValues:
-      serialize(
+    const updateData =
+      getJobUpdateData(
+        body,
         existingJob
-      ),
+      );
 
-    operation: async () => {
-      const job =
-        await prisma.career_jobs.update({
-          where: {
-            id,
-          },
+    return auditService.track({
+      audit,
 
-          data:
-            updateData,
-        });
+      action:
+        'UPDATE',
 
-      return serialize(job);
-    },
-  });
-};
+      resourceType:
+        'CAREER_JOB',
+
+      resourceId:
+        existingJob.id,
+
+      moduleName:
+        'Career Management',
+
+      oldValues:
+        serialize(
+          existingJob
+        ),
+
+      operation:
+        async () => {
+          const job =
+            await prisma.career_jobs.update({
+              where: {
+                id,
+              },
+
+              data:
+                updateData,
+            });
+
+          return serialize(
+            job
+          );
+        },
+    });
+  };
 
 // ======================================================
 // UPDATE JOB STATUS
@@ -1500,7 +2407,9 @@ const updateJobStatus =
         },
       });
 
-    if (!existingJob) {
+    if (
+      !existingJob
+    ) {
       throw new Error(
         'Job not found'
       );
@@ -1508,6 +2417,7 @@ const updateJobStatus =
 
     const updateData = {
       status,
+
       updated_at:
         new Date(),
     };
@@ -1541,19 +2451,22 @@ const updateJobStatus =
           existingJob.status,
       },
 
-      operation: async () => {
-        const job =
-          await prisma.career_jobs.update({
-            where: {
-              id,
-            },
+      operation:
+        async () => {
+          const job =
+            await prisma.career_jobs.update({
+              where: {
+                id,
+              },
 
-            data:
-              updateData,
-          });
+              data:
+                updateData,
+            });
 
-        return serialize(job);
-      },
+          return serialize(
+            job
+          );
+        },
     });
   };
 
@@ -1561,15 +2474,16 @@ const updateJobStatus =
 // ARCHIVE JOB
 // ======================================================
 
-const archiveJob = async (
-  jobId,
-  audit = {}
-) =>
-  updateJobStatus(
+const archiveJob =
+  async (
     jobId,
-    'ARCHIVED',
-    audit
-  );
+    audit = {}
+  ) =>
+    updateJobStatus(
+      jobId,
+      'ARCHIVED',
+      audit
+    );
 
 // ======================================================
 // SUBMIT APPLICATION
@@ -1590,26 +2504,34 @@ const submitApplication =
     const email =
       body.email?.trim();
 
-    if (!firstName) {
+    if (
+      !firstName
+    ) {
       throw new Error(
         'First name is required'
       );
     }
 
-    if (!lastName) {
+    if (
+      !lastName
+    ) {
       throw new Error(
         'Last name is required'
       );
     }
 
-    if (!email) {
+    if (
+      !email
+    ) {
       throw new Error(
         'Email is required'
       );
     }
 
     if (
-      !validateEmail(email)
+      !validateEmail(
+        email
+      )
     ) {
       throw new Error(
         'A valid email address is required'
@@ -1619,7 +2541,9 @@ const submitApplication =
     const resumeFile =
       files?.resume?.[0];
 
-    if (!resumeFile) {
+    if (
+      !resumeFile
+    ) {
       throw new Error(
         'Resume is required'
       );
@@ -1637,13 +2561,19 @@ const submitApplication =
       body.experience_level
     );
 
-    let jobId = null;
+    let jobId =
+      null;
+
+    let job =
+      null;
 
     if (
       applicationType ===
       'JOB_APPLICATION'
     ) {
-      if (!body.job_id) {
+      if (
+        !body.job_id
+      ) {
         throw new Error(
           'Job is required'
         );
@@ -1655,7 +2585,7 @@ const submitApplication =
           'Invalid job ID'
         );
 
-      const job =
+      job =
         await prisma.career_jobs.findFirst({
           where: {
             id:
@@ -1679,7 +2609,9 @@ const submitApplication =
           },
         });
 
-      if (!job) {
+      if (
+        !job
+      ) {
         throw new Error(
           'Job is no longer available'
         );
@@ -1692,6 +2624,9 @@ const submitApplication =
     let uploadedCoverLetter =
       null;
 
+    let application =
+      null;
+
     try {
       uploadedResume =
         await uploadToR2(
@@ -1700,7 +2635,8 @@ const submitApplication =
         );
 
       const coverLetterFile =
-        files?.cover_letter?.[0];
+        files
+          ?.cover_letter?.[0];
 
       if (
         coverLetterFile
@@ -1712,7 +2648,7 @@ const submitApplication =
           );
       }
 
-      const application =
+      application =
         await prisma.career_applications.create({
           data: {
             job_id:
@@ -1812,11 +2748,9 @@ const submitApplication =
               new Date(),
           },
         });
-
-      return serialize(
-        application
-      );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       if (
         uploadedResume
           ?.public_id
@@ -1824,7 +2758,9 @@ const submitApplication =
         await deleteFileFromR2(
           uploadedResume.public_id
         ).catch(
-          (deleteError) => {
+          (
+            deleteError
+          ) => {
             console.error(
               'Resume cleanup failed:',
               deleteError
@@ -1840,7 +2776,9 @@ const submitApplication =
         await deleteFileFromR2(
           uploadedCoverLetter.public_id
         ).catch(
-          (deleteError) => {
+          (
+            deleteError
+          ) => {
             console.error(
               'Cover letter cleanup failed:',
               deleteError
@@ -1851,6 +2789,55 @@ const submitApplication =
 
       throw error;
     }
+
+    // --------------------------------------------------
+    // SEND INTERNAL EMAIL NOTIFICATION
+    // --------------------------------------------------
+    //
+    // This runs AFTER the application has successfully
+    // been stored.
+    //
+    // Email failure must NOT cause the application or
+    // uploaded resume to be deleted.
+    // --------------------------------------------------
+
+    let notificationSent =
+      false;
+
+    try {
+      await sendCareerApplicationNotification({
+        application:
+          serialize(
+            application
+          ),
+
+        job:
+          job
+            ? serialize(
+                job
+              )
+            : null,
+      });
+
+      notificationSent =
+        true;
+    } catch (
+      emailError
+    ) {
+      console.error(
+        'Career application notification email failed:',
+        emailError
+      );
+    }
+
+    return {
+      ...serialize(
+        application
+      ),
+
+      notification_sent:
+        notificationSent,
+    };
   };
 
 // ======================================================
@@ -1876,7 +2863,9 @@ const getApplications =
 
     const where = {};
 
-    if (status) {
+    if (
+      status
+    ) {
       validateApplicationStatus(
         status
       );
@@ -1896,7 +2885,9 @@ const getApplications =
         applicationType;
     }
 
-    if (jobId) {
+    if (
+      jobId
+    ) {
       where.job_id =
         parseBigIntId(
           jobId,
@@ -1910,6 +2901,7 @@ const getApplications =
       where.department = {
         equals:
           department,
+
         mode:
           'insensitive',
       };
@@ -1926,6 +2918,7 @@ const getApplications =
           first_name: {
             contains:
               normalizedSearch,
+
             mode:
               'insensitive',
           },
@@ -1934,6 +2927,7 @@ const getApplications =
           last_name: {
             contains:
               normalizedSearch,
+
             mode:
               'insensitive',
           },
@@ -1942,6 +2936,7 @@ const getApplications =
           email: {
             contains:
               normalizedSearch,
+
             mode:
               'insensitive',
           },
@@ -1950,6 +2945,7 @@ const getApplications =
           phone: {
             contains:
               normalizedSearch,
+
             mode:
               'insensitive',
           },
@@ -1960,6 +2956,7 @@ const getApplications =
               title: {
                 contains:
                   normalizedSearch,
+
                 mode:
                   'insensitive',
               },
@@ -1991,20 +2988,29 @@ const getApplications =
           include: {
             career_jobs: {
               select: {
-                id: true,
-                title: true,
-                slug: true,
-                department: true,
-                location: true,
+                id:
+                  true,
+                title:
+                  true,
+                slug:
+                  true,
+                department:
+                  true,
+                location:
+                  true,
               },
             },
 
             users: {
               select: {
-                id: true,
-                first_name: true,
-                last_name: true,
-                email: true,
+                id:
+                  true,
+                first_name:
+                  true,
+                last_name:
+                  true,
+                email:
+                  true,
               },
             },
           },
@@ -2132,15 +3138,24 @@ const getApplicationStats =
 
     return {
       total,
+
       new:
         newCount,
+
       reviewing,
+
       shortlisted,
+
       interview,
+
       selected,
+
       rejected,
+
       withdrawn,
+
       jobApplications,
+
       generalResumes,
     };
   };
@@ -2171,10 +3186,14 @@ const getApplicationById =
 
           users: {
             select: {
-              id: true,
-              first_name: true,
-              last_name: true,
-              email: true,
+              id:
+                true,
+              first_name:
+                true,
+              last_name:
+                true,
+              email:
+                true,
             },
           },
         },
@@ -2348,21 +3367,22 @@ const updateApplication =
           existingApplication
         ),
 
-      operation: async () => {
-        const application =
-          await prisma.career_applications.update({
-            where: {
-              id,
-            },
+      operation:
+        async () => {
+          const application =
+            await prisma.career_applications.update({
+              where: {
+                id,
+              },
 
-            data:
-              updateData,
-          });
+              data:
+                updateData,
+            });
 
-        return serialize(
-          application
-        );
-      },
+          return serialize(
+            application
+          );
+        },
     });
   };
 
@@ -2462,50 +3482,59 @@ const deleteApplication =
           existingApplication
         ),
 
-      operation: async () => {
-        const deletedApplication =
-          await prisma.career_applications.delete({
-            where: {
-              id,
-            },
-          });
+      operation:
+        async () => {
+          const deletedApplication =
+            await prisma.career_applications.delete({
+              where: {
+                id,
+              },
+            });
 
-        if (
-          existingApplication.resume_object_key
-        ) {
-          await deleteFileFromR2(
+          if (
             existingApplication.resume_object_key
-          ).catch(
-            (error) => {
-              console.error(
-                'Failed to delete resume from R2:',
+          ) {
+            await deleteFileFromR2(
+              existingApplication.resume_object_key
+            ).catch(
+              (
                 error
-              );
-            }
-          );
-        }
+              ) => {
+                console.error(
+                  'Failed to delete resume from R2:',
+                  error
+                );
+              }
+            );
+          }
 
-        if (
-          existingApplication.cover_letter_object_key
-        ) {
-          await deleteFileFromR2(
+          if (
             existingApplication.cover_letter_object_key
-          ).catch(
-            (error) => {
-              console.error(
-                'Failed to delete cover letter from R2:',
+          ) {
+            await deleteFileFromR2(
+              existingApplication.cover_letter_object_key
+            ).catch(
+              (
                 error
-              );
-            }
-          );
-        }
+              ) => {
+                console.error(
+                  'Failed to delete cover letter from R2:',
+                  error
+                );
+              }
+            );
+          }
 
-        return serialize(
-          deletedApplication
-        );
-      },
+          return serialize(
+            deletedApplication
+          );
+        },
     });
   };
+
+// ======================================================
+// EXPORTS
+// ======================================================
 
 module.exports = {
   getPublishedJobs,
