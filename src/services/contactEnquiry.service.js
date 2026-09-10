@@ -1,105 +1,115 @@
 const prisma = require(
-    "../config/prisma"
+  "../config/prisma"
 );
 
-// ================== CREATE ENQUIRY ==================
+/* =========================================================
+   CREATE ENQUIRY
+========================================================= */
 
 const createEnquiry = async (
-    data
+  data
 ) => {
+  const requestType =
+    String(
+      data.requestType ||
+        data.request_type ||
+        "ENQUIRY"
+    )
+      .trim()
+      .toUpperCase();
 
-    return await prisma.contact_enquiries.create({
+  return prisma.contact_enquiries.create({
+    data: {
+      name:
+        data.name,
 
-        data: {
+      subject:
+        data.subject || null,
 
-            name:
-                data.name,
+      email:
+        data.email,
 
-            subject:
-                data.subject,
+      phone:
+        data.phone || null,
 
-            email:
-                data.email,
+      message:
+        data.message || null,
 
-            phone:
-                data.phone,
+      request_type:
+        requestType,
 
-            message:
-                data.message
+      preferred_date:
+        requestType ===
+          "APPOINTMENT" &&
+        data.preferredDate
+          ? new Date(
+              `${data.preferredDate}T00:00:00.000Z`
+            )
+          : null,
 
-        }
-
-    });
-
+      preferred_time:
+        requestType ===
+          "APPOINTMENT"
+          ? data.preferredTime ||
+            null
+          : null,
+    },
+  });
 };
 
-// ================== GET ALL ENQUIRIES ==================
+/* =========================================================
+   GET ALL ENQUIRIES
+========================================================= */
 
 const getAllEnquiries = async () => {
+  return prisma.contact_enquiries.findMany({
+    orderBy: {
+      created_at:
+        "desc",
+    },
+  });
+};
 
-        return await prisma.contact_enquiries.findMany({
-
-            orderBy: {
-
-                created_at:
-                    "desc"
-
-            }
-
-        });
-
-    };
-
-// ================== UPDATE STATUS ==================
+/* =========================================================
+   UPDATE STATUS
+========================================================= */
 
 const updateStatus = async (
-        id,
-        data
-    ) => {
+  id,
+  data
+) => {
+  const enquiry =
+    await prisma.contact_enquiries.findUnique({
+      where: {
+        id:
+          BigInt(id),
+      },
+    });
 
-        const enquiry =
-            await prisma.contact_enquiries.findUnique({
+  if (!enquiry) {
+    throw new Error(
+      "Enquiry not found"
+    );
+  }
 
-                where: {
-                    id: BigInt(id)
-                }
+  return prisma.contact_enquiries.update({
+    where: {
+      id:
+        BigInt(id),
+    },
 
-            });
+    data: {
+      status:
+        data.status,
 
-        if (!enquiry) {
-
-            throw new Error(
-                "Enquiry not found"
-            );
-
-        }
-
-        return await prisma.contact_enquiries.update({
-
-            where: {
-                id: BigInt(id)
-            },
-
-            data: {
-
-                status:
-                    data.status,
-
-                updated_at:
-                    new Date()
-
-            }
-
-        });
-
-    };
+      updated_at:
+        new Date(),
+    },
+  });
+};
 
 module.exports = {
-
-    createEnquiry,
-
-    getAllEnquiries,
-
-    updateStatus
-
+  createEnquiry,
+  getAllEnquiries,
+  updateStatus,
 };
