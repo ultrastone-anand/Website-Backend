@@ -14,6 +14,7 @@ const careerRoutes = require('./routes/career.routes');
 const reportRoutes = require('./routes/report.routes');
 const lookupRoutes = require('./routes/lookup.routes');
 const companyRoutes = require('./routes/company.routes');
+const sitemapRoutes = require("./routes/sitemap.routes");
 const activityRoutes = require('./routes/activity.routes');
 const homeHeroRoutes = require("./routes/homeHero.routes");
 const dasboardRoutes = require('./routes/dashboard.routes');
@@ -87,6 +88,12 @@ app.use("/api/display-request",displayRequestRoutes);
 app.use("/api/contact-request",contactRequestRoutes);
 app.use("/api/bulk-descriptions",bulkDescriptionRoutes);
 app.use("/api/inspiration-gallery", inspirationGalleryRoutes);
+
+/* =========================================================
+   PUBLIC SITEMAP
+========================================================= */
+
+app.use("/", sitemapRoutes);
 
 const frontendDistPath = path.join(__dirname, "../dist");
 const frontendIndexPath = path.join(frontendDistPath, "index.html");
