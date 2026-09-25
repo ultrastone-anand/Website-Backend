@@ -24,15 +24,43 @@ const slugify = (text) =>
    SERIALIZATION HELPERS
 ========================================================= */
 
-const serializeGalleryImage = (image) => ({
-  ...image,
+const serializeGalleryImage = (image) => {
+  const {
+    inspiration_gallery_image_products = [],
+    ...galleryImage
+  } = image;
 
-  product_id:
-    image.product_id !== null &&
-    image.product_id !== undefined
-      ? image.product_id.toString()
-      : null,
-});
+  return {
+    ...galleryImage,
+
+    product_id:
+      galleryImage.product_id !== null &&
+      galleryImage.product_id !== undefined
+        ? galleryImage.product_id.toString()
+        : null,
+
+    /*
+     * Products linked through the
+     * image ↔ product junction table.
+     */
+    linked_products:
+      inspiration_gallery_image_products
+        .filter(
+          (link) =>
+            link.stone_products
+        )
+        .map((link) => ({
+          id:
+            link.stone_products.id.toString(),
+
+          name:
+            link.stone_products.name,
+
+          slug:
+            link.stone_products.slug,
+        })),
+  };
+};
 
 const serializeProduct = (product) => ({
   ...product,
@@ -296,6 +324,21 @@ const imageSelect = {
       id: true,
       name: true,
       slug: true,
+    },
+  },
+
+  /*
+   * Products linked to this gallery image.
+   */
+  inspiration_gallery_image_products: {
+    select: {
+      stone_products: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
     },
   },
 };
@@ -1614,49 +1657,62 @@ const saveUploadedImages =
         }
       );
 
-    /* =====================================================
-       RESPONSE
-    ===================================================== */
+  /* =====================================================
+   RESPONSE
+===================================================== */
 
-    return {
-      count:
-        createdImages.length,
+return {
+  count: createdImages.length,
 
-      images:
-        createdImages.map(
-          (image) => ({
-            ...serializeGalleryImage(
-              image
-            ),
+  images: createdImages.map(
+    (image) => {
+      /*
+       * Remove internal fields before serialization.
+       *
+       * autoMatch contains productId as BigInt,
+       * so it must NOT be spread directly into
+       * the API response.
+       */
+      const {
+        autoMatch,
+        linkSource,
+        ...galleryImage
+      } = image;
 
-            product_linked:
-              image.product_id !==
-                null &&
-              image.product_id !==
-                undefined,
-
-            link_source:
-              image.linkSource,
-
-            auto_match:
-              image.autoMatch
-                ? {
-                    product_id:
-                      image.autoMatch.productId.toString(),
-
-                    product_name:
-                      image.autoMatch.productName,
-
-                    product_slug:
-                      image.autoMatch.productSlug,
-
-                    score:
-                      image.autoMatch.score,
-                  }
-                : null,
-          })
+      return {
+        ...serializeGalleryImage(
+          galleryImage
         ),
-    };
+
+        product_linked:
+          galleryImage.product_id !==
+            null &&
+          galleryImage.product_id !==
+            undefined,
+
+        link_source:
+          linkSource,
+
+        auto_match:
+          autoMatch
+            ? {
+                product_id:
+                  autoMatch.productId.toString(),
+
+                product_name:
+                  autoMatch.productName,
+
+                product_slug:
+                  autoMatch.productSlug,
+
+                score:
+                  autoMatch.score,
+              }
+            : null,
+      };
+    }
+  ),
+};
   };
 
 /* =========================================================
