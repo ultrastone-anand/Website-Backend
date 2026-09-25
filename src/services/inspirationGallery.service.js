@@ -759,40 +759,83 @@ const createImageUploadUrls = async (
 
 /* =========================================================
    SAVE UPLOADED IMAGES
+   + AUTO LINK PRODUCT
 ========================================================= */
 
 /*
- * We keep product_id support here temporarily
- * because your existing upload UI may still send it.
+ * Supports BOTH formats:
  *
- * New multi-product linking should be done through:
+ * 1. One product for the complete upload:
+ *
+ * {
+ *   category_id: 1,
+ *   product_id: "891",
+ *   images: [...]
+ * }
+ *
+ * 2. Different product for each image:
+ *
+ * {
+ *   category_id: 1,
+ *   images: [
+ *     {
+ *       secure_url: "...",
+ *       product_id: "891"
+ *     },
+ *     {
+ *       secure_url: "...",
+ *       product_id: "889"
+ *     }
+ *   ]
+ * }
+ *
+ * Product resolution priority:
+ *
+ * image.product_id
+ *        ↓
+ * body.product_id
+ *        ↓
+ * null
+ *
+ * When a product is resolved:
+ *
+ * 1. inspiration_gallery_images.product_id
+ *    is populated for legacy compatibility.
+ *
+ * 2. inspiration_gallery_image_products
+ *    automatically receives the relationship.
+ *
+ * Later the CMS can replace/correct the links through:
  *
  * PUT /images/:id/products
  */
-/* =========================================================
-   SAVE UPLOADED IMAGES
-   + AUTO LINK PRODUCT
-========================================================= */
 
 const saveUploadedImages = async (body) => {
   const {
     category_id,
-    product_id,
+    product_id: globalProductId,
     images = [],
   } = body;
+
+  /* =========================================================
+     CATEGORY ID
+  ========================================================= */
 
   const categoryId =
     Number(category_id);
 
-  /* =========================================================
-     VALIDATE CATEGORY
-  ========================================================= */
-
-  if (!categoryId) {
+  if (
+    !Number.isInteger(categoryId) ||
+    categoryId <= 0
+  ) {
     throw new Error(
       "Category is required"
     );
   }
+
+  /* =========================================================
+     IMAGES VALIDATION
+  ========================================================= */
 
   if (
     !Array.isArray(images) ||
@@ -803,6 +846,10 @@ const saveUploadedImages = async (body) => {
     );
   }
 
+  /* =========================================================
+     VERIFY CATEGORY
+  ========================================================= */
+
   const category =
     await prisma.inspiration_gallery_categories.findUnique({
       where: {
@@ -811,6 +858,9 @@ const saveUploadedImages = async (body) => {
 
       select: {
         id: true,
+        name: true,
+        slug: true,
+        is_active: true,
       },
     });
 
@@ -821,51 +871,305 @@ const saveUploadedImages = async (body) => {
   }
 
   /* =========================================================
-     PARSE PRODUCT
+     PRODUCT ID PARSER
   ========================================================= */
 
-  let productId = null;
+  const parseProductId = (
+    value
+  ) => {
+    /*
+     * Empty value simply means
+     * no product was selected.
+     */
+    if (
+      value === undefined ||
+      value === null ||
+      value === ""
+    ) {
+      return null;
+    }
 
-  if (
-    product_id !== undefined &&
-    product_id !== null &&
-    product_id !== ""
-  ) {
-    try {
-      productId =
-        BigInt(product_id);
-    } catch {
+    const cleanValue =
+      String(value).trim();
+
+    if (!cleanValue) {
+      return null;
+    }
+
+    /*
+     * Product IDs are PostgreSQL BIGINT,
+     * therefore only numeric values
+     * are accepted.
+     */
+    if (
+      !/^\d+$/.test(
+        cleanValue
+      )
+    ) {
       throw new Error(
-        "Invalid product ID"
+        `Invalid product ID: ${cleanValue}`
       );
     }
-  }
+
+    const parsed =
+      BigInt(cleanValue);
+
+    if (
+      parsed <= 0n
+    ) {
+      throw new Error(
+        `Invalid product ID: ${cleanValue}`
+      );
+    }
+
+    return parsed;
+  };
 
   /* =========================================================
-     VERIFY PRODUCT
+     PARSE GLOBAL PRODUCT
   ========================================================= */
 
-  if (productId !== null) {
-    const product =
-      await prisma.stone_products.findUnique({
+  const parsedGlobalProductId =
+    parseProductId(
+      globalProductId
+    );
+
+  /* =========================================================
+     PREPARE IMAGES
+  ========================================================= */
+
+  const preparedImages =
+    images.map(
+      (
+        image,
+        index
+      ) => {
+        if (
+          !image ||
+          typeof image !==
+            "object"
+        ) {
+          throw new Error(
+            `Invalid image at position ${
+              index + 1
+            }`
+          );
+        }
+
+        /*
+         * secure_url comes from the
+         * completed R2 upload.
+         */
+        const imageUrl =
+          String(
+            image.secure_url ||
+              image.image_url ||
+              ""
+          ).trim();
+
+        if (!imageUrl) {
+          throw new Error(
+            `Image URL is required at position ${
+              index + 1
+            }`
+          );
+        }
+
+        /*
+         * Image-specific product takes
+         * priority over the global product.
+         */
+        const imageProductId =
+          parseProductId(
+            image.product_id
+          );
+
+        const resolvedProductId =
+          imageProductId ??
+          parsedGlobalProductId ??
+          null;
+
+        /* -----------------------------------------------
+           ALT TEXT
+        ------------------------------------------------ */
+
+        const imageAlt =
+          image.image_alt !==
+            undefined &&
+          image.image_alt !==
+            null
+            ? String(
+                image.image_alt
+              ).trim()
+            : "";
+
+        if (
+          imageAlt.length >
+          250
+        ) {
+          throw new Error(
+            `Image alt text cannot exceed 250 characters at position ${
+              index + 1
+            }`
+          );
+        }
+
+        /* -----------------------------------------------
+           TITLE
+        ------------------------------------------------ */
+
+        const title =
+          image.title !==
+            undefined &&
+          image.title !==
+            null
+            ? String(
+                image.title
+              ).trim()
+            : "";
+
+        /* -----------------------------------------------
+           SORT ORDER
+        ------------------------------------------------ */
+
+        let sortOrder = 0;
+
+        if (
+          image.sort_order !==
+            undefined &&
+          image.sort_order !==
+            null &&
+          image.sort_order !==
+            ""
+        ) {
+          const parsedSortOrder =
+            Number(
+              image.sort_order
+            );
+
+          if (
+            Number.isFinite(
+              parsedSortOrder
+            )
+          ) {
+            sortOrder =
+              Math.trunc(
+                parsedSortOrder
+              );
+          }
+        }
+
+        return {
+          imageUrl,
+
+          imageAlt:
+            imageAlt ||
+            null,
+
+          title:
+            title ||
+            null,
+
+          sortOrder,
+
+          productId:
+            resolvedProductId,
+        };
+      }
+    );
+
+  /* =========================================================
+     COLLECT UNIQUE PRODUCT IDS
+  ========================================================= */
+
+  const productIdMap =
+    new Map();
+
+  for (
+    const image of
+    preparedImages
+  ) {
+    if (
+      image.productId ===
+      null
+    ) {
+      continue;
+    }
+
+    productIdMap.set(
+      image.productId.toString(),
+      image.productId
+    );
+  }
+
+  const uniqueProductIds =
+    Array.from(
+      productIdMap.values()
+    );
+
+  /* =========================================================
+     VERIFY PRODUCTS
+  ========================================================= */
+
+  if (
+    uniqueProductIds.length
+  ) {
+    const existingProducts =
+      await prisma.stone_products.findMany({
         where: {
-          id: productId,
+          id: {
+            in:
+              uniqueProductIds,
+          },
         },
 
         select: {
           id: true,
+          name: true,
+          slug: true,
         },
       });
 
-    if (!product) {
+    /*
+     * Make sure every supplied ID
+     * actually exists.
+     */
+    if (
+      existingProducts.length !==
+      uniqueProductIds.length
+    ) {
+      const existingIdSet =
+        new Set(
+          existingProducts.map(
+            (product) =>
+              product.id.toString()
+          )
+        );
+
+      const missingIds =
+        uniqueProductIds
+          .filter(
+            (id) =>
+              !existingIdSet.has(
+                id.toString()
+              )
+          )
+          .map(
+            (id) =>
+              id.toString()
+          );
+
       throw new Error(
-        "Product not found"
+        `Product not found: ${missingIds.join(
+          ", "
+        )}`
       );
     }
   }
 
   /* =========================================================
-     CREATE IMAGES + AUTO LINK PRODUCT
+     CREATE IMAGES
+     + AUTOMATIC JUNCTION LINKS
   ========================================================= */
 
   const createdImages =
@@ -873,10 +1177,13 @@ const saveUploadedImages = async (body) => {
       async (tx) => {
         const results = [];
 
-        for (const image of images) {
-          /* -----------------------------------------------
-             Create gallery image
-          ------------------------------------------------ */
+        for (
+          const image of
+          preparedImages
+        ) {
+          /* ===============================================
+             CREATE GALLERY IMAGE
+          =============================================== */
 
           const createdImage =
             await tx.inspiration_gallery_images.create({
@@ -885,58 +1192,73 @@ const saveUploadedImages = async (body) => {
                   categoryId,
 
                 /*
-                 * Keep legacy field synchronized
-                 * for now.
+                 * LEGACY FIELD
+                 *
+                 * Keep synchronized for now.
                  */
                 product_id:
-                  productId,
+                  image.productId,
 
                 image_url:
-                  image.secure_url,
+                  image.imageUrl,
 
                 image_alt:
-                  image.image_alt ||
-                  null,
+                  image.imageAlt,
 
                 title:
-                  image.title ||
-                  null,
+                  image.title,
 
                 sort_order:
-                  0,
+                  image.sortOrder,
+
+                is_active:
+                  true,
               },
 
               select: {
                 id: true,
+
                 category_id:
                   true,
+
                 product_id:
                   true,
+
                 image_url:
                   true,
+
                 image_alt:
                   true,
+
                 title:
                   true,
+
                 sort_order:
                   true,
+
+                is_active:
+                  true,
+
                 created_at:
                   true,
               },
             });
 
-          /* -----------------------------------------------
-             AUTO LINK PRODUCT
-          ------------------------------------------------ */
+          /* ===============================================
+             AUTOMATIC PRODUCT LINK
+          =============================================== */
 
-          if (productId !== null) {
+          if (
+            image.productId !==
+            null
+          ) {
             await tx.inspiration_gallery_image_products.create({
               data: {
                 image_id:
                   createdImage.id,
 
                 product_id:
-                  productId,
+                  image.productId,
               },
             });
           }
@@ -951,7 +1273,7 @@ const saveUploadedImages = async (body) => {
     );
 
   /* =========================================================
-     SERIALIZE BIGINT
+     RESPONSE
   ========================================================= */
 
   return {
@@ -960,7 +1282,25 @@ const saveUploadedImages = async (body) => {
 
     images:
       createdImages.map(
-        serializeGalleryImage
+        (
+          image
+        ) => ({
+          ...serializeGalleryImage(
+            image
+          ),
+
+          /*
+           * Helpful for frontend/debugging.
+           *
+           * true means the backend created
+           * a junction-table relationship.
+           */
+          product_linked:
+            image.product_id !==
+              null &&
+            image.product_id !==
+              undefined,
+        })
       ),
   };
 };
