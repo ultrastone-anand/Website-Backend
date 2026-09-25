@@ -101,58 +101,60 @@ model stone_categories {
 }
 
 model stone_products {
-  id                     BigInt                @id @default(autoincrement())
-  product_id             String?               @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  category_id            Int
-  name                   String                @db.VarChar(255)
-  slug                   String                @unique @db.VarChar(255)
-  small_description      String?
-  long_description       String?
-  finishes_available     String[]
-  pattern                String?               @db.VarChar(100)
-  thicknesses_cm         String[]
-  average_sizes_inches   String[]
-  stone_group            String?               @db.VarChar(100)
-  translucent            Boolean?              @default(false)
-  cut_to_size            Boolean?              @default(false)
-  origin_country         String?               @db.VarChar(100)
-  pantone_colour         String?               @db.VarChar(100)
-  color_enhancing        Boolean?              @default(false)
-  countertops_vanities   Boolean?              @default(false)
-  interior_floor         Boolean?              @default(false)
-  shower_wall            Boolean?              @default(false)
-  shower_floor           Boolean?              @default(false)
-  exterior_floor         Boolean?              @default(false)
-  exterior_wall          Boolean?              @default(false)
-  pool_fountain          Boolean?              @default(false)
-  fireplace              Boolean?              @default(false)
-  furniture_top          Boolean?              @default(false)
-  abrasion_resistance    String?               @db.VarChar(20)
-  stain_resistance       String?               @db.VarChar(20)
-  etching_resistance     String?               @db.VarChar(20)
-  heat_resistance        String?               @db.VarChar(20)
-  uv_resistance          String?               @db.VarChar(20)
-  color_range            String?               @db.VarChar(20)
-  movement_index         String?               @db.VarChar(20)
-  variation_level        String?               @db.VarChar(10)
-  is_featured            Boolean?              @default(false)
-  is_trending            Boolean?              @default(false)
-  is_new_arrival         Boolean?              @default(false)
-  is_active              Boolean?              @default(true)
-  created_at             DateTime?             @default(now()) @db.Timestamp(6)
-  updated_at             DateTime?             @default(now()) @db.Timestamp(6)
-  interior_wall          Boolean?
-  sealer                 String?               @db.VarChar(100)
-  silica_warning         Boolean?              @default(false)
-  silica_warning_message String?
-  silica_datasheet_url   String?
-  is_published           Boolean?              @default(false)
-  product_faqs           product_faqs[]
-  product_remarks        product_remarks[]
-  stone_product_lots     stone_product_lots[]
-  media                  stone_product_media[]
-  stone_product_seo      stone_product_seo?
-  stone_categories       stone_categories      @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                                 BigInt                               @id @default(autoincrement())
+  product_id                         String?                              @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  category_id                        Int
+  name                               String                               @db.VarChar(255)
+  slug                               String                               @unique @db.VarChar(255)
+  small_description                  String?
+  long_description                   String?
+  finishes_available                 String[]
+  pattern                            String?                              @db.VarChar(100)
+  thicknesses_cm                     String[]
+  average_sizes_inches               String[]
+  stone_group                        String?                              @db.VarChar(100)
+  translucent                        Boolean?                             @default(false)
+  cut_to_size                        Boolean?                             @default(false)
+  origin_country                     String?                              @db.VarChar(100)
+  pantone_colour                     String?                              @db.VarChar(100)
+  color_enhancing                    Boolean?                             @default(false)
+  countertops_vanities               Boolean?                             @default(false)
+  interior_floor                     Boolean?                             @default(false)
+  shower_wall                        Boolean?                             @default(false)
+  shower_floor                       Boolean?                             @default(false)
+  exterior_floor                     Boolean?                             @default(false)
+  exterior_wall                      Boolean?                             @default(false)
+  pool_fountain                      Boolean?                             @default(false)
+  fireplace                          Boolean?                             @default(false)
+  furniture_top                      Boolean?                             @default(false)
+  abrasion_resistance                String?                              @db.VarChar(20)
+  stain_resistance                   String?                              @db.VarChar(20)
+  etching_resistance                 String?                              @db.VarChar(20)
+  heat_resistance                    String?                              @db.VarChar(20)
+  uv_resistance                      String?                              @db.VarChar(20)
+  color_range                        String?                              @db.VarChar(20)
+  movement_index                     String?                              @db.VarChar(20)
+  variation_level                    String?                              @db.VarChar(10)
+  is_featured                        Boolean?                             @default(false)
+  is_trending                        Boolean?                             @default(false)
+  is_new_arrival                     Boolean?                             @default(false)
+  is_active                          Boolean?                             @default(true)
+  created_at                         DateTime?                            @default(now()) @db.Timestamp(6)
+  updated_at                         DateTime?                            @default(now()) @db.Timestamp(6)
+  interior_wall                      Boolean?
+  sealer                             String?                              @db.VarChar(100)
+  silica_warning                     Boolean?                             @default(false)
+  silica_warning_message             String?
+  silica_datasheet_url               String?
+  is_published                       Boolean                              @default(false)
+  inspiration_gallery_image_products inspiration_gallery_image_products[]
+  inspiration_gallery_images         inspiration_gallery_images[]
+  product_faqs                       product_faqs[]
+  product_remarks                    product_remarks[]
+  stone_product_lots                 stone_product_lots[]
+  media                              stone_product_media[]
+  stone_product_seo                  stone_product_seo?
+  stone_categories                   stone_categories                     @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model stone_product_media {
@@ -352,18 +354,22 @@ model inspiration_gallery_categories {
 }
 
 model inspiration_gallery_images {
-  id                             Int                            @id @default(autoincrement())
-  category_id                    Int
-  image_url                      String
-  image_alt                      String?                        @db.VarChar(255)
-  title                          String?                        @db.VarChar(255)
-  sort_order                     Int                            @default(0)
-  is_active                      Boolean                        @default(true)
-  created_at                     DateTime                       @default(now()) @db.Timestamp(6)
-  updated_at                     DateTime                       @default(now()) @db.Timestamp(6)
-  inspiration_gallery_categories inspiration_gallery_categories @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_inspiration_gallery_category")
+  id                                 Int                                  @id @default(autoincrement())
+  category_id                        Int
+  image_url                          String
+  image_alt                          String?                              @db.VarChar(255)
+  title                              String?                              @db.VarChar(255)
+  sort_order                         Int                                  @default(0)
+  is_active                          Boolean                              @default(true)
+  created_at                         DateTime                             @default(now()) @db.Timestamp(6)
+  updated_at                         DateTime                             @default(now()) @db.Timestamp(6)
+  product_id                         BigInt?
+  inspiration_gallery_image_products inspiration_gallery_image_products[]
+  inspiration_gallery_categories     inspiration_gallery_categories       @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_inspiration_gallery_category")
+  stone_products                     stone_products?                      @relation(fields: [product_id], references: [id], map: "fk_inspiration_gallery_product")
 
   @@index([category_id], map: "idx_inspiration_gallery_images_category_id")
+  @@index([product_id], map: "idx_inspiration_gallery_images_product_id")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -678,6 +684,18 @@ model home_hero_holidays {
   @@index([is_enabled], map: "idx_home_hero_holidays_enabled")
   @@index([priority(sort: Desc)], map: "idx_home_hero_holidays_priority")
   @@index([force_active], map: "idx_home_hero_holidays_force_active")
+}
+
+model inspiration_gallery_image_products {
+  image_id                   Int
+  product_id                 BigInt
+  created_at                 DateTime                   @default(now()) @db.Timestamp(6)
+  inspiration_gallery_images inspiration_gallery_images @relation(fields: [image_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_gallery_image_products_image")
+  stone_products             stone_products             @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_gallery_image_products_product")
+
+  @@id([image_id, product_id], map: "pk_inspiration_gallery_image_products")
+  @@index([image_id], map: "idx_gallery_image_products_image")
+  @@index([product_id], map: "idx_gallery_image_products_product")
 }
 
 enum blog_media_type {

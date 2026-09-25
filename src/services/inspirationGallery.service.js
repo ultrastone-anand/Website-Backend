@@ -1,6 +1,14 @@
 const prisma = require("../config/prisma");
-const { deleteFileFromR2 } = require("../utils/uploadToR2");
-const { createR2UploadUrl } = require("../utils/r2Presigned");
+const {
+  deleteFileFromR2,
+} = require("../utils/uploadToR2");
+const {
+  createR2UploadUrl,
+} = require("../utils/r2Presigned");
+
+/* =========================================================
+   HELPERS
+========================================================= */
 
 const slugify = (text) =>
   text
@@ -12,17 +20,47 @@ const slugify = (text) =>
     .replace(/[^\w-]/g, "")
     .replace(/--+/g, "-");
 
+/* =========================================================
+   SERIALIZATION HELPERS
+========================================================= */
+
+const serializeGalleryImage = (image) => ({
+  ...image,
+
+  product_id:
+    image.product_id !== null &&
+    image.product_id !== undefined
+      ? image.product_id.toString()
+      : null,
+});
+
+const serializeProduct = (product) => ({
+  ...product,
+
+  id:
+    product.id !== null &&
+    product.id !== undefined
+      ? product.id.toString()
+      : null,
+});
+
+/* =========================================================
+   CATEGORIES
+========================================================= */
+
 const getCategories = async () => {
   return prisma.inspiration_gallery_categories.findMany({
     where: {
       is_active: true,
     },
+
     select: {
       id: true,
       name: true,
       slug: true,
       sort_order: true,
     },
+
     orderBy: {
       sort_order: "asc",
     },
@@ -33,223 +71,358 @@ const createCategory = async (body) => {
   const { name } = body;
 
   if (!name) {
-    throw new Error("Category name is required");
+    throw new Error(
+      "Category name is required"
+    );
   }
 
-  const slug = slugify(name);
+  const cleanName =
+    String(name).trim();
 
-  const existing = await prisma.inspiration_gallery_categories.findUnique({
-    where: {
-      slug,
-    },
-  });
+  if (!cleanName) {
+    throw new Error(
+      "Category name is required"
+    );
+  }
+
+  const slug =
+    slugify(cleanName);
+
+  const existing =
+    await prisma.inspiration_gallery_categories.findUnique({
+      where: {
+        slug,
+      },
+    });
 
   if (existing) {
-    throw new Error("Category already exists");
+    throw new Error(
+      "Category already exists"
+    );
   }
 
-  const lastCategory = await prisma.inspiration_gallery_categories.findFirst({
-    orderBy: {
-      sort_order: "desc",
-    },
-  });
+  const lastCategory =
+    await prisma.inspiration_gallery_categories.findFirst({
+      orderBy: {
+        sort_order: "desc",
+      },
+    });
 
   return prisma.inspiration_gallery_categories.create({
     data: {
-      name,
+      name: cleanName,
       slug,
-      sort_order: (lastCategory?.sort_order || 0) + 1,
+
+      sort_order:
+        (lastCategory?.sort_order || 0) +
+        1,
     },
   });
 };
 
-const updateCategory = async (id, body) => {
-  const { name, sort_order, is_active } = body;
+const updateCategory = async (
+  id,
+  body
+) => {
+  const {
+    name,
+    sort_order,
+    is_active,
+  } = body;
 
-  const category = await prisma.inspiration_gallery_categories.findUnique({
-    where: { id },
-  });
+  const category =
+    await prisma.inspiration_gallery_categories.findUnique({
+      where: {
+        id,
+      },
+    });
 
   if (!category) {
-    throw new Error("Category not found");
+    throw new Error(
+      "Category not found"
+    );
   }
 
   const data = {};
 
-  if (name) {
-    const slug = slugify(name);
+  if (name !== undefined) {
+    const cleanName =
+      String(name).trim();
 
-    const existing = await prisma.inspiration_gallery_categories.findFirst({
-      where: {
-        slug,
-        NOT: {
-          id,
-        },
-      },
-    });
-
-    if (existing) {
-      throw new Error("Category already exists");
+    if (!cleanName) {
+      throw new Error(
+        "Category name is required"
+      );
     }
 
-    data.name = name;
-    data.slug = slug;
+    const slug =
+      slugify(cleanName);
+
+    const existing =
+      await prisma.inspiration_gallery_categories.findFirst({
+        where: {
+          slug,
+
+          NOT: {
+            id,
+          },
+        },
+      });
+
+    if (existing) {
+      throw new Error(
+        "Category already exists"
+      );
+    }
+
+    data.name =
+      cleanName;
+
+    data.slug =
+      slug;
   }
 
-  if (sort_order !== undefined) {
-    data.sort_order = Number(sort_order);
+  if (
+    sort_order !== undefined
+  ) {
+    data.sort_order =
+      Number(sort_order);
   }
 
-  if (is_active !== undefined) {
-    data.is_active = Boolean(is_active);
+  if (
+    is_active !== undefined
+  ) {
+    data.is_active =
+      Boolean(is_active);
   }
 
   return prisma.inspiration_gallery_categories.update({
-    where: { id },
+    where: {
+      id,
+    },
+
     data,
   });
 };
 
-const deleteCategory = async (id) => {
-  const category = await prisma.inspiration_gallery_categories.findUnique({
-    where: { id },
-    include: {
-      inspiration_gallery_images: true,
-    },
-  });
+const deleteCategory = async (
+  id
+) => {
+  const category =
+    await prisma.inspiration_gallery_categories.findUnique({
+      where: {
+        id,
+      },
+
+      include: {
+        inspiration_gallery_images:
+          true,
+      },
+    });
 
   if (!category) {
-    throw new Error("Category not found");
+    throw new Error(
+      "Category not found"
+    );
   }
 
-  const publicUrl = process.env.R2_PUBLIC_URL;
+  const publicUrl =
+    process.env.R2_PUBLIC_URL;
 
-  for (const image of category.inspiration_gallery_images) {
+  /*
+   * Delete physical files from R2 first.
+   *
+   * PostgreSQL cascade will remove:
+   *
+   * category
+   *   -> gallery images
+   *      -> image/product junction rows
+   */
+  for (
+    const image of
+    category.inspiration_gallery_images
+  ) {
     let objectKey = "";
 
-    if (image.image_url && publicUrl) {
-      objectKey = image.image_url.replace(`${publicUrl}/`, "");
+    if (
+      image.image_url &&
+      publicUrl
+    ) {
+      objectKey =
+        image.image_url.replace(
+          `${publicUrl}/`,
+          ""
+        );
     }
 
     if (objectKey) {
-      await deleteFileFromR2(objectKey);
+      await deleteFileFromR2(
+        objectKey
+      );
     }
   }
 
   return prisma.inspiration_gallery_categories.delete({
-    where: { id },
+    where: {
+      id,
+    },
   });
 };
+
+/* =========================================================
+   GALLERY IMAGE SELECT
+========================================================= */
+
+const imageSelect = {
+  id: true,
+  category_id: true,
+
+  /*
+   * Legacy field.
+   *
+   * Keep temporarily for compatibility
+   * with existing data/frontend.
+   */
+  product_id: true,
+
+  image_url: true,
+  image_alt: true,
+  title: true,
+  sort_order: true,
+  created_at: true,
+
+  inspiration_gallery_categories: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+    },
+  },
+};
+
+/* =========================================================
+   GET GALLERY IMAGES
+========================================================= */
 
 const getImages = async ({
   categoryId,
   page = 1,
   limit = 20,
 }) => {
-  const parsedCategoryId = Number(categoryId);
+  const parsedCategoryId =
+    Number(categoryId);
 
-  const safePage = Math.max(
-    Number(page) || 1,
-    1
-  );
+  const safePage =
+    Math.max(
+      Number(page) || 1,
+      1
+    );
 
-  const safeLimit = Math.min(
-    Math.max(Number(limit) || 20, 1),
-    50
-  );
+  const safeLimit =
+    Math.min(
+      Math.max(
+        Number(limit) || 20,
+        1
+      ),
+      50
+    );
 
   const skip =
-    (safePage - 1) * safeLimit;
+    (safePage - 1) *
+    safeLimit;
 
   const endIndex =
     skip + safeLimit;
 
-  const imageSelect = {
-    id: true,
-    category_id: true,
-    image_url: true,
-    image_alt: true,
-    title: true,
-    sort_order: true,
-    created_at: true,
-    inspiration_gallery_categories: {
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-      },
-    },
-  };
+  /* ---------------------------------------------------------
+     CATEGORY FILTER
+  --------------------------------------------------------- */
 
-  /*
-   * A category was selected.
-   * Return paginated images for only that category.
-   */
   if (parsedCategoryId) {
     const where = {
       is_active: true,
-      category_id: parsedCategoryId,
-      inspiration_gallery_categories: {
-        is: {
-          is_active: true,
+
+      category_id:
+        parsedCategoryId,
+
+      inspiration_gallery_categories:
+        {
+          is: {
+            is_active: true,
+          },
         },
-      },
     };
 
-    const [images, total] =
-      await Promise.all([
-        prisma.inspiration_gallery_images.findMany({
-          where,
-          select: imageSelect,
-          orderBy: [
-            {
-              sort_order: "asc",
-            },
-            {
-              created_at: "desc",
-            },
-            {
-              id: "desc",
-            },
-          ],
-          skip,
-          take: safeLimit,
-        }),
+    const [
+      images,
+      total,
+    ] = await Promise.all([
+      prisma.inspiration_gallery_images.findMany({
+        where,
 
-        prisma.inspiration_gallery_images.count({
-          where,
-        }),
-      ]);
+        select:
+          imageSelect,
 
-    const totalPages = Math.ceil(
-      total / safeLimit
-    );
+        orderBy: [
+          {
+            sort_order: "asc",
+          },
+          {
+            created_at: "desc",
+          },
+          {
+            id: "desc",
+          },
+        ],
+
+        skip,
+        take: safeLimit,
+      }),
+
+      prisma.inspiration_gallery_images.count({
+        where,
+      }),
+    ]);
+
+    const totalPages =
+      Math.ceil(
+        total /
+          safeLimit
+      );
 
     return {
-      images,
+      images:
+        images.map(
+          serializeGalleryImage
+        ),
+
       pagination: {
         page: safePage,
         limit: safeLimit,
         total,
         totalPages,
+
         hasMore:
-          safePage < totalPages,
+          safePage <
+          totalPages,
       },
     };
   }
 
-  /*
-   * No category was selected.
-   * Retrieve all active categories.
-   */
+  /* ---------------------------------------------------------
+     ALL CATEGORIES
+  --------------------------------------------------------- */
+
   const categories =
     await prisma.inspiration_gallery_categories.findMany({
       where: {
         is_active: true,
       },
+
       select: {
         id: true,
       },
+
       orderBy: [
         {
           sort_order: "asc",
@@ -263,6 +436,7 @@ const getImages = async ({
   if (!categories.length) {
     return {
       images: [],
+
       pagination: {
         page: safePage,
         limit: safeLimit,
@@ -273,14 +447,17 @@ const getImages = async ({
     };
   }
 
-  const categoryIds = categories.map(
-    (category) => category.id
-  );
+  const categoryIds =
+    categories.map(
+      (category) =>
+        category.id
+    );
 
   const total =
     await prisma.inspiration_gallery_images.count({
       where: {
         is_active: true,
+
         category_id: {
           in: categoryIds,
         },
@@ -288,60 +465,73 @@ const getImages = async ({
     });
 
   /*
-   * Fetch enough images from every category to construct
-   * all round-robin results through the requested page.
-   *
-   * Example:
-   * Page 2, limit 50:
-   * skip = 50
-   * endIndex = 100
-   *
-   * The round-robin list is built through item 100,
-   * then sliced from 50 to 100.
+   * Preserve your existing round-robin
+   * category mixing behavior.
    */
   const categoryImageGroups =
     await Promise.all(
-      categories.map((category) =>
-        prisma.inspiration_gallery_images.findMany({
-          where: {
-            is_active: true,
-            category_id: category.id,
-          },
-          select: imageSelect,
-          orderBy: [
-            {
-              sort_order: "asc",
+      categories.map(
+        (category) =>
+          prisma.inspiration_gallery_images.findMany({
+            where: {
+              is_active:
+                true,
+
+              category_id:
+                category.id,
             },
-            {
-              created_at: "desc",
-            },
-            {
-              id: "desc",
-            },
-          ],
-          take: endIndex,
-        })
+
+            select:
+              imageSelect,
+
+            orderBy: [
+              {
+                sort_order:
+                  "asc",
+              },
+              {
+                created_at:
+                  "desc",
+              },
+              {
+                id:
+                  "desc",
+              },
+            ],
+
+            take:
+              endIndex,
+          })
       )
     );
 
   const mixedImages = [];
+
   let imageIndex = 0;
 
   while (
-    mixedImages.length < endIndex
+    mixedImages.length <
+    endIndex
   ) {
-    let imageAdded = false;
+    let imageAdded =
+      false;
 
     for (
       const categoryImages of
       categoryImageGroups
     ) {
       const image =
-        categoryImages[imageIndex];
+        categoryImages[
+          imageIndex
+        ];
 
       if (image) {
-        mixedImages.push(image);
-        imageAdded = true;
+        mixedImages.push(
+          image
+        );
+
+        imageAdded =
+          true;
       }
 
       if (
@@ -365,419 +555,948 @@ const getImages = async ({
       endIndex
     );
 
-  const totalPages = Math.ceil(
-    total / safeLimit
-  );
+  const totalPages =
+    Math.ceil(
+      total /
+        safeLimit
+    );
 
   return {
-    images: paginatedImages,
+    images:
+      paginatedImages.map(
+        serializeGalleryImage
+      ),
+
     pagination: {
       page: safePage,
       limit: safeLimit,
       total,
       totalPages,
+
       hasMore:
-        safePage < totalPages,
+        safePage <
+        totalPages,
     },
   };
 };
 
-
-/* =========================================================
-   PRODUCT IMAGE MATCHING HELPERS
-========================================================= */
-
-const normalizeProductValue = (value = "") => {
-  return String(value)
-    .trim()
-    .toLowerCase()
-    .replace(/%20/g, " ")
-    .replace(/[_\s]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
-};
-
-const removeUploadPrefix = (filename = "") => {
-  return String(filename).replace(
-    /^\d+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i,
-    ""
-  );
-};
-
-const removeFileExtension = (filename = "") => {
-  return String(filename).replace(
-    /\.[a-z0-9]+$/i,
-    ""
-  );
-};
-
-const getNormalizedImageFilename = (
-  imageUrl = ""
-) => {
-  try {
-    const pathname =
-      decodeURIComponent(
-        new URL(imageUrl).pathname
-      );
-
-    const filename =
-      pathname
-        .split("/")
-        .pop() || "";
-
-    const cleanFilename =
-      removeUploadPrefix(
-        filename
-      );
-
-    const filenameWithoutExtension =
-      removeFileExtension(
-        cleanFilename
-      );
-
-    return normalizeProductValue(
-      filenameWithoutExtension
-    );
-  } catch {
-    return "";
-  }
-};
 /* =========================================================
    GET IMAGES BY PRODUCT SLUG
 ========================================================= */
 
+/*
+ * IMPORTANT:
+ *
+ * This now uses:
+ *
+ * inspiration_gallery_image_products
+ *
+ * instead of relying only on:
+ *
+ * inspiration_gallery_images.product_id
+ */
 const getImagesBySlug = async (
   slug
 ) => {
-  const normalizedSlug =
-    normalizeProductValue(
-      slug
-    );
+  const cleanSlug =
+    String(
+      slug || ""
+    ).trim();
 
-  if (!normalizedSlug) {
+  if (!cleanSlug) {
     throw new Error(
       "Product slug is required"
     );
   }
 
-  /*
-   * Support all historical filename styles:
-   *
-   * ariston-leather
-   * ariston_leather
-   * ariston leather
-   */
+  const product =
+    await prisma.stone_products.findUnique({
+      where: {
+        slug:
+          cleanSlug,
+      },
 
-  const underscoreSlug =
-    normalizedSlug.replace(
-      /-/g,
-      "_"
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+    });
+
+  if (!product) {
+    throw new Error(
+      "Product not found"
     );
-
-  const spaceSlug =
-    normalizedSlug.replace(
-      /-/g,
-      " "
-    );
+  }
 
   /*
-   * Database pre-filter.
+   * Search through the junction table.
    *
-   * We cannot search only for:
+   * During migration we ALSO check the
+   * old product_id column.
    *
-   * ariston-leather
-   *
-   * because existing R2 files may contain:
-   *
-   * ariston_leather
+   * This prevents old gallery records
+   * from disappearing if they haven't
+   * been migrated yet.
    */
-
   const images =
-    await prisma
-      .inspiration_gallery_images
-      .findMany({
+    await prisma.inspiration_gallery_images.findMany({
+      where: {
+        is_active: true,
+
+        inspiration_gallery_categories:
+          {
+            is: {
+              is_active:
+                true,
+            },
+          },
+
+        OR: [
+          {
+            inspiration_gallery_image_products:
+              {
+                some: {
+                  product_id:
+                    product.id,
+                },
+              },
+          },
+
+          /*
+           * Legacy fallback.
+           */
+          {
+            product_id:
+              product.id,
+          },
+        ],
+      },
+
+      select:
+        imageSelect,
+
+      orderBy: [
+        {
+          sort_order:
+            "asc",
+        },
+        {
+          created_at:
+            "desc",
+        },
+        {
+          id:
+            "desc",
+        },
+      ],
+    });
+
+  return images.map(
+    serializeGalleryImage
+  );
+};
+
+/* =========================================================
+   CREATE R2 UPLOAD URLS
+========================================================= */
+
+const createImageUploadUrls = async (
+  body
+) => {
+  const {
+    category_id,
+    files = [],
+  } = body;
+
+  const categoryId =
+    Number(
+      category_id
+    );
+
+  if (!categoryId) {
+    throw new Error(
+      "Category is required"
+    );
+  }
+
+  if (
+    !Array.isArray(files) ||
+    !files.length
+  ) {
+    throw new Error(
+      "Files are required"
+    );
+  }
+
+  const category =
+    await prisma.inspiration_gallery_categories.findUnique({
+      where: {
+        id:
+          categoryId,
+      },
+    });
+
+  if (!category) {
+    throw new Error(
+      "Category not found"
+    );
+  }
+
+  const folder =
+    `Home Page/inspiration galleries/${category.slug}`;
+
+  return Promise.all(
+    files.map(
+      (file) =>
+        createR2UploadUrl(
+          file.fileName,
+          folder
+        )
+    )
+  );
+};
+
+/* =========================================================
+   SAVE UPLOADED IMAGES
+========================================================= */
+
+/*
+ * We keep product_id support here temporarily
+ * because your existing upload UI may still send it.
+ *
+ * New multi-product linking should be done through:
+ *
+ * PUT /images/:id/products
+ */
+const saveUploadedImages = async (
+  body
+) => {
+  const {
+    category_id,
+    product_id,
+    images = [],
+  } = body;
+
+  const categoryId =
+    Number(
+      category_id
+    );
+
+  let productId =
+    null;
+
+  if (
+    product_id !== undefined &&
+    product_id !== null &&
+    product_id !== ""
+  ) {
+    try {
+      productId =
+        BigInt(
+          product_id
+        );
+    } catch {
+      throw new Error(
+        "Invalid product ID"
+      );
+    }
+  }
+
+  if (!categoryId) {
+    throw new Error(
+      "Category is required"
+    );
+  }
+
+  if (
+    !Array.isArray(images) ||
+    !images.length
+  ) {
+    throw new Error(
+      "Images are required"
+    );
+  }
+
+  const category =
+    await prisma.inspiration_gallery_categories.findUnique({
+      where: {
+        id:
+          categoryId,
+      },
+
+      select: {
+        id: true,
+      },
+    });
+
+  if (!category) {
+    throw new Error(
+      "Category not found"
+    );
+  }
+
+  if (
+    productId !== null
+  ) {
+    const product =
+      await prisma.stone_products.findUnique({
         where: {
-          is_active: true,
-
-          OR: [
-            {
-              image_url: {
-                contains:
-                  normalizedSlug,
-                mode:
-                  "insensitive",
-              },
-            },
-
-            {
-              image_url: {
-                contains:
-                  underscoreSlug,
-                mode:
-                  "insensitive",
-              },
-            },
-
-            {
-              image_url: {
-                contains:
-                  spaceSlug,
-                mode:
-                  "insensitive",
-              },
-            },
-          ],
+          id:
+            productId,
         },
 
         select: {
           id: true,
-          category_id: true,
-          image_url: true,
-          image_alt: true,
-          title: true,
-          sort_order: true,
-          created_at: true,
-
-          inspiration_gallery_categories:
-            {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-              },
-            },
         },
-
-        orderBy: [
-          {
-            sort_order:
-              "asc",
-          },
-          {
-            created_at:
-              "desc",
-          },
-          {
-            id: "desc",
-          },
-        ],
       });
 
-  return images.filter(
-    (image) => {
-      const filename =
-        getNormalizedImageFilename(
-          image.image_url
-        );
+    if (!product) {
+      throw new Error(
+        "Product not found"
+      );
+    }
+  }
 
-      if (!filename) {
-        return false;
-      }
+  /*
+   * Existing behavior preserved.
+   *
+   * New gallery images can still contain the
+   * legacy product_id until we completely
+   * remove that column later.
+   */
+  const result =
+    await prisma.inspiration_gallery_images.createMany({
+      data:
+        images.map(
+          (image) => ({
+            category_id:
+              categoryId,
+
+            product_id:
+              productId,
+
+            image_url:
+              image.secure_url,
+
+            image_alt:
+              image.image_alt ||
+              null,
+
+            title:
+              image.title ||
+              null,
+
+            sort_order:
+              0,
+          })
+        ),
+    });
+
+  return result;
+};
+
+/* =========================================================
+   SEARCH PRODUCTS
+========================================================= */
+
+/*
+ * Used by:
+ *
+ * GET /inspiration-gallery/products
+ * GET /inspiration-gallery/products?search=calacatta
+ *
+ * Only active + published products are returned.
+ */
+const searchProducts = async (
+  search = ""
+) => {
+  const cleanSearch =
+    String(
+      search || ""
+    ).trim();
+
+  const where = {
+    is_active: true,
+    is_published: true,
+  };
+
+  if (cleanSearch) {
+    where.OR = [
+      {
+        name: {
+          contains:
+            cleanSearch,
+
+          mode:
+            "insensitive",
+        },
+      },
+
+      {
+        slug: {
+          contains:
+            cleanSearch,
+
+          mode:
+            "insensitive",
+        },
+      },
+    ];
+  }
+
+  const products =
+    await prisma.stone_products.findMany({
+      where,
+
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+
+        stone_categories: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+
+        /*
+         * Useful for displaying a thumbnail
+         * inside the CMS selector.
+         */
+        media: {
+          where: {
+            media_type: {
+              in: [
+                "CLOSEUP_IMAGE",
+                "SLAB_IMAGE",
+              ],
+            },
+          },
+
+          select: {
+            id: true,
+            media_type: true,
+            media_url: true,
+            alt_text: true,
+            display_order: true,
+          },
+
+          orderBy: {
+            display_order:
+              "asc",
+          },
+
+          take: 1,
+        },
+      },
+
+      orderBy: {
+        name: "asc",
+      },
 
       /*
-       * Exact filename.
-       *
-       * ariston-leather.jpg
+       * Prevent accidentally returning
+       * hundreds of products at once.
        */
-      if (
-        filename ===
-        normalizedSlug
-      ) {
-        return true;
-      }
+      take: cleanSearch
+        ? 50
+        : 50,
+    });
 
-      if (
-        !filename.startsWith(
-          `${normalizedSlug}-`
-        )
-      ) {
-        return false;
-      }
+  /*
+   * Prisma BigInt cannot be JSON.stringify'd.
+   * Convert product/media IDs to strings.
+   */
+  return products.map(
+    (product) => ({
+      id:
+        product.id.toString(),
 
-      /*
-       * Everything appearing after
-       * the requested product slug.
-       *
-       * havana-uq1184
-       *
-       * requested:
-       * havana
-       *
-       * remainder:
-       * uq1184
-       */
-      const remainder =
-        filename.slice(
-          normalizedSlug.length +
-            1
-        );
+      name:
+        product.name,
 
-      if (!remainder) {
-        return true;
-      }
+      slug:
+        product.slug,
 
-      const firstPart =
-        remainder
-          .split("-")[0]
-          ?.trim();
+      category:
+        product.stone_categories
+          ? {
+              id:
+                product
+                  .stone_categories
+                  .id,
 
-      if (!firstPart) {
-        return true;
-      }
+              name:
+                product
+                  .stone_categories
+                  .name,
 
-      /*
-       * Product/code identifiers commonly used
-       * in your gallery filenames.
-       *
-       * Examples:
-       *
-       * havana-uq1184
-       * lincoln-uq2024
-       * calacatta-...-uq2070
-       *
-       * These are allowed.
-       */
-      const codePattern =
-        /^(?:uq)?\d+[a-z]*$/i;
+              slug:
+                product
+                  .stone_categories
+                  .slug,
+            }
+          : null,
 
-      if (
-        codePattern.test(
-          firstPart
-        )
-      ) {
-        return true;
-      }
+      thumbnail:
+        product.media?.[0]
+          ? {
+              id:
+                product.media[
+                  0
+                ].id.toString(),
 
-      /*
-       * Common camera / image identifiers.
-       *
-       * Example:
-       *
-       * product-dsc033
-       */
-      const cameraPattern =
-        /^(?:dsc|img|image|photo|render)\d*$/i;
+              media_type:
+                product.media[
+                  0
+                ].media_type,
 
-      if (
-        cameraPattern.test(
-          firstPart
-        )
-      ) {
-        return true;
-      }
+              media_url:
+                product.media[
+                  0
+                ].media_url,
 
-      /*
-       * IMPORTANT:
-       *
-       * Reject another product-name word.
-       *
-       * Example:
-       *
-       * requested:
-       * havana
-       *
-       * filename:
-       * havana-gold-uq1234
-       *
-       * remainder:
-       * gold-uq1234
-       *
-       * firstPart:
-       * gold
-       *
-       * => false
-       *
-       *
-       * requested:
-       * lincoln
-       *
-       * filename:
-       * lincoln-gold-dsc033
-       *
-       * => false
-       */
-      return false;
+              alt_text:
+                product.media[
+                  0
+                ].alt_text,
+            }
+          : null,
+    })
+  );
+};
+
+/* =========================================================
+   GET PRODUCTS LINKED TO ONE IMAGE
+========================================================= */
+
+/*
+ * GET /images/:id/products
+ */
+const getImageProducts = async (
+  imageId
+) => {
+  const image =
+    await prisma.inspiration_gallery_images.findUnique({
+      where: {
+        id:
+          imageId,
+      },
+
+      select: {
+        id: true,
+      },
+    });
+
+  if (!image) {
+    throw new Error(
+      "Gallery image not found"
+    );
+  }
+
+  const links =
+    await prisma.inspiration_gallery_image_products.findMany({
+      where: {
+        image_id:
+          imageId,
+      },
+
+      select: {
+        product_id: true,
+        created_at: true,
+
+        stone_products: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+
+            is_active:
+              true,
+
+            is_published:
+              true,
+
+            stone_categories:
+              {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                },
+              },
+
+            media: {
+              where: {
+                media_type: {
+                  in: [
+                    "CLOSEUP_IMAGE",
+                    "SLAB_IMAGE",
+                  ],
+                },
+              },
+
+              select: {
+                id: true,
+                media_type:
+                  true,
+                media_url:
+                  true,
+                alt_text:
+                  true,
+                display_order:
+                  true,
+              },
+
+              orderBy: {
+                display_order:
+                  "asc",
+              },
+
+              take: 1,
+            },
+          },
+        },
+      },
+
+      orderBy: {
+        created_at:
+          "asc",
+      },
+    });
+
+  return links.map(
+    (link) => {
+      const product =
+        link.stone_products;
+
+      return {
+        id:
+          product.id.toString(),
+
+        name:
+          product.name,
+
+        slug:
+          product.slug,
+
+        is_active:
+          product.is_active,
+
+        is_published:
+          product.is_published,
+
+        category:
+          product.stone_categories
+            ? {
+                id:
+                  product
+                    .stone_categories
+                    .id,
+
+                name:
+                  product
+                    .stone_categories
+                    .name,
+
+                slug:
+                  product
+                    .stone_categories
+                    .slug,
+              }
+            : null,
+
+        thumbnail:
+          product.media?.[0]
+            ? {
+                id:
+                  product.media[
+                    0
+                  ].id.toString(),
+
+                media_type:
+                  product.media[
+                    0
+                  ].media_type,
+
+                media_url:
+                  product.media[
+                    0
+                  ].media_url,
+
+                alt_text:
+                  product.media[
+                    0
+                  ].alt_text,
+              }
+            : null,
+      };
     }
   );
 };
 
-const createImageUploadUrls = async (body) => {
-  const { category_id, files = [] } = body;
+/* =========================================================
+   UPDATE PRODUCTS LINKED TO ONE IMAGE
+========================================================= */
 
-  const categoryId = Number(category_id);
+/*
+ * PUT /images/:id/products
+ *
+ * {
+ *   "product_ids": [
+ *      "891",
+ *      "889",
+ *      "887"
+ *   ]
+ * }
+ *
+ * This REPLACES the complete existing selection.
+ *
+ * [] means unlink everything.
+ */
+const updateImageProducts = async (
+  imageId,
+  productIds
+) => {
+  /* ---------------------------------------------------------
+     Validate image
+  --------------------------------------------------------- */
 
-  if (!categoryId) {
-    throw new Error("Category is required");
+  const image =
+    await prisma.inspiration_gallery_images.findUnique({
+      where: {
+        id:
+          imageId,
+      },
+
+      select: {
+        id: true,
+      },
+    });
+
+  if (!image) {
+    throw new Error(
+      "Gallery image not found"
+    );
   }
 
-  if (!files.length) {
-    throw new Error("Files are required");
+  /* ---------------------------------------------------------
+     Convert product IDs to BigInt
+  --------------------------------------------------------- */
+
+  let parsedProductIds;
+
+  try {
+    parsedProductIds =
+      productIds.map(
+        (id) => {
+          const cleanId =
+            String(
+              id
+            ).trim();
+
+          if (
+            !/^\d+$/.test(
+              cleanId
+            )
+          ) {
+            throw new Error();
+          }
+
+          const parsed =
+            BigInt(
+              cleanId
+            );
+
+          if (
+            parsed <= 0n
+          ) {
+            throw new Error();
+          }
+
+          return parsed;
+        }
+      );
+  } catch {
+    throw new Error(
+      "Invalid product ID"
+    );
   }
 
-  const category = await prisma.inspiration_gallery_categories.findUnique({
-    where: {
-      id: categoryId,
-    },
-  });
+  /*
+   * Remove duplicate IDs.
+   */
+  const uniqueProductIds =
+    [
+      ...new Map(
+        parsedProductIds.map(
+          (id) => [
+            id.toString(),
+            id,
+          ]
+        )
+      ).values(),
+    ];
 
-  if (!category) {
-    throw new Error("Category not found");
+  /* ---------------------------------------------------------
+     Verify every product exists
+  --------------------------------------------------------- */
+
+  if (
+    uniqueProductIds.length
+  ) {
+    const existingProducts =
+      await prisma.stone_products.findMany({
+        where: {
+          id: {
+            in:
+              uniqueProductIds,
+          },
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+    if (
+      existingProducts.length !==
+      uniqueProductIds.length
+    ) {
+      throw new Error(
+        "One or more products were not found"
+      );
+    }
   }
 
-  const folder = `Home Page/inspiration galleries/${category.slug}`;
+  /* ---------------------------------------------------------
+     Replace links transactionally
+  --------------------------------------------------------- */
 
-  return Promise.all(
-    files.map((file) => createR2UploadUrl(file.fileName, folder))
+  await prisma.$transaction(
+    async (tx) => {
+      /*
+       * Remove old relationships.
+       */
+      await tx.inspiration_gallery_image_products.deleteMany({
+        where: {
+          image_id:
+            imageId,
+        },
+      });
+
+      /*
+       * Create new relationships.
+       */
+      if (
+        uniqueProductIds.length
+      ) {
+        await tx.inspiration_gallery_image_products.createMany({
+          data:
+            uniqueProductIds.map(
+              (productId) => ({
+                image_id:
+                  imageId,
+
+                product_id:
+                  productId,
+              })
+            ),
+
+          skipDuplicates:
+            true,
+        });
+      }
+
+      /*
+       * LEGACY COMPATIBILITY
+       *
+       * Keep inspiration_gallery_images.product_id
+       * synchronized with the first selected product.
+       *
+       * This means any old frontend/backend code
+       * still reading product_id will continue
+       * working while we migrate everything.
+       *
+       * Later, once the whole application uses
+       * the junction table, this can be removed.
+       */
+      await tx.inspiration_gallery_images.update({
+        where: {
+          id:
+            imageId,
+        },
+
+        data: {
+          product_id:
+            uniqueProductIds[
+              0
+            ] || null,
+        },
+      });
+    }
+  );
+
+  /*
+   * Return the final linked products.
+   */
+  return getImageProducts(
+    imageId
   );
 };
 
-const saveUploadedImages = async (body) => {
-  const { category_id, images = [] } = body;
+/* =========================================================
+   DELETE IMAGE
+========================================================= */
 
-  const categoryId = Number(category_id);
-
-  if (!categoryId) {
-    throw new Error("Category is required");
-  }
-
-  if (!images.length) {
-    throw new Error("Images are required");
-  }
-
-  return prisma.inspiration_gallery_images.createMany({
-    data: images.map((image) => ({
-      category_id: categoryId,
-      image_url: image.secure_url,
-      image_alt: image.image_alt || null,
-      title: image.title || null,
-      sort_order: 0,
-    })),
-  });
-};
-
-const deleteImage = async (id) => {
-  const image = await prisma.inspiration_gallery_images.findUnique({
-    where: {
-      id,
-    },
-  });
+const deleteImage = async (
+  id
+) => {
+  const image =
+    await prisma.inspiration_gallery_images.findUnique({
+      where: {
+        id,
+      },
+    });
 
   if (!image) {
-    throw new Error("Image not found");
+    throw new Error(
+      "Image not found"
+    );
   }
 
-  const publicUrl = process.env.R2_PUBLIC_URL;
+  const publicUrl =
+    process.env.R2_PUBLIC_URL;
 
   let objectKey = "";
 
-  if (image.image_url && publicUrl) {
-    objectKey = image.image_url.replace(`${publicUrl}/`, "");
+  if (
+    image.image_url &&
+    publicUrl
+  ) {
+    objectKey =
+      image.image_url.replace(
+        `${publicUrl}/`,
+        ""
+      );
   }
 
+  /*
+   * Delete physical file.
+   */
   if (objectKey) {
-    await deleteFileFromR2(objectKey);
+    await deleteFileFromR2(
+      objectKey
+    );
   }
 
+  /*
+   * Junction records are automatically deleted
+   * because FK image_id uses ON DELETE CASCADE.
+   */
   return prisma.inspiration_gallery_images.delete({
     where: {
       id,
@@ -785,61 +1504,120 @@ const deleteImage = async (id) => {
   });
 };
 
-const updateImageAlt = async (id, body) => {
-  const imageId = Number(id);
-  const imageAlt = body.image_alt?.trim();
+/* =========================================================
+   UPDATE IMAGE ALT
+========================================================= */
+
+const updateImageAlt = async (
+  id,
+  body
+) => {
+  const imageId =
+    Number(id);
+
+  const imageAlt =
+    body.image_alt?.trim();
 
   if (!imageId) {
-    throw new Error("Valid image ID is required");
+    throw new Error(
+      "Valid image ID is required"
+    );
   }
 
   if (!imageAlt) {
-    throw new Error("Image alt text is required");
+    throw new Error(
+      "Image alt text is required"
+    );
   }
 
-  if (imageAlt.length > 250) {
-    throw new Error("Image alt text cannot exceed 250 characters");
+  if (
+    imageAlt.length >
+    250
+  ) {
+    throw new Error(
+      "Image alt text cannot exceed 250 characters"
+    );
   }
 
   const existingImage =
     await prisma.inspiration_gallery_images.findUnique({
       where: {
-        id: imageId,
+        id:
+          imageId,
       },
     });
 
   if (!existingImage) {
-    throw new Error("Gallery media not found");
+    throw new Error(
+      "Gallery media not found"
+    );
   }
 
-  return prisma.inspiration_gallery_images.update({
-    where: {
-      id: imageId,
-    },
-    data: {
-      image_alt: imageAlt,
-    },
-    select: {
-      id: true,
-      category_id: true,
-      image_url: true,
-      image_alt: true,
-      title: true,
-      sort_order: true,
-    },
-  });
+  const updatedImage =
+    await prisma.inspiration_gallery_images.update({
+      where: {
+        id:
+          imageId,
+      },
+
+      data: {
+        image_alt:
+          imageAlt,
+      },
+
+      select: {
+        id: true,
+        category_id:
+          true,
+
+        /*
+         * Legacy field.
+         */
+        product_id:
+          true,
+
+        image_url:
+          true,
+
+        image_alt:
+          true,
+
+        title:
+          true,
+
+        sort_order:
+          true,
+      },
+    });
+
+  return serializeGalleryImage(
+    updatedImage
+  );
 };
 
+/* =========================================================
+   EXPORTS
+========================================================= */
+
 module.exports = {
+  // Categories
   getCategories,
   createCategory,
   updateCategory,
   deleteCategory,
 
+  // Images
   getImages,
   getImagesBySlug,
   createImageUploadUrls,
   saveUploadedImages,
+
+  // Image ↔ Product
+  searchProducts,
+  getImageProducts,
+  updateImageProducts,
+
+  // Image update/delete
   deleteImage,
   updateImageAlt,
 };

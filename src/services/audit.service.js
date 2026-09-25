@@ -1,88 +1,164 @@
 const prisma = require("../config/prisma");
 
-// ==================  JSON HELPER ==================
+/* =========================================================
+   JSON SANITIZER
+========================================================= */
 
 const sanitizeJson = (obj) => {
-
-  if (!obj) {
+  if (
+    obj === null ||
+    obj === undefined
+  ) {
     return null;
   }
 
   return JSON.parse(
-
     JSON.stringify(
-
       obj,
-
       (_, value) =>
-
         typeof value === "bigint"
           ? value.toString()
           : value
-
     )
-
   );
-
 };
 
-// ================== GET CHANGED FIELDS ==================
+/* =========================================================
+   NORMALIZE FOR COMPARISON
+========================================================= */
+
+const normalizeValue = (value) => {
+  /*
+   * Treat undefined as null because undefined disappears
+   * from JSON anyway and should not create an audit change.
+   */
+
+  if (
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(
+      normalizeValue
+    );
+  }
+
+  if (
+    typeof value === "object"
+  ) {
+    return Object.keys(value)
+      .sort()
+      .reduce(
+        (acc, key) => {
+          acc[key] =
+            normalizeValue(
+              value[key]
+            );
+
+          return acc;
+        },
+        {}
+      );
+  }
+
+  return value;
+};
+
+/* =========================================================
+   VALUE COMPARISON
+========================================================= */
+
+const areEqual = (
+  oldValue,
+  newValue
+) => {
+  return (
+    JSON.stringify(
+      normalizeValue(
+        oldValue
+      )
+    ) ===
+    JSON.stringify(
+      normalizeValue(
+        newValue
+      )
+    )
+  );
+};
+
+/* =========================================================
+   GET CHANGED FIELDS
+========================================================= */
 
 const getChangedFields = (
   oldValues = {},
   newValues = {}
 ) => {
-
   const changes = {};
 
-  const keys = new Set([
+  const safeOld =
+    oldValues &&
+    typeof oldValues === "object"
+      ? oldValues
+      : {};
 
-    ...Object.keys(
-      oldValues || {}
-    ),
+  const safeNew =
+    newValues &&
+    typeof newValues === "object"
+      ? newValues
+      : {};
 
-    ...Object.keys(
-      newValues || {}
-    )
+  const keys =
+    new Set([
+      ...Object.keys(
+        safeOld
+      ),
 
-  ]);
+      ...Object.keys(
+        safeNew
+      ),
+    ]);
 
   for (const key of keys) {
+    const oldValue =
+      safeOld[key];
+
+    const newValue =
+      safeNew[key];
 
     if (
-
-      JSON.stringify(
-        oldValues?.[key]
-      ) !==
-
-      JSON.stringify(
-        newValues?.[key]
+      !areEqual(
+        oldValue,
+        newValue
       )
-
     ) {
-
       changes[key] = {
-
         old:
-          oldValues?.[key],
+          oldValue ??
+          null,
 
         new:
-          newValues?.[key]
-
+          newValue ??
+          null,
       };
-
     }
-
   }
 
   return changes;
-
 };
 
-// ================== AUDIT TRACKER ==================
+/* =========================================================
+   AUDIT TRACKER
+========================================================= */
 
 const track = async ({
-
   audit = {},
 
   action,
@@ -95,53 +171,95 @@ const track = async ({
 
   oldValues = null,
 
-  operation
-
+  operation,
 }) => {
+  /* -------------------------------------------------------
+     SANITIZE OLD SNAPSHOT BEFORE OPERATION
+  ------------------------------------------------------- */
 
-  // Execute actual DB operation
+  const sanitizedOldValues =
+    sanitizeJson(
+      oldValues
+    );
+
+  /* -------------------------------------------------------
+     RUN OPERATION
+  ------------------------------------------------------- */
 
   const result =
     await operation();
 
-  // Auto-pick ID for CREATE operations
+  /* -------------------------------------------------------
+     SANITIZE RESULT
+  ------------------------------------------------------- */
+
+  const sanitizedResult =
+    sanitizeJson(
+      result
+    );
+
+  /* -------------------------------------------------------
+     RESOURCE ID
+  ------------------------------------------------------- */
 
   const finalResourceId =
-
     resourceId ||
-
-    result?.id ||
-
+    sanitizedResult?.id ||
     null;
 
-  // Detect changed fields
+  /* -------------------------------------------------------
+     CHANGED FIELDS
+  ------------------------------------------------------- */
 
-const sanitizedOldValues =
-  sanitizeJson(oldValues);
+  let changedFields =
+    null;
 
-const sanitizedResult =
-  sanitizeJson(result);
-
-const changedFields =
-  sanitizedOldValues
-    ? getChangedFields(
+  if (
+    sanitizedOldValues !==
+      null &&
+    sanitizedResult !==
+      null &&
+    typeof sanitizedOldValues ===
+      "object" &&
+    typeof sanitizedResult ===
+      "object" &&
+    !Array.isArray(
+      sanitizedOldValues
+    ) &&
+    !Array.isArray(
+      sanitizedResult
+    )
+  ) {
+    const detected =
+      getChangedFields(
         sanitizedOldValues,
         sanitizedResult
-      )
-    : null;
+      );
 
+    /*
+     * Don't store an empty object as changed_fields.
+     */
+    changedFields =
+      Object.keys(
+        detected
+      ).length > 0
+        ? detected
+        : null;
+  }
 
-  // Save audit record
+  /* -------------------------------------------------------
+     SAVE ACTIVITY
+  ------------------------------------------------------- */
 
   await prisma.activity_logs.create({
-
     data: {
-
       user_id:
-        audit.userId || null,
+        audit.userId ||
+        null,
 
       created_by_name:
-        audit.userName || null,
+        audit.userName ||
+        null,
 
       action,
 
@@ -149,22 +267,23 @@ const changedFields =
         resourceType,
 
       resource_id:
-        finalResourceId
+        finalResourceId !==
+          null &&
+        finalResourceId !==
+          undefined
           ? BigInt(
               finalResourceId
             )
           : null,
 
-old_values:
-  sanitizedOldValues,
+      old_values:
+        sanitizedOldValues,
 
-new_values:
-  sanitizedResult,
+      new_values:
+        sanitizedResult,
 
       changed_fields:
-        sanitizeJson(
-          changedFields
-        ),
+        changedFields,
 
       module_name:
         moduleName,
@@ -179,16 +298,14 @@ new_values:
 
       request_id:
         audit.requestId ||
-        null
-
-    }
-
+        null,
+    },
   });
 
   return result;
-
 };
 
 module.exports = {
-  track
+  track,
+  getChangedFields,
 };
