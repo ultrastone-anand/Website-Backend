@@ -810,317 +810,434 @@ const createImageUploadUrls = async (
  * PUT /images/:id/products
  */
 
-const saveUploadedImages = async (body) => {
-  const {
-    category_id,
-    product_id: globalProductId,
-    images = [],
-  } = body;
+/* =========================================================
+   AUTO PRODUCT MATCHING HELPERS
+========================================================= */
 
-  /* =========================================================
-     CATEGORY ID
-  ========================================================= */
+/*
+ * Words that are too generic to help identify
+ * a stone product.
+ */
+const PRODUCT_MATCH_STOP_WORDS =
+  new Set([
+    "image",
+    "img",
+    "photo",
+    "picture",
+    "render",
+    "application",
+    "inspiration",
+    "gallery",
+    "kitchen",
+    "bathroom",
+    "living",
+    "room",
+    "interior",
+    "exterior",
+    "countertop",
+    "counter",
+    "island",
+    "wall",
+    "floor",
+    "fireplace",
+    "vanity",
+    "table",
+    "desk",
+    "home",
+    "design",
+    "final",
+    "new",
+    "copy",
+    "edited",
+    "edit",
+    "jpg",
+    "jpeg",
+    "png",
+    "webp",
+    "avif",
+  ]);
 
-  const categoryId =
-    Number(category_id);
+/*
+ * Normalize text so:
+ *
+ * Calacatta-Viola Kitchen.jpg
+ *
+ * becomes:
+ *
+ * calacatta viola kitchen
+ */
+const normalizeMatchText = (
+  value = ""
+) =>
+  String(value)
+    .toLowerCase()
+    .replace(/\.[^/.]+$/, "")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-  if (
-    !Number.isInteger(categoryId) ||
-    categoryId <= 0
-  ) {
-    throw new Error(
-      "Category is required"
-    );
+/*
+ * Split normalized text into meaningful
+ * matching words.
+ */
+const getMatchTokens = (
+  value = ""
+) => {
+  const normalized =
+    normalizeMatchText(value);
+
+  if (!normalized) {
+    return [];
   }
 
-  /* =========================================================
-     IMAGES VALIDATION
-  ========================================================= */
-
-  if (
-    !Array.isArray(images) ||
-    !images.length
-  ) {
-    throw new Error(
-      "Images are required"
-    );
-  }
-
-  /* =========================================================
-     VERIFY CATEGORY
-  ========================================================= */
-
-  const category =
-    await prisma.inspiration_gallery_categories.findUnique({
-      where: {
-        id: categoryId,
-      },
-
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        is_active: true,
-      },
-    });
-
-  if (!category) {
-    throw new Error(
-      "Category not found"
-    );
-  }
-
-  /* =========================================================
-     PRODUCT ID PARSER
-  ========================================================= */
-
-  const parseProductId = (
-    value
-  ) => {
-    /*
-     * Empty value simply means
-     * no product was selected.
-     */
-    if (
-      value === undefined ||
-      value === null ||
-      value === ""
-    ) {
-      return null;
-    }
-
-    const cleanValue =
-      String(value).trim();
-
-    if (!cleanValue) {
-      return null;
-    }
-
-    /*
-     * Product IDs are PostgreSQL BIGINT,
-     * therefore only numeric values
-     * are accepted.
-     */
-    if (
-      !/^\d+$/.test(
-        cleanValue
-      )
-    ) {
-      throw new Error(
-        `Invalid product ID: ${cleanValue}`
-      );
-    }
-
-    const parsed =
-      BigInt(cleanValue);
-
-    if (
-      parsed <= 0n
-    ) {
-      throw new Error(
-        `Invalid product ID: ${cleanValue}`
-      );
-    }
-
-    return parsed;
-  };
-
-  /* =========================================================
-     PARSE GLOBAL PRODUCT
-  ========================================================= */
-
-  const parsedGlobalProductId =
-    parseProductId(
-      globalProductId
-    );
-
-  /* =========================================================
-     PREPARE IMAGES
-  ========================================================= */
-
-  const preparedImages =
-    images.map(
-      (
-        image,
-        index
-      ) => {
-        if (
-          !image ||
-          typeof image !==
-            "object"
-        ) {
-          throw new Error(
-            `Invalid image at position ${
-              index + 1
-            }`
-          );
-        }
-
-        /*
-         * secure_url comes from the
-         * completed R2 upload.
-         */
-        const imageUrl =
-          String(
-            image.secure_url ||
-              image.image_url ||
-              ""
-          ).trim();
-
-        if (!imageUrl) {
-          throw new Error(
-            `Image URL is required at position ${
-              index + 1
-            }`
-          );
-        }
-
-        /*
-         * Image-specific product takes
-         * priority over the global product.
-         */
-        const imageProductId =
-          parseProductId(
-            image.product_id
-          );
-
-        const resolvedProductId =
-          imageProductId ??
-          parsedGlobalProductId ??
-          null;
-
-        /* -----------------------------------------------
-           ALT TEXT
-        ------------------------------------------------ */
-
-        const imageAlt =
-          image.image_alt !==
-            undefined &&
-          image.image_alt !==
-            null
-            ? String(
-                image.image_alt
-              ).trim()
-            : "";
-
-        if (
-          imageAlt.length >
-          250
-        ) {
-          throw new Error(
-            `Image alt text cannot exceed 250 characters at position ${
-              index + 1
-            }`
-          );
-        }
-
-        /* -----------------------------------------------
-           TITLE
-        ------------------------------------------------ */
-
-        const title =
-          image.title !==
-            undefined &&
-          image.title !==
-            null
-            ? String(
-                image.title
-              ).trim()
-            : "";
-
-        /* -----------------------------------------------
-           SORT ORDER
-        ------------------------------------------------ */
-
-        let sortOrder = 0;
-
-        if (
-          image.sort_order !==
-            undefined &&
-          image.sort_order !==
-            null &&
-          image.sort_order !==
-            ""
-        ) {
-          const parsedSortOrder =
-            Number(
-              image.sort_order
-            );
-
-          if (
-            Number.isFinite(
-              parsedSortOrder
+  return [
+    ...new Set(
+      normalized
+        .split(" ")
+        .filter(
+          (word) =>
+            word.length >= 2 &&
+            !PRODUCT_MATCH_STOP_WORDS.has(
+              word
             )
-          ) {
-            sortOrder =
-              Math.trunc(
-                parsedSortOrder
-              );
-          }
-        }
+        )
+    ),
+  ];
+};
 
-        return {
-          imageUrl,
-
-          imageAlt:
-            imageAlt ||
-            null,
-
-          title:
-            title ||
-            null,
-
-          sortOrder,
-
-          productId:
-            resolvedProductId,
-        };
-      }
+/*
+ * Calculate similarity between uploaded
+ * image information and a stone product.
+ *
+ * Returns a score between 0 and 100.
+ */
+const calculateProductMatchScore = ({
+  searchText,
+  productName,
+  productSlug,
+}) => {
+  const normalizedSearch =
+    normalizeMatchText(
+      searchText
     );
 
-  /* =========================================================
-     COLLECT UNIQUE PRODUCT IDS
-  ========================================================= */
+  const normalizedName =
+    normalizeMatchText(
+      productName
+    );
 
-  const productIdMap =
-    new Map();
+  const normalizedSlug =
+    normalizeMatchText(
+      productSlug
+    );
+
+  if (
+    !normalizedSearch ||
+    !normalizedName
+  ) {
+    return 0;
+  }
+
+  /* ---------------------------------------------------------
+     EXACT PRODUCT NAME
+  --------------------------------------------------------- */
+
+  if (
+    normalizedSearch ===
+    normalizedName
+  ) {
+    return 100;
+  }
+
+  /* ---------------------------------------------------------
+     PRODUCT NAME APPEARS INSIDE IMAGE TEXT
+  --------------------------------------------------------- */
+
+  if (
+    normalizedName.length >= 4 &&
+    normalizedSearch.includes(
+      normalizedName
+    )
+  ) {
+    return 98;
+  }
+
+  /* ---------------------------------------------------------
+     PRODUCT SLUG APPEARS INSIDE IMAGE TEXT
+  --------------------------------------------------------- */
+
+  if (
+    normalizedSlug.length >= 4 &&
+    normalizedSearch.includes(
+      normalizedSlug
+    )
+  ) {
+    return 98;
+  }
+
+  const searchTokens =
+    getMatchTokens(
+      normalizedSearch
+    );
+
+  const productTokens =
+    getMatchTokens(
+      `${normalizedName} ${normalizedSlug}`
+    );
+
+  if (
+    !searchTokens.length ||
+    !productTokens.length
+  ) {
+    return 0;
+  }
+
+  const searchSet =
+    new Set(
+      searchTokens
+    );
+
+  const productSet =
+    new Set(
+      productTokens
+    );
+
+  const matchingTokens =
+    [
+      ...productSet,
+    ].filter(
+      (token) =>
+        searchSet.has(token)
+    );
+
+  if (
+    !matchingTokens.length
+  ) {
+    return 0;
+  }
+
+  /*
+   * How much of the PRODUCT NAME
+   * was found in the uploaded image?
+   *
+   * Example:
+   *
+   * Product:
+   * Calacatta Viola
+   *
+   * Image:
+   * calacatta viola kitchen
+   *
+   * 2 / 2 = 100%
+   */
+  const productCoverage =
+    matchingTokens.length /
+    productSet.size;
+
+  /*
+   * Prevent one generic matching word
+   * from producing a strong result.
+   */
+  let score =
+    productCoverage * 90;
+
+  /*
+   * All product words matched.
+   */
+  if (
+    productCoverage === 1
+  ) {
+    score = 95;
+  }
+
+  /*
+   * Multiple matching words give
+   * additional confidence.
+   */
+  if (
+    matchingTokens.length >= 2
+  ) {
+    score += 3;
+  }
+
+  return Math.min(
+    Math.round(score),
+    100
+  );
+};
+
+/* =========================================================
+   FIND BEST PRODUCT FOR UPLOADED IMAGE
+========================================================= */
+
+const findBestProductMatch = (
+  image,
+  products
+) => {
+  /*
+   * Combine everything we know about
+   * the uploaded image.
+   */
+  const searchText = [
+    image.originalFileName,
+    image.title,
+    image.imageAlt,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  if (
+    !searchText.trim()
+  ) {
+    return null;
+  }
+
+  let bestMatch = null;
+  let secondBestScore = 0;
 
   for (
-    const image of
-    preparedImages
+    const product of products
   ) {
-    if (
-      image.productId ===
-      null
-    ) {
-      continue;
-    }
+    const score =
+      calculateProductMatchScore({
+        searchText,
 
-    productIdMap.set(
-      image.productId.toString(),
-      image.productId
-    );
+        productName:
+          product.name,
+
+        productSlug:
+          product.slug,
+      });
+
+    if (
+      !bestMatch ||
+      score >
+        bestMatch.score
+    ) {
+      if (bestMatch) {
+        secondBestScore =
+          bestMatch.score;
+      }
+
+      bestMatch = {
+        product,
+        score,
+      };
+    } else if (
+      score >
+      secondBestScore
+    ) {
+      secondBestScore =
+        score;
+    }
   }
 
-  const uniqueProductIds =
-    Array.from(
-      productIdMap.values()
-    );
+  if (!bestMatch) {
+    return null;
+  }
 
-  /* =========================================================
-     VERIFY PRODUCTS
-  ========================================================= */
+  /*
+   * IMPORTANT:
+   *
+   * Don't auto-link weak guesses.
+   */
+  const MINIMUM_SCORE =
+    75;
+
+  /*
+   * Avoid ambiguous matches such as:
+   *
+   * Calacatta Gold       90
+   * Calacatta Gold Extra 88
+   *
+   * That's too close to safely guess.
+   */
+  const MINIMUM_LEAD =
+    8;
 
   if (
-    uniqueProductIds.length
+    bestMatch.score <
+    MINIMUM_SCORE
   ) {
-    const existingProducts =
-      await prisma.stone_products.findMany({
+    return null;
+  }
+
+  if (
+    secondBestScore >
+      0 &&
+    bestMatch.score -
+      secondBestScore <
+      MINIMUM_LEAD
+  ) {
+    return null;
+  }
+
+  return {
+    productId:
+      bestMatch.product.id,
+
+    productName:
+      bestMatch.product.name,
+
+    productSlug:
+      bestMatch.product.slug,
+
+    score:
+      bestMatch.score,
+  };
+};
+
+/* =========================================================
+   SAVE UPLOADED IMAGES
+   + AUTOMATIC PRODUCT ESTIMATION
+========================================================= */
+
+const saveUploadedImages =
+  async (body) => {
+    const {
+      category_id,
+      product_id:
+        globalProductId,
+      images = [],
+    } = body;
+
+    const categoryId =
+      Number(
+        category_id
+      );
+
+    if (
+      !Number.isInteger(
+        categoryId
+      ) ||
+      categoryId <= 0
+    ) {
+      throw new Error(
+        "Category is required"
+      );
+    }
+
+    if (
+      !Array.isArray(
+        images
+      ) ||
+      !images.length
+    ) {
+      throw new Error(
+        "Images are required"
+      );
+    }
+
+    /* =====================================================
+       VERIFY CATEGORY
+    ===================================================== */
+
+    const category =
+      await prisma.inspiration_gallery_categories.findUnique({
         where: {
-          id: {
-            in:
-              uniqueProductIds,
-          },
+          id:
+            categoryId,
         },
 
         select: {
@@ -1130,180 +1247,417 @@ const saveUploadedImages = async (body) => {
         },
       });
 
-    /*
-     * Make sure every supplied ID
-     * actually exists.
-     */
-    if (
-      existingProducts.length !==
-      uniqueProductIds.length
-    ) {
-      const existingIdSet =
-        new Set(
-          existingProducts.map(
-            (product) =>
-              product.id.toString()
-          )
-        );
-
-      const missingIds =
-        uniqueProductIds
-          .filter(
-            (id) =>
-              !existingIdSet.has(
-                id.toString()
-              )
-          )
-          .map(
-            (id) =>
-              id.toString()
-          );
-
+    if (!category) {
       throw new Error(
-        `Product not found: ${missingIds.join(
-          ", "
-        )}`
+        "Category not found"
       );
     }
-  }
 
-  /* =========================================================
-     CREATE IMAGES
-     + AUTOMATIC JUNCTION LINKS
-  ========================================================= */
+    /* =====================================================
+       PRODUCT ID PARSER
+    ===================================================== */
 
-  const createdImages =
-    await prisma.$transaction(
-      async (tx) => {
-        const results = [];
-
-        for (
-          const image of
-          preparedImages
+    const parseProductId =
+      (value) => {
+        if (
+          value ===
+            undefined ||
+          value === null ||
+          value === ""
         ) {
-          /* ===============================================
-             CREATE GALLERY IMAGE
-          =============================================== */
+          return null;
+        }
 
-          const createdImage =
-            await tx.inspiration_gallery_images.create({
-              data: {
-                category_id:
-                  categoryId,
+        const cleanValue =
+          String(
+            value
+          ).trim();
 
-                /*
-                 * LEGACY FIELD
-                 *
-                 * Keep synchronized for now.
-                 */
-                product_id:
-                  image.productId,
-
-                image_url:
-                  image.imageUrl,
-
-                image_alt:
-                  image.imageAlt,
-
-                title:
-                  image.title,
-
-                sort_order:
-                  image.sortOrder,
-
-                is_active:
-                  true,
-              },
-
-              select: {
-                id: true,
-
-                category_id:
-                  true,
-
-                product_id:
-                  true,
-
-                image_url:
-                  true,
-
-                image_alt:
-                  true,
-
-                title:
-                  true,
-
-                sort_order:
-                  true,
-
-                is_active:
-                  true,
-
-                created_at:
-                  true,
-              },
-            });
-
-          /* ===============================================
-             AUTOMATIC PRODUCT LINK
-          =============================================== */
-
-          if (
-            image.productId !==
-            null
-          ) {
-            await tx.inspiration_gallery_image_products.create({
-              data: {
-                image_id:
-                  createdImage.id,
-
-                product_id:
-                  image.productId,
-              },
-            });
-          }
-
-          results.push(
-            createdImage
+        if (
+          !/^\d+$/.test(
+            cleanValue
+          )
+        ) {
+          throw new Error(
+            `Invalid product ID: ${cleanValue}`
           );
         }
 
-        return results;
-      }
-    );
+        return BigInt(
+          cleanValue
+        );
+      };
 
-  /* =========================================================
-     RESPONSE
-  ========================================================= */
+    const parsedGlobalProductId =
+      parseProductId(
+        globalProductId
+      );
 
-  return {
-    count:
-      createdImages.length,
+    /* =====================================================
+       LOAD PRODUCTS FOR AUTO MATCHING
+    ===================================================== */
 
-    images:
-      createdImages.map(
+    /*
+     * We only need to load products when
+     * an explicit product wasn't supplied.
+     */
+    const needsAutoMatching =
+      parsedGlobalProductId ===
+        null ||
+      images.some(
+        (image) =>
+          image.product_id ===
+            undefined ||
+          image.product_id ===
+            null ||
+          image.product_id ===
+            ""
+      );
+
+    let availableProducts =
+      [];
+
+    if (
+      needsAutoMatching
+    ) {
+      availableProducts =
+        await prisma.stone_products.findMany({
+          where: {
+            is_active:
+              true,
+
+            is_published:
+              true,
+          },
+
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        });
+    }
+
+    /* =====================================================
+       PREPARE EACH IMAGE
+    ===================================================== */
+
+    const preparedImages =
+      images.map(
         (
-          image
-        ) => ({
-          ...serializeGalleryImage(
-            image
-          ),
+          image,
+          index
+        ) => {
+          if (
+            !image ||
+            typeof image !==
+              "object"
+          ) {
+            throw new Error(
+              `Invalid image at position ${
+                index + 1
+              }`
+            );
+          }
+
+          const imageUrl =
+            String(
+              image.secure_url ||
+                image.image_url ||
+                ""
+            ).trim();
+
+          if (!imageUrl) {
+            throw new Error(
+              `Image URL is required at position ${
+                index + 1
+              }`
+            );
+          }
+
+          const imageAlt =
+            image.image_alt
+              ? String(
+                  image.image_alt
+                ).trim()
+              : null;
+
+          const title =
+            image.title
+              ? String(
+                  image.title
+                ).trim()
+              : null;
 
           /*
-           * Helpful for frontend/debugging.
+           * IMPORTANT:
            *
-           * true means the backend created
-           * a junction-table relationship.
+           * Frontend will send this.
            */
-          product_linked:
-            image.product_id !==
-              null &&
-            image.product_id !==
-              undefined,
-        })
-      ),
+          const originalFileName =
+            image.file_name ||
+            image.original_file_name ||
+            title ||
+            "";
+
+          /* -------------------------------------------------
+             EXPLICIT PRODUCT
+          ------------------------------------------------- */
+
+          const explicitImageProductId =
+            parseProductId(
+              image.product_id
+            );
+
+          let resolvedProductId =
+            explicitImageProductId ??
+            parsedGlobalProductId ??
+            null;
+
+          let autoMatch =
+            null;
+
+          let linkSource =
+            resolvedProductId
+              ? "manual"
+              : null;
+
+          /* -------------------------------------------------
+             AUTO ESTIMATE PRODUCT
+          ------------------------------------------------- */
+
+          if (
+            resolvedProductId ===
+            null
+          ) {
+            autoMatch =
+              findBestProductMatch(
+                {
+                  originalFileName,
+                  title,
+                  imageAlt,
+                },
+                availableProducts
+              );
+
+            if (
+              autoMatch
+            ) {
+              resolvedProductId =
+                autoMatch.productId;
+
+              linkSource =
+                "automatic";
+            }
+          }
+
+          return {
+            imageUrl,
+            imageAlt,
+            title,
+            originalFileName,
+
+            productId:
+              resolvedProductId,
+
+            autoMatch,
+
+            linkSource,
+          };
+        }
+      );
+
+    /* =====================================================
+       VERIFY MANUALLY SUPPLIED PRODUCTS
+    ===================================================== */
+
+    const productIds =
+      [
+        ...new Map(
+          preparedImages
+            .filter(
+              (image) =>
+                image.productId !==
+                null
+            )
+            .map(
+              (image) => [
+                image.productId.toString(),
+                image.productId,
+              ]
+            )
+        ).values(),
+      ];
+
+    if (
+      productIds.length
+    ) {
+      const existingProducts =
+        await prisma.stone_products.findMany({
+          where: {
+            id: {
+              in:
+                productIds,
+            },
+          },
+
+          select: {
+            id: true,
+          },
+        });
+
+      if (
+        existingProducts.length !==
+        productIds.length
+      ) {
+        throw new Error(
+          "One or more products were not found"
+        );
+      }
+    }
+
+    /* =====================================================
+       CREATE IMAGES + LINKS
+    ===================================================== */
+
+    const createdImages =
+      await prisma.$transaction(
+        async (tx) => {
+          const results =
+            [];
+
+          for (
+            const image of
+            preparedImages
+          ) {
+            const createdImage =
+              await tx.inspiration_gallery_images.create({
+                data: {
+                  category_id:
+                    categoryId,
+
+                  /*
+                   * Keep legacy field
+                   * synchronized.
+                   */
+                  product_id:
+                    image.productId,
+
+                  image_url:
+                    image.imageUrl,
+
+                  image_alt:
+                    image.imageAlt,
+
+                  title:
+                    image.title,
+
+                  sort_order:
+                    0,
+
+                  is_active:
+                    true,
+                },
+
+                select: {
+                  id: true,
+                  category_id:
+                    true,
+                  product_id:
+                    true,
+                  image_url:
+                    true,
+                  image_alt:
+                    true,
+                  title:
+                    true,
+                  sort_order:
+                    true,
+                  is_active:
+                    true,
+                  created_at:
+                    true,
+                },
+              });
+
+            /* =============================================
+               CREATE AUTO/MANUAL PRODUCT LINK
+            ============================================= */
+
+            if (
+              image.productId !==
+              null
+            ) {
+              await tx.inspiration_gallery_image_products.create({
+                data: {
+                  image_id:
+                    createdImage.id,
+
+                  product_id:
+                    image.productId,
+                },
+              });
+            }
+
+            results.push({
+              ...createdImage,
+
+              autoMatch:
+                image.autoMatch,
+
+              linkSource:
+                image.linkSource,
+            });
+          }
+
+          return results;
+        }
+      );
+
+    /* =====================================================
+       RESPONSE
+    ===================================================== */
+
+    return {
+      count:
+        createdImages.length,
+
+      images:
+        createdImages.map(
+          (image) => ({
+            ...serializeGalleryImage(
+              image
+            ),
+
+            product_linked:
+              image.product_id !==
+                null &&
+              image.product_id !==
+                undefined,
+
+            link_source:
+              image.linkSource,
+
+            auto_match:
+              image.autoMatch
+                ? {
+                    product_id:
+                      image.autoMatch.productId.toString(),
+
+                    product_name:
+                      image.autoMatch.productName,
+
+                    product_slug:
+                      image.autoMatch.productSlug,
+
+                    score:
+                      image.autoMatch.score,
+                  }
+                : null,
+          })
+        ),
+    };
   };
-};
 
 /* =========================================================
    SEARCH PRODUCTS
