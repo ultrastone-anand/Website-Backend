@@ -769,9 +769,12 @@ const createImageUploadUrls = async (
  *
  * PUT /images/:id/products
  */
-const saveUploadedImages = async (
-  body
-) => {
+/* =========================================================
+   SAVE UPLOADED IMAGES
+   + AUTO LINK PRODUCT
+========================================================= */
+
+const saveUploadedImages = async (body) => {
   const {
     category_id,
     product_id,
@@ -779,29 +782,11 @@ const saveUploadedImages = async (
   } = body;
 
   const categoryId =
-    Number(
-      category_id
-    );
+    Number(category_id);
 
-  let productId =
-    null;
-
-  if (
-    product_id !== undefined &&
-    product_id !== null &&
-    product_id !== ""
-  ) {
-    try {
-      productId =
-        BigInt(
-          product_id
-        );
-    } catch {
-      throw new Error(
-        "Invalid product ID"
-      );
-    }
-  }
+  /* =========================================================
+     VALIDATE CATEGORY
+  ========================================================= */
 
   if (!categoryId) {
     throw new Error(
@@ -821,8 +806,7 @@ const saveUploadedImages = async (
   const category =
     await prisma.inspiration_gallery_categories.findUnique({
       where: {
-        id:
-          categoryId,
+        id: categoryId,
       },
 
       select: {
@@ -836,14 +820,36 @@ const saveUploadedImages = async (
     );
   }
 
+  /* =========================================================
+     PARSE PRODUCT
+  ========================================================= */
+
+  let productId = null;
+
   if (
-    productId !== null
+    product_id !== undefined &&
+    product_id !== null &&
+    product_id !== ""
   ) {
+    try {
+      productId =
+        BigInt(product_id);
+    } catch {
+      throw new Error(
+        "Invalid product ID"
+      );
+    }
+  }
+
+  /* =========================================================
+     VERIFY PRODUCT
+  ========================================================= */
+
+  if (productId !== null) {
     const product =
       await prisma.stone_products.findUnique({
         where: {
-          id:
-            productId,
+          id: productId,
         },
 
         select: {
@@ -858,42 +864,105 @@ const saveUploadedImages = async (
     }
   }
 
-  /*
-   * Existing behavior preserved.
-   *
-   * New gallery images can still contain the
-   * legacy product_id until we completely
-   * remove that column later.
-   */
-  const result =
-    await prisma.inspiration_gallery_images.createMany({
-      data:
-        images.map(
-          (image) => ({
-            category_id:
-              categoryId,
+  /* =========================================================
+     CREATE IMAGES + AUTO LINK PRODUCT
+  ========================================================= */
 
-            product_id:
-              productId,
+  const createdImages =
+    await prisma.$transaction(
+      async (tx) => {
+        const results = [];
 
-            image_url:
-              image.secure_url,
+        for (const image of images) {
+          /* -----------------------------------------------
+             Create gallery image
+          ------------------------------------------------ */
 
-            image_alt:
-              image.image_alt ||
-              null,
+          const createdImage =
+            await tx.inspiration_gallery_images.create({
+              data: {
+                category_id:
+                  categoryId,
 
-            title:
-              image.title ||
-              null,
+                /*
+                 * Keep legacy field synchronized
+                 * for now.
+                 */
+                product_id:
+                  productId,
 
-            sort_order:
-              0,
-          })
-        ),
-    });
+                image_url:
+                  image.secure_url,
 
-  return result;
+                image_alt:
+                  image.image_alt ||
+                  null,
+
+                title:
+                  image.title ||
+                  null,
+
+                sort_order:
+                  0,
+              },
+
+              select: {
+                id: true,
+                category_id:
+                  true,
+                product_id:
+                  true,
+                image_url:
+                  true,
+                image_alt:
+                  true,
+                title:
+                  true,
+                sort_order:
+                  true,
+                created_at:
+                  true,
+              },
+            });
+
+          /* -----------------------------------------------
+             AUTO LINK PRODUCT
+          ------------------------------------------------ */
+
+          if (productId !== null) {
+            await tx.inspiration_gallery_image_products.create({
+              data: {
+                image_id:
+                  createdImage.id,
+
+                product_id:
+                  productId,
+              },
+            });
+          }
+
+          results.push(
+            createdImage
+          );
+        }
+
+        return results;
+      }
+    );
+
+  /* =========================================================
+     SERIALIZE BIGINT
+  ========================================================= */
+
+  return {
+    count:
+      createdImages.length,
+
+    images:
+      createdImages.map(
+        serializeGalleryImage
+      ),
+  };
 };
 
 /* =========================================================
