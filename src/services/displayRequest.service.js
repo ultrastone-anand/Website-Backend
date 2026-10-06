@@ -1,3 +1,7 @@
+const prisma = require(
+  "../config/prisma"
+);
+
 const fs = require("fs");
 const path = require("path");
 
@@ -27,6 +31,108 @@ const parseEmailList = (value = "") => {
 };
 
 /* =========================================================
+   CREATE DISPLAY REQUEST IN DATABASE
+========================================================= */
+
+const createDisplayRequest = async (data) => {
+  return prisma.display_requests.create({
+    data: {
+      name:
+        data.name,
+
+      email:
+        data.email,
+
+      phone:
+        data.phone,
+
+      company:
+        data.company,
+
+      display:
+        data.display,
+
+      concerned_person_name:
+        data.concerned_person_name ||
+        null,
+
+      concerned_person_phone:
+        data.concerned_person_phone ||
+        null,
+
+      street_address:
+        data.street_address,
+
+      suite_number:
+        data.suite_number ||
+        null,
+
+      city:
+        data.city,
+
+      county:
+        data.county ||
+        null,
+
+      state:
+        data.state,
+
+      zip_code:
+        data.zip_code,
+
+      message:
+        data.message ||
+        null,
+    },
+  });
+};
+
+/* =========================================================
+   GET ALL DISPLAY REQUESTS
+
+   Optional filters:
+   fromDate = YYYY-MM-DD
+   toDate   = YYYY-MM-DD
+========================================================= */
+
+const getAllDisplayRequests = async ({
+  fromDate = null,
+  toDate = null,
+} = {}) => {
+  const where = {};
+
+  if (
+    fromDate ||
+    toDate
+  ) {
+    where.created_at = {};
+
+    if (fromDate) {
+      where.created_at.gte =
+        new Date(
+          `${fromDate}T00:00:00.000Z`
+        );
+    }
+
+    if (toDate) {
+      where.created_at.lte =
+        new Date(
+          `${toDate}T23:59:59.999Z`
+        );
+    }
+  }
+
+  return prisma.display_requests.findMany({
+    where,
+
+    orderBy: {
+      created_at:
+        "desc",
+    },
+  });
+};
+
+/* =========================================================
    EMAIL LOGO ATTACHMENT
 ========================================================= */
 
@@ -44,13 +150,17 @@ const getLogoAttachment = () => {
     "@odata.type":
       "#microsoft.graph.fileAttachment",
 
-    name: "ultrastones.png",
+    name:
+      "ultrastones.png",
 
-    contentType: "image/png",
+    contentType:
+      "image/png",
 
-    contentBytes: logoBase64,
+    contentBytes:
+      logoBase64,
 
-    isInline: true,
+    isInline:
+      true,
 
     contentId:
       "ultrastones-logo",
@@ -199,6 +309,12 @@ const getAccessToken = async () => {
     );
   }
 
+  if (!data.access_token) {
+    throw new Error(
+      "Microsoft Graph did not return an access token."
+    );
+  }
+
   return data.access_token;
 };
 
@@ -335,8 +451,6 @@ const buildInternalEmail = ({
             "
           >
 
-            <!-- HEADER -->
-
             <div
               style="
                 background:#161412;
@@ -344,7 +458,6 @@ const buildInternalEmail = ({
                 padding:30px 32px;
               "
             >
-
               <div
                 style="
                   margin-bottom:18px;
@@ -375,15 +488,11 @@ const buildInternalEmail = ({
               </div>
             </div>
 
-            <!-- CONTENT -->
-
             <div
               style="
                 padding:32px;
               "
             >
-
-              <!-- REQUEST INTRO -->
 
               <div
                 style="
@@ -417,8 +526,6 @@ const buildInternalEmail = ({
                   )}
                 </div>
               </div>
-
-              <!-- CUSTOMER INFORMATION -->
 
               <div
                 style="
@@ -461,8 +568,6 @@ const buildInternalEmail = ({
                   phone
                 )}
               </table>
-
-              <!-- REQUEST INFORMATION -->
 
               <div
                 style="
@@ -508,8 +613,6 @@ const buildInternalEmail = ({
                     : ""
                 }
               </table>
-
-              <!-- ADDRESS -->
 
               <div
                 style="
@@ -586,8 +689,6 @@ const buildInternalEmail = ({
                 )}
               </div>
 
-              <!-- ADDITIONAL NOTES -->
-
               ${
                 message
                   ? `
@@ -623,8 +724,6 @@ const buildInternalEmail = ({
                   : ""
               }
 
-              <!-- CONTACT ACTION -->
-
               <div
                 style="
                   padding-top:4px;
@@ -650,8 +749,6 @@ const buildInternalEmail = ({
                   Reply to Customer
                 </a>
               </div>
-
-              <!-- FOOTER -->
 
               <div
                 style="
@@ -718,8 +815,6 @@ const buildCustomerEmail = ({
             "
           >
 
-            <!-- HEADER -->
-
             <div
               style="
                 background:#161412;
@@ -758,8 +853,6 @@ const buildCustomerEmail = ({
               </div>
             </div>
 
-            <!-- CONTENT -->
-
             <div
               style="
                 padding:34px 32px;
@@ -790,8 +883,6 @@ const buildCustomerEmail = ({
                 request and our team will review the details
                 shortly.
               </div>
-
-              <!-- REQUEST SUMMARY -->
 
               <div
                 style="
@@ -847,8 +938,6 @@ const buildCustomerEmail = ({
                 }
               </table>
 
-              <!-- LOCATION -->
-
               <div
                 style="
                   font-size:12px;
@@ -876,8 +965,6 @@ const buildCustomerEmail = ({
                   formattedAddress
                 )}
               </div>
-
-              <!-- NOTES -->
 
               ${
                 message
@@ -914,8 +1001,6 @@ const buildCustomerEmail = ({
                   : ""
               }
 
-              <!-- NEXT STEP -->
-
               <div
                 style="
                   font-size:15px;
@@ -942,8 +1027,6 @@ const buildCustomerEmail = ({
                 merchandising display needs.
               </div>
 
-              <!-- SIGNATURE -->
-
               <div
                 style="
                   font-size:14px;
@@ -959,8 +1042,6 @@ const buildCustomerEmail = ({
                   Ultra Stones
                 </strong>
               </div>
-
-              <!-- FOOTER -->
 
               <div
                 style="
@@ -1020,7 +1101,8 @@ const sendDisplayRequest = async (data) => {
   const formattedAddress = [
     street_address,
 
-    suite_number || null,
+    suite_number ||
+      null,
 
     county
       ? `${city}, ${county}`
@@ -1035,8 +1117,6 @@ const sendDisplayRequest = async (data) => {
 
   /* =====================================================
      ACCESS TOKEN
-
-     Same token is reused for both emails.
   ===================================================== */
 
   const accessToken =
@@ -1119,11 +1199,6 @@ const sendDisplayRequest = async (data) => {
         }
       : {}),
 
-    /*
-     * If the internal team clicks Reply,
-     * Outlook should address the reply
-     * to the customer.
-     */
     replyTo: [
       {
         emailAddress: {
@@ -1133,13 +1208,6 @@ const sendDisplayRequest = async (data) => {
       },
     ],
   };
-
-  /*
-   * Internal notification is critical.
-   *
-   * If this fails, throw the error because the
-   * Ultra Stones team did not receive the request.
-   */
 
   const internalResult =
     await sendGraphEmail({
@@ -1216,13 +1284,6 @@ const sendDisplayRequest = async (data) => {
     customerConfirmationStatus =
       customerResult.status;
   } catch (error) {
-    /*
-     * Customer acknowledgement is secondary.
-     *
-     * The request should remain successful if
-     * the internal team already received it.
-     */
-
     console.error(
       "❌ CUSTOMER DISPLAY CONFIRMATION EMAIL FAILED:",
       {
@@ -1242,13 +1303,15 @@ const sendDisplayRequest = async (data) => {
   ===================================================== */
 
   return {
-    success: true,
+    success:
+      true,
 
     sender:
       senderEmail,
 
     internalEmail: {
-      sent: true,
+      sent:
+        true,
 
       status:
         internalResult.status,
@@ -1269,6 +1332,12 @@ const sendDisplayRequest = async (data) => {
   };
 };
 
+/* =========================================================
+   EXPORTS
+========================================================= */
+
 module.exports = {
+  createDisplayRequest,
+  getAllDisplayRequests,
   sendDisplayRequest,
 };

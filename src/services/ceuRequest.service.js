@@ -1,3 +1,7 @@
+const prisma = require(
+  "../config/prisma"
+);
+
 const fs = require("fs");
 const path = require("path");
 
@@ -24,6 +28,105 @@ const parseEmailList = (value = "") => {
         address: email,
       },
     }));
+};
+
+/* =========================================================
+   CREATE CEU REQUEST IN DATABASE
+========================================================= */
+
+const createCeuRequest = async (data) => {
+  return prisma.ceu_requests.create({
+    data: {
+      course:
+        data.course,
+
+      name:
+        data.name,
+
+      email:
+        data.email,
+
+      phone:
+        data.phone,
+
+      company:
+        data.company,
+
+      role:
+        data.role ||
+        null,
+
+      preferred_date:
+        data.preferredDate
+          ? new Date(
+              `${data.preferredDate}T00:00:00.000Z`
+            )
+          : null,
+
+      message:
+        data.message ||
+        null,
+    },
+  });
+};
+
+/* =========================================================
+   GET ALL CEU REQUESTS
+
+   Optional filters:
+   fromDate = YYYY-MM-DD
+   toDate   = YYYY-MM-DD
+========================================================= */
+
+const getAllCeuRequests = async ({
+  fromDate = null,
+  toDate = null,
+} = {}) => {
+  const where = {};
+
+  /* =====================================================
+     CREATED DATE FILTER
+  ===================================================== */
+
+  if (
+    fromDate ||
+    toDate
+  ) {
+    where.created_at = {};
+
+    /*
+     * Start from 00:00:00
+     * of selected From Date
+     */
+
+    if (fromDate) {
+      where.created_at.gte =
+        new Date(
+          `${fromDate}T00:00:00.000Z`
+        );
+    }
+
+    /*
+     * Include the entire To Date
+     * until 23:59:59.999
+     */
+
+    if (toDate) {
+      where.created_at.lte =
+        new Date(
+          `${toDate}T23:59:59.999Z`
+        );
+    }
+  }
+
+  return prisma.ceu_requests.findMany({
+    where,
+
+    orderBy: {
+      created_at:
+        "desc",
+    },
+  });
 };
 
 /* =========================================================
@@ -938,7 +1041,7 @@ const buildCustomerEmail = ({
 };
 
 /* =========================================================
-   SEND CEU REQUEST
+   SEND CEU REQUEST EMAILS
 ========================================================= */
 
 const sendCeuRequest = async (data) => {
@@ -989,8 +1092,6 @@ const sendCeuRequest = async (data) => {
 
   /* =====================================================
      TOKEN
-
-     Reuse one access token for both emails.
   ===================================================== */
 
   const accessToken =
@@ -1038,10 +1139,11 @@ const sendCeuRequest = async (data) => {
       : {}),
 
     /*
-     * When the internal team clicks Reply,
-     * Outlook should address the response
-     * directly to the requester.
+     * When Ultra Stones staff clicks Reply,
+     * the response goes directly to the
+     * person who submitted the CEU request.
      */
+
     replyTo: [
       {
         emailAddress: {
@@ -1051,11 +1153,6 @@ const sendCeuRequest = async (data) => {
       },
     ],
   };
-
-  /*
-   * The internal CEU notification is critical.
-   * If it fails, the overall request should fail.
-   */
 
   const internalResult =
     await sendGraphEmail({
@@ -1132,9 +1229,9 @@ const sendCeuRequest = async (data) => {
     /*
      * Customer confirmation is secondary.
      *
-     * Do not make the whole CEU request fail
-     * after the Ultra Stones team already
-     * received it.
+     * The internal Ultra Stones notification
+     * has already been sent successfully,
+     * so we do not fail the complete request.
      */
 
     console.error(
@@ -1182,7 +1279,8 @@ const sendCeuRequest = async (data) => {
     },
 
     internalEmail: {
-      sent: true,
+      sent:
+        true,
 
       status:
         internalResult.status,
@@ -1203,6 +1301,12 @@ const sendCeuRequest = async (data) => {
   };
 };
 
+/* =========================================================
+   EXPORTS
+========================================================= */
+
 module.exports = {
+  createCeuRequest,
+  getAllCeuRequests,
   sendCeuRequest,
 };

@@ -1,3 +1,7 @@
+const prisma = require(
+  "../config/prisma"
+);
+
 const fs = require("fs");
 const path = require("path");
 
@@ -27,6 +31,125 @@ const parseEmailList = (value = "") => {
 };
 
 /* =========================================================
+   CREATE SAMPLE REQUEST IN DATABASE
+========================================================= */
+
+const createSampleRequest =
+  async (data) => {
+    return prisma.sample_requests.create({
+      data: {
+        product_id:
+          BigInt(
+            data.product_id
+          ),
+
+        product_name:
+          data.product_name,
+
+        category_name:
+          data.category_name,
+
+        first_name:
+          data.first_name,
+
+        last_name:
+          data.last_name,
+
+        company_name:
+          data.company_name ||
+          null,
+
+        street_address:
+          data.street_address,
+
+        suite_number:
+          data.suite_number ||
+          null,
+
+        city:
+          data.city,
+
+        county:
+          data.county ||
+          null,
+
+        state:
+          data.state,
+
+        zip_code:
+          data.zip_code,
+
+        email:
+          data.email,
+
+        phone:
+          data.phone,
+
+        finish:
+          data.finish ||
+          null,
+
+        quantity:
+          data.quantity,
+
+        remarks:
+          data.remarks ||
+          null,
+      },
+    });
+  };
+
+/* =========================================================
+   GET ALL SAMPLE REQUESTS
+
+   Optional filters:
+   fromDate = YYYY-MM-DD
+   toDate   = YYYY-MM-DD
+========================================================= */
+
+const getAllSampleRequests =
+  async ({
+    fromDate = null,
+    toDate = null,
+  } = {}) => {
+    const where = {};
+
+    /* =====================================================
+       CREATED DATE FILTER
+    ===================================================== */
+
+    if (
+      fromDate ||
+      toDate
+    ) {
+      where.created_at = {};
+
+      if (fromDate) {
+        where.created_at.gte =
+          new Date(
+            `${fromDate}T00:00:00.000Z`
+          );
+      }
+
+      if (toDate) {
+        where.created_at.lte =
+          new Date(
+            `${toDate}T23:59:59.999Z`
+          );
+      }
+    }
+
+    return prisma.sample_requests.findMany({
+      where,
+
+      orderBy: {
+        created_at:
+          "desc",
+      },
+    });
+  };
+
+/* =========================================================
    EMAIL LOGO ATTACHMENT
 ========================================================= */
 
@@ -44,13 +167,17 @@ const getLogoAttachment = () => {
     "@odata.type":
       "#microsoft.graph.fileAttachment",
 
-    name: "ultrastones.png",
+    name:
+      "ultrastones.png",
 
-    contentType: "image/png",
+    contentType:
+      "image/png",
 
-    contentBytes: logoBase64,
+    contentBytes:
+      logoBase64,
 
-    isInline: true,
+    isInline:
+      true,
 
     contentId:
       "ultrastones-logo",
@@ -172,7 +299,8 @@ const getAccessToken = async () => {
     await fetch(
       tokenUrl,
       {
-        method: "POST",
+        method:
+          "POST",
 
         headers: {
           "Content-Type":
@@ -196,6 +324,12 @@ const getAccessToken = async () => {
     throw new Error(
       data.error_description ||
         "Failed to get Microsoft access token."
+    );
+  }
+
+  if (!data.access_token) {
+    throw new Error(
+      "Microsoft Graph did not return an access token."
     );
   }
 
@@ -227,7 +361,8 @@ const sendGraphEmail = async ({
     await fetch(
       sendUrl,
       {
-        method: "POST",
+        method:
+          "POST",
 
         headers: {
           Authorization:
@@ -251,10 +386,17 @@ const sendGraphEmail = async ({
       errorData =
         await response.json();
     } catch {
-      errorData = {
-        message:
-          await response.text(),
-      };
+      try {
+        errorData = {
+          message:
+            await response.text(),
+        };
+      } catch {
+        errorData = {
+          message:
+            "Unknown Microsoft Graph error.",
+        };
+      }
     }
 
     console.error(
@@ -273,7 +415,8 @@ const sendGraphEmail = async ({
   }
 
   return {
-    success: true,
+    success:
+      true,
 
     status:
       response.status,
@@ -345,7 +488,6 @@ const buildInternalEmail = ({
                 padding:30px 32px;
               "
             >
-
               <div
                 style="
                   margin-bottom:18px;
@@ -741,7 +883,6 @@ const buildCustomerEmail = ({
                 padding:30px 32px;
               "
             >
-
               <div
                 style="
                   margin-bottom:18px;
@@ -1021,9 +1162,10 @@ const sendSampleRequest = async (data) => {
   } = data;
 
   /*
-   * product_id is currently available for future logging,
-   * database tracking, CRM integration, etc.
+   * product_id is saved in the database.
+   * It is not currently required in the email template.
    */
+
   void product_id;
 
   const {
@@ -1036,13 +1178,17 @@ const sendSampleRequest = async (data) => {
   const formattedAddress = [
     street_address,
 
-    suite_number || null,
+    suite_number ||
+      null,
 
     county
       ? `${city}, ${county}`
       : city,
 
-    [state, zip_code]
+    [
+      state,
+      zip_code,
+    ]
       .filter(Boolean)
       .join(" "),
   ]
@@ -1130,9 +1276,6 @@ const sendSampleRequest = async (data) => {
 
     toRecipients,
 
-    /*
-     * Only add ccRecipients when configured.
-     */
     ...(ccRecipients.length > 0
       ? {
           ccRecipients,
@@ -1140,9 +1283,10 @@ const sendSampleRequest = async (data) => {
       : {}),
 
     /*
-     * If the internal team clicks Reply,
-     * the reply goes to the customer.
+     * When Ultra Stones staff clicks Reply,
+     * the reply goes directly to the customer.
      */
+
     replyTo: [
       {
         emailAddress: {
@@ -1154,10 +1298,9 @@ const sendSampleRequest = async (data) => {
   };
 
   /*
-   * Internal notification is CRITICAL.
+   * Internal notification is critical.
    *
-   * If this fails, throw the error so the website/API
-   * knows the actual sample request notification failed.
+   * If this fails, throw the error.
    */
 
   const internalResult =
@@ -1236,10 +1379,11 @@ const sendSampleRequest = async (data) => {
       customerResult.status;
   } catch (error) {
     /*
-     * Customer confirmation is helpful,
-     * but must NOT cause the entire sample request
-     * to fail after the internal team has already
-     * received it.
+     * Customer confirmation is secondary.
+     *
+     * The internal notification has already
+     * been sent successfully, so do not fail
+     * the entire request.
      */
 
     console.error(
@@ -1262,13 +1406,31 @@ const sendSampleRequest = async (data) => {
   ===================================================== */
 
   return {
-    success: true,
+    success:
+      true,
 
     sender:
       senderEmail,
 
+    recipients: {
+      to:
+        toRecipients.map(
+          (item) =>
+            item.emailAddress
+              .address
+        ),
+
+      cc:
+        ccRecipients.map(
+          (item) =>
+            item.emailAddress
+              .address
+        ),
+    },
+
     internalEmail: {
-      sent: true,
+      sent:
+        true,
 
       status:
         internalResult.status,
@@ -1289,6 +1451,12 @@ const sendSampleRequest = async (data) => {
   };
 };
 
+/* =========================================================
+   EXPORTS
+========================================================= */
+
 module.exports = {
+  createSampleRequest,
+  getAllSampleRequests,
   sendSampleRequest,
 };
