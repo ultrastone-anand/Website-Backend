@@ -29,7 +29,9 @@ const sampleRequestRoutes = require("./routes/sampleRequest.routes");
 const displayRequestRoutes = require("./routes/displayRequest.routes");
 const contactRequestRoutes = require("./routes/contactRequest.routes");
 const bulkDescriptionRoutes = require("./routes/bulkDescription.routes");
+const categoryResourceRoutes = require('./routes/categoryResource.routes');
 const inspirationGalleryRoutes = require("./routes/inspirationGallery.routes");
+const productRegistrationRoutes = require("./routes/ProductRegistration.routes");
 
 
 const app = express();
@@ -87,7 +89,9 @@ app.use("/api/sample-requests",sampleRequestRoutes);
 app.use("/api/display-request",displayRequestRoutes);
 app.use("/api/contact-request",contactRequestRoutes);
 app.use("/api/bulk-descriptions",bulkDescriptionRoutes);
+app.use('/api/category-resources', categoryResourceRoutes);
 app.use("/api/inspiration-gallery", inspirationGalleryRoutes);
+app.use("/api/product-registrations", productRegistrationRoutes);
 
 /* =========================================================
    PUBLIC SITEMAP
