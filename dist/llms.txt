@@ -1,0 +1,58 @@
+# Ultra Stones
+
+> Ultra Stones is a wholesale distributor of premium natural stone and engineered surfaces for architects, designers, builders, fabricators, dealers, and homeowners.
+
+## Main Pages
+
+- [Home](https://web.ultrastone.in/)
+- [Material Portfolio](https://web.ultrastone.in/categories)
+- [Contact Ultra Stones](https://web.ultrastone.in/contact)
+- [About Ultra Stones](https://web.ultrastone.in/aboutus)
+- [Our Process](https://web.ultrastone.in/ourprocess)
+
+## Resources
+
+- [Blogs](https://web.ultrastone.in/blogs)
+- [Continuing Education](https://web.ultrastone.in/ceu)
+- [Videos](https://web.ultrastone.in/videos)
+- [Merchandising Displays](https://web.ultrastone.in/merchandising-displays)
+- [Careers](https://web.ultrastone.in/career)
+
+## Locations
+
+- [New York Showroom](https://web.ultrastone.in/locations/new-york)
+- [Philadelphia Showroom](https://web.ultrastone.in/locations/philadelphia)
+
+## Material Categories
+
+Material category pages use this structure:
+
+- `https://web.ultrastone.in/product-category/{category-slug}`
+
+Examples:
+
+- [Marble](https://web.ultrastone.in/product-category/marble)
+- [Granite](https://web.ultrastone.in/product-category/granite)
+- [Quartzite](https://web.ultrastone.in/product-category/quartzite)
+- [Quartz](https://web.ultrastone.in/product-category/quartz)
+- [Onyx](https://web.ultrastone.in/product-category/onyx)
+- [Travertine](https://web.ultrastone.in/product-category/travertine)
+- [Limestone](https://web.ultrastone.in/product-category/limestone)
+- [Soapstone](https://web.ultrastone.in/product-category/soapstone)
+- [Dolomite](https://web.ultrastone.in/product-category/dolomite)
+- [Porcelain](https://web.ultrastone.in/product-category/porcelain)
+
+## Product Pages
+
+Individual product pages use this structure:
+
+- `https://web.ultrastone.in/product/{category-slug}/{product-slug}`
+
+Product information may include material type, finish, thickness, images, availability, applications, and technical details.
+
+## Usage Notes
+
+- Product availability and specifications may change.
+- Product images represent natural materials and may contain variations.
+- Confirm current inventory, dimensions, finish, and technical information with Ultra Stones.
+- Individual product pages should be treated as the primary source for product-specific information.

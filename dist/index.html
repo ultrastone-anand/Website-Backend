@@ -1,26 +1,366 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <!-- =========================================================
+         BASIC DOCUMENT CONFIGURATION
+    ========================================================== -->
+
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preload" as="image" href="/favicon.png" />
-    <link rel="preload" as="image" href="/logo_white.png" />
-    <link rel="preload" as="image" href="/footer.png" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+
+    <meta name="theme-color" content="#ffffff" />
+
+    <!-- =========================================================
+         PERFORMANCE: PRECONNECT
+
+         Establish connections to important external
+         resources before they are requested.
+    ========================================================== -->
 
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap"
-      rel="stylesheet"
+      rel="preconnect"
+      href="https://cdn.ultrastone.in"
+      crossorigin
     />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Luxury Granite, Marble & Quartz Countertops - Ultra Stones</title>
-    <script type="module" crossorigin src="/assets/index-B8EAoeRR.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/chunk-BNv3lrIs.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-3euj28ug.css">
+
+    <link
+      rel="preconnect"
+      href="https://backend.ultrastones.com"
+      crossorigin
+    />
+
+    <link
+      rel="preconnect"
+      href="https://fonts.googleapis.com"
+    />
+
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+
+    <!-- =========================================================
+         GOOGLE FONTS - NON-BLOCKING
+
+         Font stylesheet is loaded without blocking
+         the initial page render.
+
+         font-display=swap allows fallback fonts
+         while custom fonts download.
+    ========================================================== -->
+
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=BBH+Bartle&family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=Montserrat:wght@400;500;600;700&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'"
+    />
+
+    <!-- Fallback for browsers with JavaScript disabled -->
+
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=BBH+Bartle&family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=Montserrat:wght@400;500;600;700&display=swap"
+      />
+    </noscript>
+
+    <!-- =========================================================
+         GOOGLE TAG MANAGER
+
+         Preserved existing GTM implementation.
+    ========================================================== -->
+
+    <script>
+      (function (w, d, s, l, i) {
+        w[l] = w[l] || [];
+
+        w[l].push({
+          "gtm.start": new Date().getTime(),
+          event: "gtm.js",
+        });
+
+        var f = d.getElementsByTagName(s)[0],
+          j = d.createElement(s),
+          dl = l != "dataLayer" ? "&l=" + l : "";
+
+        j.async = true;
+
+        j.src =
+          "https://www.googletagmanager.com/gtm.js?id=" +
+          i +
+          dl;
+
+        f.parentNode.insertBefore(j, f);
+      })(
+        window,
+        document,
+        "script",
+        "dataLayer",
+        "GTM-NR3PXVZX"
+      );
+    </script>
+
+    <!-- =========================================================
+         GOOGLE ANALYTICS 4
+
+         Preserved existing GA4 implementation.
+
+         Important:
+         Verify GA4 is not also firing through GTM.
+    ========================================================== -->
+
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-70GS6LZ9FB"
+    ></script>
+
+    <script>
+      window.dataLayer = window.dataLayer || [];
+
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+
+      gtag("js", new Date());
+
+      gtag("config", "G-70GS6LZ9FB");
+    </script>
+
+    <!-- =========================================================
+         SEARCH ENGINE CRAWLING
+    ========================================================== -->
+
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+
+    <meta
+      name="googlebot"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+
+    <!-- =========================================================
+         PRIMARY SEO
+    ========================================================== -->
+
+    <title>
+      Luxury Granite, Marble & Quartz Countertops | Ultra Stones
+    </title>
+
+    <meta
+      name="description"
+      content="Explore premium granite, marble, quartzite, quartz and engineered surfaces from Ultra Stones for residential and commercial projects."
+    />
+
+    <meta
+      name="author"
+      content="Ultra Stones"
+    />
+
+    <meta
+      name="publisher"
+      content="Ultra Stones"
+    />
+
+    <!-- =========================================================
+         CANONICAL URL
+
+         Note:
+         Your React SEO component should update this
+         for individual routes.
+    ========================================================== -->
+
+    <link
+      rel="canonical"
+      href="https://www.ultrastones.com/"
+    />
+
+    <!-- =========================================================
+         LANGUAGE / REGION
+    ========================================================== -->
+
+    <meta
+      http-equiv="content-language"
+      content="en"
+    />
+
+    <!-- =========================================================
+         OPEN GRAPH / SOCIAL SHARING
+    ========================================================== -->
+
+    <meta
+      property="og:type"
+      content="website"
+    />
+
+    <meta
+      property="og:locale"
+      content="en_US"
+    />
+
+    <meta
+      property="og:site_name"
+      content="Ultra Stones"
+    />
+
+    <meta
+      property="og:title"
+      content="Luxury Granite, Marble & Quartz Countertops | Ultra Stones"
+    />
+
+    <meta
+      property="og:description"
+      content="Explore premium granite, marble, quartzite, quartz and engineered surfaces from Ultra Stones for residential and commercial projects."
+    />
+
+    <meta
+      property="og:url"
+      content="https://www.ultrastones.com/"
+    />
+
+    <meta
+      property="og:image"
+      content="https://cdn.ultrastone.in/cdn-cgi/image/width=1920,quality=78,format=auto/frame0.png"
+    />
+
+    <meta
+      property="og:image:alt"
+      content="Luxury granite, marble and quartz surfaces by Ultra Stones"
+    />
+
+    <meta
+      property="og:image:width"
+      content="1920"
+    />
+
+    <meta
+      property="og:image:height"
+      content="1080"
+    />
+
+    <!-- =========================================================
+         TWITTER / X
+    ========================================================== -->
+
+    <meta
+      name="twitter:card"
+      content="summary_large_image"
+    />
+
+    <meta
+      name="twitter:title"
+      content="Luxury Granite, Marble & Quartz Countertops | Ultra Stones"
+    />
+
+    <meta
+      name="twitter:description"
+      content="Explore premium granite, marble, quartzite, quartz and engineered surfaces from Ultra Stones."
+    />
+
+    <meta
+      name="twitter:image"
+      content="https://cdn.ultrastone.in/cdn-cgi/image/width=1920,quality=78,format=auto/frame0.png"
+    />
+
+    <meta
+      name="twitter:image:alt"
+      content="Luxury stone surfaces by Ultra Stones"
+    />
+
+    <!-- =========================================================
+         FAVICON
+    ========================================================== -->
+
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/favicon.svg"
+    />
+
+    <link
+      rel="apple-touch-icon"
+      href="/favicon.svg"
+    />
+
+    <!-- =========================================================
+         STRUCTURED DATA - ORGANIZATION
+    ========================================================== -->
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Ultra Stones",
+        "url": "https://www.ultrastones.com/",
+        "logo": "https://www.ultrastones.com/favicon.svg"
+      }
+    </script>
+
+    <!-- =========================================================
+         STRUCTURED DATA - WEBSITE
+    ========================================================== -->
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Ultra Stones",
+        "url": "https://www.ultrastones.com/"
+      }
+    </script>
+
+    <!-- =========================================================
+         HERO PRELOAD
+
+         Removed the hardcoded frame0.png preload.
+
+         Reason:
+         Homepage hero is dynamic and may use a
+         different image or mobile-specific poster.
+
+         The HeroSection component already uses:
+         loading="eager"
+         fetchPriority="high"
+
+         A dynamic preload can be implemented later
+         when the active hero URL is known.
+    ========================================================== -->
+
+    <script type="module" crossorigin src="/assets/index-TrkQfYJp.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-7uw-JnGh.css">
   </head>
 
   <body>
+    <!-- =========================================================
+         GOOGLE TAG MANAGER - NOSCRIPT
+    ========================================================== -->
+
+    <noscript>
+      <iframe
+        src="https://www.googletagmanager.com/ns.html?id=GTM-NR3PXVZX"
+        height="0"
+        width="0"
+        style="display:none;visibility:hidden"
+      ></iframe>
+    </noscript>
+
+    <!-- =========================================================
+         REACT ROOT
+    ========================================================== -->
+
     <div id="root"></div>
+
+    <!-- =========================================================
+         VITE / REACT ENTRY POINT
+    ========================================================== -->
+
+
   </body>
 </html>

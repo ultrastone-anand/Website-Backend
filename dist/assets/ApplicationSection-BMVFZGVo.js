@@ -1,0 +1,136 @@
+import{r as g,j as e,L as y,g as i}from"./index-TrkQfYJp.js";const w="https://backend.ultrastones.com/api",b=[{title:"BATHROOM",desc:"Luxury Vanities",categoryNames:["Bathroom","Bathrooms"],galleryCategory:"Bathroom"},{title:"KITCHENS",desc:"Statement Countertops",categoryNames:["Kitchen","Kitchens"],galleryCategory:"Kitchen"},{title:"EXTERIORS",desc:"Architectural Facades",categoryNames:["Outdoors","Outdoor","Facades","Exteriors"],galleryCategory:"Exteriors"}],N=["https://cdn.ultrastone.in/Home%20Page/inspiration%20galleries/bathroom/1783518137508-32b313c4-3b86-43c5-81d6-24b3d075c486-1783518137466-c234cb81-8026-4796-83a1-921ff406afea-bathroom.jpg","https://cdn.ultrastone.in/Home%20Page/inspiration%20galleries/kitchen/1783529992231-043802ea-cef7-4817-996d-a3e3fa4b0240-cipollino-verde-2cm-hon.jpg","https://cdn.ultrastone.in/Home%20Page/inspiration%20galleries/outdoors/1783530312160-6c2d96f4-be10-4825-bd02-0eaeebb4997b-pool-deck-scene.jpg"],j=s=>{if(!s.length)return null;const m=Math.floor(Math.random()*s.length);return s[m]},A=()=>{const[s,m]=g.useState([]);g.useEffect(()=>{const t=new AbortController;return(async()=>{try{const a=await fetch(`${w}/inspiration-gallery/images?limit=30`,{signal:t.signal});if(!a.ok)throw new Error(`Request failed with status ${a.status}`);const n=await a.json(),c=Array.isArray(n)?n:Array.isArray(n?.data)?n.data:Array.isArray(n?.data?.images)?n.data.images:Array.isArray(n?.images)?n.images:[];m(c)}catch(a){a.name!=="AbortError"&&(console.error("Failed to fetch inspiration gallery images:",a),m([]))}})(),()=>t.abort()},[]);const f=g.useMemo(()=>{const t=Array.isArray(s)?s:[];return b.map((r,a)=>{const n=r.categoryNames.map(l=>l.trim().toLowerCase()),c=t.filter(l=>{const o=l?.inspiration_gallery_categories;return(Array.isArray(o)?o.map(p=>p?.name?.trim().toLowerCase()).filter(Boolean):[o?.name?.trim().toLowerCase()].filter(Boolean)).some(p=>n.includes(p))}),d=c.filter(l=>{const o=Number(l?.width),x=Number(l?.height);return!o||!x?!0:o>=1e3&&x>=1200}),u=d.length>0?d:c,h=j(u);return{...r,image:h?.image_url||h?.url||N[a]}})},[s]);return e.jsx("section",{className:"mb-10 bg-[#222221] py-9 sm:mb-14 sm:py-12 md:py-16 xl:mb-[70px] xl:py-[70px]",children:e.jsxs("div",{className:`
+          mx-auto
+          flex
+          max-w-[1850px]
+          flex-col
+          gap-9
+          px-5
+          sm:px-6
+          md:px-8
+          xl:flex-row
+          xl:items-center
+          xl:justify-between
+          xl:gap-12
+          xl:px-[70px]
+        `,children:[e.jsxs("div",{className:"w-full xl:w-[430px] xl:shrink-0",children:[e.jsxs("p",{className:`
+              flex
+              items-center
+              gap-3
+              text-[14px]
+              font-bold
+              uppercase
+              text-white
+              sm:text-[16px]
+              md:text-[18px]
+            `,style:{fontFamily:"Montserrat, sans-serif"},children:["APPLICATIONS",e.jsx("span",{className:"text-[18px] font-normal text-[#D67A1C] sm:text-[20px]",children:"→"})]}),e.jsxs("h2",{className:`
+              mt-4
+              uppercase
+              leading-[1.35]
+              tracking-[0.14em]
+              text-white
+              text-[20px]
+              sm:mt-5
+              sm:text-[22px]
+              sm:tracking-[0.18em]
+              xl:text-[24px]
+              xl:tracking-[0.2em]
+            `,style:{fontFamily:'"BBH Bartle", sans-serif',fontWeight:400},children:["ONE STONE.",e.jsx("br",{}),"ENDLESS",e.jsx("br",{}),"POSSIBILITIES"]}),e.jsx("p",{className:`
+              mt-4
+              max-w-[360px]
+              text-[12px]
+              leading-[1.6]
+              text-white/85
+              sm:mt-5
+              sm:text-[13px]
+              md:mt-6
+            `,style:{fontFamily:"Inter, sans-serif"},children:"From elegant interiors to grand exteriors, Ultra Stones elevates every space with natural perfection."}),e.jsxs(y,{to:"/gallery",className:`
+              mt-6
+              inline-flex
+              w-fit
+              items-center
+              border
+              border-white/70
+              px-4
+              py-2.5
+              text-[10px]
+              font-bold
+              uppercase
+              text-white
+              transition
+              hover:bg-white
+              hover:text-black
+              sm:mt-7
+              sm:px-5
+              sm:py-3
+              sm:text-[11px]
+              md:mt-8
+              md:px-6
+            `,style:{fontFamily:"Montserrat, sans-serif"},children:["VIEW ALL COLLECTION",e.jsx("span",{className:"ml-4 text-[16px] font-normal text-[#D67A1C] sm:ml-5 sm:text-[18px]",children:"→"})]})]}),e.jsxs("div",{className:"w-full min-w-0 xl:ml-auto xl:max-w-[980px] 2xl:max-w-[1080px]",children:[e.jsx("div",{className:`
+              -mx-5
+              flex
+              snap-x
+              snap-mandatory
+              gap-4
+              overflow-x-auto
+              px-5
+              pb-3
+              [scrollbar-width:none]
+              [&::-webkit-scrollbar]:hidden
+              sm:mx-0
+              sm:grid
+              sm:grid-cols-3
+              sm:gap-4
+              sm:overflow-visible
+              sm:px-0
+              sm:pb-0
+              xl:gap-5
+            `,children:f.map(t=>e.jsxs(y,{to:`/gallery?category=${encodeURIComponent(t.galleryCategory)}`,className:`
+      group
+      w-[78vw]
+      max-w-[300px]
+      shrink-0
+      snap-start
+      text-center
+      sm:w-auto
+      sm:max-w-none
+      sm:shrink
+    `,children:[e.jsx("div",{className:`
+                    aspect-[4/5]
+                    overflow-hidden
+                    bg-black
+                    sm:aspect-[3/5]
+                  `,children:e.jsx("img",{src:i(t.image,1600,90),srcSet:[`${i(t.image,600,84)} 600w`,`${i(t.image,900,86)} 900w`,`${i(t.image,1200,88)} 1200w`,`${i(t.image,1600,90)} 1600w`].join(", "),sizes:`
+                      (max-width: 639px) 78vw,
+                      (max-width: 1279px) calc((100vw - 80px) / 3),
+                      360px
+                    `,width:"1200",height:"2000",alt:t.title,loading:"lazy",decoding:"async",draggable:"false",className:`
+                      h-full
+                      w-full
+                      object-cover
+                      transition-transform
+                      duration-700
+                      ease-out
+                      group-hover:scale-[1.03]
+                    `,onError:r=>{r.currentTarget.src=t.image,r.currentTarget.srcset=""}})}),e.jsx("h3",{className:`
+                    mt-3
+                    text-[11px]
+                    font-medium
+                    uppercase
+                    text-white
+                    sm:mt-4
+                    sm:text-[12px]
+                  `,style:{fontFamily:"Montserrat, sans-serif"},children:t.title}),e.jsx("p",{className:`
+                    mt-1.5
+                    text-[11px]
+                    text-white/75
+                    sm:mt-2
+                    sm:text-[12px]
+                  `,style:{fontFamily:"Inter, sans-serif"},children:t.desc})]},t.title))}),e.jsx("p",{className:`
+              mt-3
+              text-center
+              text-[10px]
+              uppercase
+              tracking-[0.12em]
+              text-white/55
+              sm:hidden
+            `,style:{fontFamily:"Montserrat, sans-serif"},children:"Swipe to explore"})]})]})})};export{A as default};

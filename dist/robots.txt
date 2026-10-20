@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Disallow: /search
+Disallow: /search/
+
+Disallow: /author/
+
+Sitemap: https://www.ultrastones.com/sitemap.xml
