@@ -65,7 +65,7 @@ function safeUrl(value) {
 }
 
 /* =========================================================
-   CANONICAL URL GENERATION
+   CANONICAL URL GENERATION - PRODUCT
 ========================================================= */
 
 function getCanonicalUrl(product, reqPath = "") {
@@ -107,6 +107,23 @@ function getCanonicalUrl(product, reqPath = "") {
 }
 
 /* =========================================================
+   CANONICAL URL GENERATION - BLOG
+========================================================= */
+
+function getBlogCanonicalUrl(blog) {
+  if (!valid(blog?.slug)) {
+    throw new Error(
+      "Blog slug is required for SEO generation."
+    );
+  }
+
+  return (
+    `${SITE_URL}/blog/` +
+    encodeURIComponent(String(blog.slug).trim())
+  );
+}
+
+/* =========================================================
    PRODUCT IMAGE SELECTION
 ========================================================= */
 
@@ -137,6 +154,37 @@ function getImage(product) {
     safeUrl(fallback?.media_url) ||
     ""
   );
+}
+
+/* =========================================================
+   BLOG IMAGE SELECTION
+========================================================= */
+
+function getBlogImage(blog) {
+  const coverUrl = safeUrl(
+    blog?.cover?.url
+  );
+
+  if (coverUrl) {
+    return coverUrl;
+  }
+
+  const contentMedia = Array.isArray(
+    blog?.content_media
+  )
+    ? blog.content_media
+    : [];
+
+  const firstImage = contentMedia.find(
+    (item) =>
+      safeUrl(item?.url) &&
+      (
+        !item.mime_type ||
+        String(item.mime_type).startsWith("image/")
+      )
+  );
+
+  return safeUrl(firstImage?.url) || "";
 }
 
 /* =========================================================
@@ -245,7 +293,7 @@ function buildProductSchema(
 }
 
 /* =========================================================
-   CHECK WHETHER CUSTOM SCHEMA ALREADY CONTAINS PRODUCT
+   CHECK WHETHER CUSTOM SCHEMA CONTAINS PRODUCT
 ========================================================= */
 
 function containsProductSchema(schemaMarkup) {
@@ -286,6 +334,73 @@ function containsProductSchema(schemaMarkup) {
   } catch {
     return false;
   }
+}
+
+/* =========================================================
+   AUTOMATIC BLOGPOSTING STRUCTURED DATA
+========================================================= */
+
+function buildBlogSchema(
+  blog,
+  canonical,
+  description,
+  image
+) {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+
+    "@id": `${canonical}#article`,
+
+    headline: String(blog.title || "").trim(),
+
+    description: String(description || "").trim(),
+
+    url: canonical,
+
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": canonical
+    },
+
+    publisher: {
+      "@type": "Organization",
+      name: "Ultra Stones",
+      url: SITE_URL
+    }
+  };
+
+  if (image) {
+    schema.image = [image];
+  }
+
+  if (blog.published_at) {
+    schema.datePublished =
+      new Date(blog.published_at).toISOString();
+  }
+
+  if (blog.updated_at) {
+    schema.dateModified =
+      new Date(blog.updated_at).toISOString();
+  }
+
+  // Include author only when a real name is available.
+  // The existing blog API currently returns author_id,
+  // not an author name.
+
+  const authorName =
+    blog.author?.name ||
+    blog.author_name ||
+    "";
+
+  if (valid(authorName)) {
+    schema.author = {
+      "@type": "Person",
+      name: String(authorName).trim()
+    };
+  }
+
+  return serializeJsonLd(schema);
 }
 
 /* =========================================================
@@ -503,6 +618,200 @@ ${schemaMarkup}
 }
 
 /* =========================================================
+   BLOG SEO GENERATION
+========================================================= */
+
+function buildBlogSeo(blog, reqPath = "") {
+  if (!blog) {
+    throw new Error(
+      "Blog data is required for SEO generation."
+    );
+  }
+
+  /* -------------------------------------------------------
+     TITLE
+  ------------------------------------------------------- */
+
+  const title = valid(blog.meta_title)
+    ? blog.meta_title
+    : `${blog.title} | Ultra Stones`;
+
+  /* -------------------------------------------------------
+     DESCRIPTION
+  ------------------------------------------------------- */
+
+  const description = valid(blog.meta_description)
+    ? blog.meta_description
+    : valid(blog.description)
+      ? blog.description
+      : "Explore design inspiration, stone applications, and expert insights from Ultra Stones.";
+
+  /* -------------------------------------------------------
+     CANONICAL
+  ------------------------------------------------------- */
+
+  const canonical = getBlogCanonicalUrl(blog);
+
+  /* -------------------------------------------------------
+     IMAGE
+  ------------------------------------------------------- */
+
+  const image = getBlogImage(blog);
+
+  const imageAlt =
+    blog.cover?.alt_text ||
+    blog.title ||
+    "Ultra Stones Blog";
+
+  /* -------------------------------------------------------
+     BLOG STRUCTURED DATA
+  ------------------------------------------------------- */
+
+  const schemaMarkup = buildBlogSchema(
+    blog,
+    canonical,
+    description,
+    image
+  );
+
+  /* -------------------------------------------------------
+     GENERATE SEO HTML
+  ------------------------------------------------------- */
+
+  return `
+<!-- =====================================================
+     ULTRA STONES - BLOG SEO
+===================================================== -->
+
+<title>${escapeHtml(title)}</title>
+
+<meta
+  name="description"
+  content="${escapeHtml(description)}"
+/>
+
+<meta
+  name="robots"
+  content="index, follow, max-image-preview:large"
+/>
+
+<link
+  rel="canonical"
+  href="${escapeHtml(canonical)}"
+/>
+
+<!-- =====================================================
+     OPEN GRAPH - ARTICLE
+===================================================== -->
+
+<meta
+  property="og:type"
+  content="article"
+/>
+
+<meta
+  property="og:locale"
+  content="en_US"
+/>
+
+<meta
+  property="og:site_name"
+  content="Ultra Stones"
+/>
+
+<meta
+  property="og:title"
+  content="${escapeHtml(title)}"
+/>
+
+<meta
+  property="og:description"
+  content="${escapeHtml(description)}"
+/>
+
+<meta
+  property="og:url"
+  content="${escapeHtml(canonical)}"
+/>
+
+${
+  image
+    ? `<meta
+  property="og:image"
+  content="${escapeHtml(image)}"
+/>
+
+<meta
+  property="og:image:alt"
+  content="${escapeHtml(imageAlt)}"
+/>`
+    : ""
+}
+
+${
+  blog.published_at
+    ? `<meta
+  property="article:published_time"
+  content="${escapeHtml(blog.published_at)}"
+/>`
+    : ""
+}
+
+${
+  blog.updated_at
+    ? `<meta
+  property="article:modified_time"
+  content="${escapeHtml(blog.updated_at)}"
+/>`
+    : ""
+}
+
+<!-- =====================================================
+     TWITTER / X
+===================================================== -->
+
+<meta
+  name="twitter:card"
+  content="summary_large_image"
+/>
+
+<meta
+  name="twitter:title"
+  content="${escapeHtml(title)}"
+/>
+
+<meta
+  name="twitter:description"
+  content="${escapeHtml(description)}"
+/>
+
+${
+  image
+    ? `<meta
+  name="twitter:image"
+  content="${escapeHtml(image)}"
+/>
+
+<meta
+  name="twitter:image:alt"
+  content="${escapeHtml(imageAlt)}"
+/>`
+    : ""
+}
+
+<!-- =====================================================
+     BLOGPOSTING STRUCTURED DATA
+===================================================== -->
+
+<script type="application/ld+json">${schemaMarkup}</script>
+
+<!-- =====================================================
+     END BLOG SEO
+===================================================== -->
+`;
+}
+
+/* =========================================================
    REMOVE EXISTING SEO TAGS
 ========================================================= */
 
@@ -567,7 +876,7 @@ function removeExistingSeo(html) {
 }
 
 /* =========================================================
-   INJECT PRODUCT SEO INTO HTML
+   INJECT SEO INTO HTML
 ========================================================= */
 
 function injectSeo(html, seoTags) {
@@ -603,5 +912,6 @@ function injectSeo(html, seoTags) {
 
 module.exports = {
   buildProductSeo,
+  buildBlogSeo,
   injectSeo
 };

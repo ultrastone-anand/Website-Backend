@@ -3,7 +3,9 @@ const cors = require('cors');
 const path = require("path");
 
 const fs = require("fs");
-const { buildProductSeo, injectSeo } = require("./utils/seoHtml");
+
+const { getBlogById } = require("./services/blog.service");
+const { buildProductSeo,buildBlogSeo, injectSeo } = require("./utils/seoHtml");
 const { getProductDetails } = require("./services/stone.service");
 
 const pageRoutes = require('./routes/page.routes');
@@ -175,6 +177,79 @@ app.get(
 
       return res.status(500).send(
         "Product SEO generation failed"
+      );
+    }
+  }
+);
+
+
+/* =========================================================
+   BLOG SEO HTML
+========================================================= */
+
+app.get(
+  "/blog/:identifier",
+  async (req, res) => {
+    try {
+      const { identifier } = req.params;
+
+      const blog = await getBlogById(identifier);
+
+      if (
+        !blog ||
+        blog.status !== "PUBLISHED" ||
+        blog.deleted_at
+      ) {
+        return res.status(404).send(
+          "Blog not found"
+        );
+      }
+
+      const html = await fs.promises.readFile(
+        frontendIndexPath,
+        "utf8"
+      );
+
+      const seoTags = buildBlogSeo(
+  blog,
+  `/blog/${blog.slug}`
+);
+
+      const finalHtml = injectSeo(
+        html,
+        seoTags
+      );
+
+      res.setHeader(
+        "Content-Type",
+        "text/html; charset=utf-8"
+      );
+
+      res.setHeader(
+        "X-SEO-Source",
+        "express-blog"
+      );
+
+      return res.status(200).send(
+        finalHtml
+      );
+
+    } catch (error) {
+      if (
+        error.message === "Blog post not found"
+      ) {
+        return res.status(404).send(
+          "Blog not found"
+        );
+      }
+
+      console.error(
+        "[SEO] Blog SEO generation failed:",
+        error
+      );
+
+      return res.status(500).send(
+        "Blog SEO generation failed"
       );
     }
   }
