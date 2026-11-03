@@ -1,7 +1,13 @@
+// src/utils/seoHtml.js
+
 const SITE_URL = "https://www.ultrastones.com";
 
+/* =========================================================
+   HTML ESCAPING
+========================================================= */
+
 function escapeHtml(value = "") {
-  return String(value)
+  return String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -9,78 +15,457 @@ function escapeHtml(value = "") {
     .replaceAll("'", "&#39;");
 }
 
+/* =========================================================
+   VALUE VALIDATION
+========================================================= */
+
 function valid(value) {
-  return value && value !== "test" && value !== "{}";
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  if (typeof value !== "string") {
+    return Boolean(value);
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  return (
+    normalized !== "" &&
+    normalized !== "test" &&
+    normalized !== "{}" &&
+    normalized !== "null" &&
+    normalized !== "undefined"
+  );
 }
 
+/* =========================================================
+   URL VALIDATION
+========================================================= */
+
+function safeUrl(value) {
+  if (!valid(value)) {
+    return "";
+  }
+
+  try {
+    const url = new URL(String(value).trim());
+
+    if (
+      url.protocol !== "https:" &&
+      url.protocol !== "http:"
+    ) {
+      return "";
+    }
+
+    return url.href;
+  } catch {
+    return "";
+  }
+}
+
+/* =========================================================
+   CANONICAL URL GENERATION
+========================================================= */
+
+function getCanonicalUrl(product, reqPath = "") {
+  const databaseCanonical = safeUrl(
+    product?.seo?.canonical_url
+  );
+
+  if (databaseCanonical) {
+    const url = new URL(databaseCanonical);
+
+    // Remove tracking/query parameters and fragments.
+    url.search = "";
+    url.hash = "";
+
+    return url.href;
+  }
+
+  const categorySlug =
+    product?.stone_categories?.slug;
+
+  const productSlug = product?.slug;
+
+  if (categorySlug && productSlug) {
+    return (
+      `${SITE_URL}/product/` +
+      `${encodeURIComponent(categorySlug)}/` +
+      `${encodeURIComponent(productSlug)}`
+    );
+  }
+
+  // Fallback to the requested route.
+  const pathname = String(reqPath)
+    .split("?")[0]
+    .split("#")[0];
+
+  const normalizedPath = pathname.startsWith("/")
+    ? pathname
+    : `/${pathname}`;
+
+  return `${SITE_URL}${normalizedPath}`;
+}
+
+/* =========================================================
+   PRODUCT IMAGE SELECTION
+========================================================= */
+
 function getImage(product) {
+  const media = Array.isArray(product?.media)
+    ? product.media
+    : [];
+
+  const closeup = media.find(
+    (item) =>
+      item.media_type === "CLOSEUP_IMAGE" &&
+      safeUrl(item.media_url)
+  );
+
+  const slab = media.find(
+    (item) =>
+      item.media_type === "SLAB_IMAGE" &&
+      safeUrl(item.media_url)
+  );
+
+  const fallback = media.find(
+    (item) => safeUrl(item.media_url)
+  );
+
   return (
-    product.media?.find((i) => i.media_type === "CLOSEUP_IMAGE")?.media_url ||
-    product.media?.find((i) => i.media_type === "SLAB_IMAGE")?.media_url ||
-    product.media?.[0]?.media_url ||
+    safeUrl(closeup?.media_url) ||
+    safeUrl(slab?.media_url) ||
+    safeUrl(fallback?.media_url) ||
     ""
   );
 }
 
-function buildProductSeo(product, reqPath) {
+/* =========================================================
+   JSON-LD VALIDATION
+========================================================= */
+
+function getValidSchemaMarkup(schemaMarkup) {
+  if (!valid(schemaMarkup)) {
+    return "";
+  }
+
+  try {
+    const parsed =
+      typeof schemaMarkup === "string"
+        ? JSON.parse(schemaMarkup)
+        : schemaMarkup;
+
+    if (
+      parsed === null ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed) ||
+      Object.keys(parsed).length === 0
+    ) {
+      return "";
+    }
+
+    // Serialize JSON safely for embedding inside HTML.
+    return JSON.stringify(parsed)
+      .replace(/</g, "\\u003c")
+      .replace(/>/g, "\\u003e")
+      .replace(/&/g, "\\u0026")
+      .replace(/\u2028/g, "\\u2028")
+      .replace(/\u2029/g, "\\u2029");
+  } catch (error) {
+    console.warn(
+      "[SEO] Invalid JSON-LD schema:",
+      error.message
+    );
+
+    return "";
+  }
+}
+
+/* =========================================================
+   PRODUCT SEO GENERATION
+========================================================= */
+
+function buildProductSeo(product, reqPath = "") {
+  if (!product) {
+    throw new Error(
+      "Product data is required for SEO generation."
+    );
+  }
+
   const seo = product.seo || {};
 
-  const title =
-    seo.meta_title || `${product.name} ${product.stone_group || ""} | Ultra Stones`;
+  /* -------------------------------------------------------
+     TITLE
+  ------------------------------------------------------- */
 
-  const description =
-    seo.meta_description ||
-    product.small_description ||
-    product.long_description?.slice(0, 160) ||
-    "Explore premium stone surfaces by Ultra Stones.";
+  const title = valid(seo.meta_title)
+    ? seo.meta_title
+    : `${product.name} | Ultra Stones`;
 
-  const canonical = valid(seo.canonical_url)
-    ? seo.canonical_url
-    : `${SITE_URL}${reqPath}`;
+  /* -------------------------------------------------------
+     DESCRIPTION
+  ------------------------------------------------------- */
 
-  const image = valid(seo.og_image) ? seo.og_image : getImage(product);
+  const description = valid(seo.meta_description)
+    ? seo.meta_description
+    : valid(product.small_description)
+      ? product.small_description
+      : valid(product.long_description)
+        ? product.long_description.slice(0, 160)
+        : "Explore premium natural and engineered stone surfaces by Ultra Stones.";
 
-  const robots = `${seo.robots_index === false ? "noindex" : "index"}, ${
-    seo.robots_follow === false ? "nofollow" : "follow"
-  }`;
+  /* -------------------------------------------------------
+     CANONICAL
+  ------------------------------------------------------- */
+
+  const canonical = getCanonicalUrl(
+    product,
+    reqPath
+  );
+
+  /* -------------------------------------------------------
+     OPEN GRAPH
+  ------------------------------------------------------- */
+
+  const ogTitle = valid(seo.og_title)
+    ? seo.og_title
+    : title;
+
+  const ogDescription = valid(seo.og_description)
+    ? seo.og_description
+    : description;
+
+  const image =
+    safeUrl(seo.og_image) ||
+    getImage(product);
+
+  /* -------------------------------------------------------
+     ROBOTS
+  ------------------------------------------------------- */
+
+  const robotsIndex =
+    seo.robots_index === false
+      ? "noindex"
+      : "index";
+
+  const robotsFollow =
+    seo.robots_follow === false
+      ? "nofollow"
+      : "follow";
+
+  const robots =
+    `${robotsIndex}, ${robotsFollow}`;
+
+  /* -------------------------------------------------------
+     STRUCTURED DATA
+  ------------------------------------------------------- */
+
+  const schemaMarkup = getValidSchemaMarkup(
+    seo.schema_markup
+  );
+
+  /* -------------------------------------------------------
+     GENERATE SEO HTML
+  ------------------------------------------------------- */
 
   return `
+<!-- =====================================================
+     ULTRA STONES - PRODUCT SEO
+===================================================== -->
+
 <title>${escapeHtml(title)}</title>
-<meta name="description" content="${escapeHtml(description)}" />
-<meta name="robots" content="${escapeHtml(robots)}" />
-<link rel="canonical" href="${escapeHtml(canonical)}" />
 
-<meta property="og:type" content="product" />
-<meta property="og:title" content="${escapeHtml(seo.og_title || title)}" />
-<meta property="og:description" content="${escapeHtml(seo.og_description || description)}" />
-<meta property="og:url" content="${escapeHtml(canonical)}" />
-${image ? `<meta property="og:image" content="${escapeHtml(image)}" />` : ""}
+<meta
+  name="description"
+  content="${escapeHtml(description)}"
+/>
 
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="${escapeHtml(seo.og_title || title)}" />
-<meta name="twitter:description" content="${escapeHtml(seo.og_description || description)}" />
-${image ? `<meta name="twitter:image" content="${escapeHtml(image)}" />` : ""}
+<meta
+  name="robots"
+  content="${escapeHtml(robots)}"
+/>
+
+<link
+  rel="canonical"
+  href="${escapeHtml(canonical)}"
+/>
+
+<!-- =====================================================
+     OPEN GRAPH
+===================================================== -->
+
+<meta
+  property="og:type"
+  content="product"
+/>
+
+<meta
+  property="og:title"
+  content="${escapeHtml(ogTitle)}"
+/>
+
+<meta
+  property="og:description"
+  content="${escapeHtml(ogDescription)}"
+/>
+
+<meta
+  property="og:url"
+  content="${escapeHtml(canonical)}"
+/>
 
 ${
-  seo.schema_markup
-    ? `<script type="application/ld+json">${seo.schema_markup}</script>`
+  image
+    ? `<meta
+  property="og:image"
+  content="${escapeHtml(image)}"
+/>`
     : ""
 }
+
+<!-- =====================================================
+     TWITTER / X
+===================================================== -->
+
+<meta
+  name="twitter:card"
+  content="summary_large_image"
+/>
+
+<meta
+  name="twitter:title"
+  content="${escapeHtml(ogTitle)}"
+/>
+
+<meta
+  name="twitter:description"
+  content="${escapeHtml(ogDescription)}"
+/>
+
+${
+  image
+    ? `<meta
+  name="twitter:image"
+  content="${escapeHtml(image)}"
+/>`
+    : ""
+}
+
+<!-- =====================================================
+     PRODUCT STRUCTURED DATA
+===================================================== -->
+
+${
+  schemaMarkup
+    ? `<script type="application/ld+json">${schemaMarkup}</script>`
+    : ""
+}
+
+<!-- =====================================================
+     END PRODUCT SEO
+===================================================== -->
 `;
 }
 
-function injectSeo(html, seoTags) {
+/* =========================================================
+   REMOVE EXISTING SEO TAGS
+========================================================= */
+
+function removeExistingSeo(html) {
   let cleanHtml = html;
 
-  cleanHtml = cleanHtml.replace(/<title>.*?<\/title>/i, "");
-  cleanHtml = cleanHtml.replace(/<meta name="description".*?>/i, "");
-  cleanHtml = cleanHtml.replace(/<meta name="robots".*?>/i, "");
-  cleanHtml = cleanHtml.replace(/<link rel="canonical".*?>/i, "");
-  cleanHtml = cleanHtml.replace(/<meta property="og:.*?>/gi, "");
-  cleanHtml = cleanHtml.replace(/<meta name="twitter:.*?>/gi, "");
+  /* -------------------------------------------------------
+     REMOVE TITLE
+  ------------------------------------------------------- */
 
-  return cleanHtml.replace("</head>", `${seoTags}\n</head>`);
+  cleanHtml = cleanHtml.replace(
+    /<title\b[^>]*>[\s\S]*?<\/title\s*>/gi,
+    ""
+  );
+
+  /* -------------------------------------------------------
+     REMOVE META DESCRIPTION
+  ------------------------------------------------------- */
+
+  cleanHtml = cleanHtml.replace(
+    /<meta\b(?=[^>]*\bname\s*=\s*["']description["'])[^>]*>/gi,
+    ""
+  );
+
+  /* -------------------------------------------------------
+     REMOVE ROBOTS
+  ------------------------------------------------------- */
+
+  cleanHtml = cleanHtml.replace(
+    /<meta\b(?=[^>]*\bname\s*=\s*["']robots["'])[^>]*>/gi,
+    ""
+  );
+
+  /* -------------------------------------------------------
+     REMOVE CANONICAL
+  ------------------------------------------------------- */
+
+  cleanHtml = cleanHtml.replace(
+    /<link\b(?=[^>]*\brel\s*=\s*["']canonical["'])[^>]*>/gi,
+    ""
+  );
+
+  /* -------------------------------------------------------
+     REMOVE OPEN GRAPH
+  ------------------------------------------------------- */
+
+  cleanHtml = cleanHtml.replace(
+    /<meta\b(?=[^>]*\bproperty\s*=\s*["']og:[^"']*["'])[^>]*>/gi,
+    ""
+  );
+
+  /* -------------------------------------------------------
+     REMOVE TWITTER META
+  ------------------------------------------------------- */
+
+  cleanHtml = cleanHtml.replace(
+    /<meta\b(?=[^>]*\bname\s*=\s*["']twitter:[^"']*["'])[^>]*>/gi,
+    ""
+  );
+
+  return cleanHtml;
 }
+
+/* =========================================================
+   INJECT PRODUCT SEO INTO HTML
+========================================================= */
+
+function injectSeo(html, seoTags) {
+  if (!html || typeof html !== "string") {
+    throw new Error(
+      "Valid HTML template is required."
+    );
+  }
+
+  if (!seoTags || typeof seoTags !== "string") {
+    throw new Error(
+      "Valid SEO tags are required."
+    );
+  }
+
+  const cleanHtml = removeExistingSeo(html);
+
+  if (!/<\/head\s*>/i.test(cleanHtml)) {
+    throw new Error(
+      "HTML template is missing closing head tag."
+    );
+  }
+
+  return cleanHtml.replace(
+    /<\/head\s*>/i,
+    `${seoTags}\n</head>`
+  );
+}
+
+/* =========================================================
+   EXPORTS
+========================================================= */
 
 module.exports = {
   buildProductSeo,
