@@ -76,7 +76,6 @@ function getCanonicalUrl(product, reqPath = "") {
   if (databaseCanonical) {
     const url = new URL(databaseCanonical);
 
-    // Remove tracking/query parameters and fragments.
     url.search = "";
     url.hash = "";
 
@@ -96,7 +95,6 @@ function getCanonicalUrl(product, reqPath = "") {
     );
   }
 
-  // Fallback to the requested route.
   const pathname = String(reqPath)
     .split("?")[0]
     .split("#")[0];
@@ -142,7 +140,20 @@ function getImage(product) {
 }
 
 /* =========================================================
-   JSON-LD VALIDATION
+   SAFE JSON-LD SERIALIZATION
+========================================================= */
+
+function serializeJsonLd(data) {
+  return JSON.stringify(data)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
+/* =========================================================
+   CUSTOM JSON-LD VALIDATION
 ========================================================= */
 
 function getValidSchemaMarkup(schemaMarkup) {
@@ -159,19 +170,12 @@ function getValidSchemaMarkup(schemaMarkup) {
     if (
       parsed === null ||
       typeof parsed !== "object" ||
-      Array.isArray(parsed) ||
       Object.keys(parsed).length === 0
     ) {
       return "";
     }
 
-    // Serialize JSON safely for embedding inside HTML.
-    return JSON.stringify(parsed)
-      .replace(/</g, "\\u003c")
-      .replace(/>/g, "\\u003e")
-      .replace(/&/g, "\\u0026")
-      .replace(/\u2028/g, "\\u2028")
-      .replace(/\u2029/g, "\\u2029");
+    return serializeJsonLd(parsed);
   } catch (error) {
     console.warn(
       "[SEO] Invalid JSON-LD schema:",
@@ -179,6 +183,108 @@ function getValidSchemaMarkup(schemaMarkup) {
     );
 
     return "";
+  }
+}
+
+/* =========================================================
+   AUTOMATIC PRODUCT STRUCTURED DATA
+========================================================= */
+
+function buildProductSchema(
+  product,
+  canonical,
+  description,
+  image
+) {
+  const category =
+    product.stone_categories?.name ||
+    product.stone_categories?.category_name ||
+    product.stone_categories?.slug ||
+    product.stone_group ||
+    "";
+
+  const sku =
+    product.product_code ||
+    product.sku ||
+    product.code ||
+    "";
+
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+
+    "@id": `${canonical}#product`,
+
+    name: String(product.name || "").trim(),
+
+    url: canonical,
+
+    brand: {
+      "@type": "Brand",
+      name: "Ultra Stones"
+    }
+  };
+
+  if (valid(description)) {
+    schema.description = String(description).trim();
+  }
+
+  if (image) {
+    schema.image = [image];
+  }
+
+  if (valid(category)) {
+    schema.category = String(category).trim();
+  }
+
+  if (valid(sku)) {
+    schema.sku = String(sku).trim();
+  }
+
+  return serializeJsonLd(schema);
+}
+
+/* =========================================================
+   CHECK WHETHER CUSTOM SCHEMA ALREADY CONTAINS PRODUCT
+========================================================= */
+
+function containsProductSchema(schemaMarkup) {
+  if (!schemaMarkup) {
+    return false;
+  }
+
+  try {
+    const parsed = JSON.parse(schemaMarkup);
+
+    function check(node) {
+      if (!node || typeof node !== "object") {
+        return false;
+      }
+
+      if (Array.isArray(node)) {
+        return node.some(check);
+      }
+
+      const types = Array.isArray(node["@type"])
+        ? node["@type"]
+        : [node["@type"]];
+
+      if (
+        types.some(
+          (type) =>
+            type === "Product" ||
+            type === "https://schema.org/Product"
+        )
+      ) {
+        return true;
+      }
+
+      return Object.values(node).some(check);
+    }
+
+    return check(parsed);
+  } catch {
+    return false;
   }
 }
 
@@ -258,12 +364,44 @@ function buildProductSeo(product, reqPath = "") {
     `${robotsIndex}, ${robotsFollow}`;
 
   /* -------------------------------------------------------
-     STRUCTURED DATA
+     CUSTOM STRUCTURED DATA
   ------------------------------------------------------- */
 
-  const schemaMarkup = getValidSchemaMarkup(
+  const customSchema = getValidSchemaMarkup(
     seo.schema_markup
   );
+
+  /* -------------------------------------------------------
+     AUTOMATIC PRODUCT STRUCTURED DATA
+  ------------------------------------------------------- */
+
+  const hasCustomProductSchema =
+    containsProductSchema(customSchema);
+
+  const automaticProductSchema =
+    hasCustomProductSchema
+      ? ""
+      : buildProductSchema(
+          product,
+          canonical,
+          description,
+          image
+        );
+
+  /* -------------------------------------------------------
+     COMBINE STRUCTURED DATA
+  ------------------------------------------------------- */
+
+  const schemaMarkup = [
+    customSchema,
+    automaticProductSchema
+  ]
+    .filter(Boolean)
+    .map(
+      (schema) =>
+        `<script type="application/ld+json">${schema}</script>`
+    )
+    .join("\n");
 
   /* -------------------------------------------------------
      GENERATE SEO HTML
@@ -356,11 +494,7 @@ ${
      PRODUCT STRUCTURED DATA
 ===================================================== -->
 
-${
-  schemaMarkup
-    ? `<script type="application/ld+json">${schemaMarkup}</script>`
-    : ""
-}
+${schemaMarkup}
 
 <!-- =====================================================
      END PRODUCT SEO
@@ -469,5 +603,5 @@ function injectSeo(html, seoTags) {
 
 module.exports = {
   buildProductSeo,
-  injectSeo,
+  injectSeo
 };
