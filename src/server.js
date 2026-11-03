@@ -99,31 +99,102 @@ app.use("/api/product-registrations", productRegistrationRoutes);
 
 app.use("/", sitemapRoutes);
 
-const frontendDistPath = path.join(__dirname, "../dist");
-const frontendIndexPath = path.join(frontendDistPath, "index.html");
+/* =========================================================
+   FRONTEND CONFIGURATION
+========================================================= */
 
-app.use(express.static(frontendDistPath));
+const frontendDistPath = path.join(
+  __dirname,
+  "../dist"
+);
 
-app.get("/product/:categorySlug/:productSlug", async (req, res, next) => {
-  try {
-    const html = fs.readFileSync(frontendIndexPath, "utf8");
-    const { productSlug } = req.params;
+const frontendIndexPath = path.join(
+  frontendDistPath,
+  "index.html"
+);
 
-    const product = await getProductDetails(productSlug);
+/* =========================================================
+   PRODUCT SEO HTML
+========================================================= */
 
-    const seoTags = buildProductSeo(product, req.originalUrl);
-    const finalHtml = injectSeo(html, seoTags);
+app.get(
+  "/product/:categorySlug/:productSlug",
+  async (req, res) => {
+    try {
+      const { productSlug } = req.params;
 
-    res.setHeader("Content-Type", "text/html");
-    return res.send(finalHtml);
-  } catch (error) {
-    console.error("SEO HTML error:", error);
-    return res.sendFile(frontendIndexPath);
+      console.log(
+        "[SEO] Product page requested:",
+        req.originalUrl
+      );
+
+      const product = await getProductDetails(
+        productSlug
+      );
+
+      if (!product) {
+        return res.status(404).send(
+          "Product not found"
+        );
+      }
+
+      const html = await fs.promises.readFile(
+        frontendIndexPath,
+        "utf8"
+      );
+
+      const seoTags = buildProductSeo(
+        product,
+        req.originalUrl
+      );
+
+      const finalHtml = injectSeo(
+        html,
+        seoTags
+      );
+
+      res.setHeader(
+        "Content-Type",
+        "text/html; charset=utf-8"
+      );
+
+      res.setHeader(
+        "X-SEO-Source",
+        "express-product"
+      );
+
+      return res.status(200).send(
+        finalHtml
+      );
+
+    } catch (error) {
+      console.error(
+        "[SEO] Product SEO generation failed:",
+        error
+      );
+
+      return res.status(500).send(
+        "Product SEO generation failed"
+      );
+    }
   }
-});
+);
+
+/* =========================================================
+   STATIC FRONTEND ASSETS
+========================================================= */
+
+app.use(
+  express.static(frontendDistPath)
+);
+
+/* =========================================================
+   REACT ROUTER FALLBACK
+========================================================= */
 
 app.use((req, res) => {
-  res.sendFile(frontendIndexPath);
+  return res.sendFile(
+    frontendIndexPath
+  );
 });
-
 module.exports = app;

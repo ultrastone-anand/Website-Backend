@@ -7,10 +7,7 @@
 
     <meta charset="UTF-8" />
 
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <meta name="theme-color" content="#ffffff" />
 
@@ -21,29 +18,45 @@
          resources before they are requested.
     ========================================================== -->
 
-    <link
-      rel="preconnect"
-      href="https://cdn.ultrastone.in"
-      crossorigin
-    />
+    <link rel="preconnect" href="https://cdn.ultrastone.in" crossorigin />
 
-    <link
-      rel="preconnect"
-      href="https://backend.ultrastones.com"
-      crossorigin
-    />
+    <link rel="preconnect" href="https://backend.ultrastones.com" crossorigin />
 
-    <link
-      rel="preconnect"
-      href="https://fonts.googleapis.com"
-    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
 
-    <link
-      rel="preconnect"
-      href="https://fonts.gstatic.com"
-      crossorigin
-    />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
+    <!-- =========================================================
+     RESPONSIVE HOMEPAGE HERO POSTER
+
+     Preloads the homepage poster using responsive
+     image candidates.
+
+     IMPORTANT:
+     These preloads run on every direct page visit.
+     Remove them when implementing route-specific
+     preload handling.
+========================================================= -->
+
+<link
+  rel="preload"
+  as="image"
+  href="https://cdn.ultrastone.in/cdn-cgi/image/width=480,quality=75,format=auto/frame0.png"
+  imagesrcset="https://cdn.ultrastone.in/cdn-cgi/image/width=480,quality=75,format=auto/frame0.png 480w, https://cdn.ultrastone.in/cdn-cgi/image/width=768,quality=75,format=auto/frame0.png 768w, https://cdn.ultrastone.in/cdn-cgi/image/width=960,quality=75,format=auto/frame0.png 960w"
+  imagesizes="100vw"
+  media="(max-width: 767px)"
+  fetchpriority="high"
+/>
+
+<link
+  rel="preload"
+  as="image"
+  href="https://cdn.ultrastone.in/cdn-cgi/image/width=1600,quality=80,format=auto/frame0.png"
+  imagesrcset="https://cdn.ultrastone.in/cdn-cgi/image/width=1280,quality=80,format=auto/frame0.png 1280w, https://cdn.ultrastone.in/cdn-cgi/image/width=1600,quality=80,format=auto/frame0.png 1600w, https://cdn.ultrastone.in/cdn-cgi/image/width=1920,quality=80,format=auto/frame0.png 1920w"
+  imagesizes="100vw"
+  media="(min-width: 768px)"
+  fetchpriority="high"
+/>
     <!-- =========================================================
          GOOGLE FONTS - NON-BLOCKING
 
@@ -58,7 +71,10 @@
       rel="preload"
       as="style"
       href="https://fonts.googleapis.com/css2?family=BBH+Bartle&family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=Montserrat:wght@400;500;600;700&display=swap"
-      onload="this.onload=null;this.rel='stylesheet'"
+      onload="
+        this.onload = null;
+        this.rel = 'stylesheet';
+      "
     />
 
     <!-- Fallback for browsers with JavaScript disabled -->
@@ -91,45 +107,10 @@
 
         j.async = true;
 
-        j.src =
-          "https://www.googletagmanager.com/gtm.js?id=" +
-          i +
-          dl;
+        j.src = "https://www.googletagmanager.com/gtm.js?id=" + i + dl;
 
         f.parentNode.insertBefore(j, f);
-      })(
-        window,
-        document,
-        "script",
-        "dataLayer",
-        "GTM-NR3PXVZX"
-      );
-    </script>
-
-    <!-- =========================================================
-         GOOGLE ANALYTICS 4
-
-         Preserved existing GA4 implementation.
-
-         Important:
-         Verify GA4 is not also firing through GTM.
-    ========================================================== -->
-
-    <script
-      async
-      src="https://www.googletagmanager.com/gtag/js?id=G-70GS6LZ9FB"
-    ></script>
-
-    <script>
-      window.dataLayer = window.dataLayer || [];
-
-      function gtag() {
-        dataLayer.push(arguments);
-      }
-
-      gtag("js", new Date());
-
-      gtag("config", "G-70GS6LZ9FB");
+      })(window, document, "script", "dataLayer", "GTM-NR3PXVZX");
     </script>
 
     <!-- =========================================================
@@ -150,24 +131,16 @@
          PRIMARY SEO
     ========================================================== -->
 
-    <title>
-      Luxury Granite, Marble & Quartz Countertops | Ultra Stones
-    </title>
+    <title>Luxury Granite, Marble & Quartz Countertops | Ultra Stones</title>
 
     <meta
       name="description"
       content="Explore premium granite, marble, quartzite, quartz and engineered surfaces from Ultra Stones for residential and commercial projects."
     />
 
-    <meta
-      name="author"
-      content="Ultra Stones"
-    />
+    <meta name="author" content="Ultra Stones" />
 
-    <meta
-      name="publisher"
-      content="Ultra Stones"
-    />
+    <meta name="publisher" content="Ultra Stones" />
 
     <!-- =========================================================
          CANONICAL URL
@@ -177,38 +150,23 @@
          for individual routes.
     ========================================================== -->
 
-    <link
-      rel="canonical"
-      href="https://www.ultrastones.com/"
-    />
+    <link rel="canonical" href="https://www.ultrastones.com/" />
 
     <!-- =========================================================
          LANGUAGE / REGION
     ========================================================== -->
 
-    <meta
-      http-equiv="content-language"
-      content="en"
-    />
+    <meta http-equiv="content-language" content="en" />
 
     <!-- =========================================================
          OPEN GRAPH / SOCIAL SHARING
     ========================================================== -->
 
-    <meta
-      property="og:type"
-      content="website"
-    />
+    <meta property="og:type" content="website" />
 
-    <meta
-      property="og:locale"
-      content="en_US"
-    />
+    <meta property="og:locale" content="en_US" />
 
-    <meta
-      property="og:site_name"
-      content="Ultra Stones"
-    />
+    <meta property="og:site_name" content="Ultra Stones" />
 
     <meta
       property="og:title"
@@ -220,10 +178,7 @@
       content="Explore premium granite, marble, quartzite, quartz and engineered surfaces from Ultra Stones for residential and commercial projects."
     />
 
-    <meta
-      property="og:url"
-      content="https://www.ultrastones.com/"
-    />
+    <meta property="og:url" content="https://www.ultrastones.com/" />
 
     <meta
       property="og:image"
@@ -235,24 +190,15 @@
       content="Luxury granite, marble and quartz surfaces by Ultra Stones"
     />
 
-    <meta
-      property="og:image:width"
-      content="1920"
-    />
+    <meta property="og:image:width" content="1920" />
 
-    <meta
-      property="og:image:height"
-      content="1080"
-    />
+    <meta property="og:image:height" content="1080" />
 
     <!-- =========================================================
          TWITTER / X
     ========================================================== -->
 
-    <meta
-      name="twitter:card"
-      content="summary_large_image"
-    />
+    <meta name="twitter:card" content="summary_large_image" />
 
     <meta
       name="twitter:title"
@@ -278,16 +224,9 @@
          FAVICON
     ========================================================== -->
 
-    <link
-      rel="icon"
-      type="image/svg+xml"
-      href="/favicon.svg"
-    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <link
-      rel="apple-touch-icon"
-      href="/favicon.svg"
-    />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
 
     <!-- =========================================================
          STRUCTURED DATA - ORGANIZATION
@@ -332,9 +271,8 @@
          A dynamic preload can be implemented later
          when the active hero URL is known.
     ========================================================== -->
-
-    <script type="module" crossorigin src="/assets/index-TrkQfYJp.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-7uw-JnGh.css">
+    <script type="module" crossorigin src="/assets/index-Bn3LZPnQ.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BXzP1DPu.css">
   </head>
 
   <body>
@@ -347,7 +285,7 @@
         src="https://www.googletagmanager.com/ns.html?id=GTM-NR3PXVZX"
         height="0"
         width="0"
-        style="display:none;visibility:hidden"
+        style="display: none; visibility: hidden"
       ></iframe>
     </noscript>
 
@@ -360,7 +298,6 @@
     <!-- =========================================================
          VITE / REACT ENTRY POINT
     ========================================================== -->
-
 
   </body>
 </html>
