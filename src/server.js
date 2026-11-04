@@ -5,7 +5,8 @@ const path = require("path");
 const fs = require("fs");
 
 const { getBlogById } = require("./services/blog.service");
-const { buildProductSeo,buildBlogSeo, injectSeo } = require("./utils/seoHtml");
+const companyService = require("./services/company.service");
+const { buildProductSeo,buildBlogSeo, injectSeo , buildLocationSeo } = require("./utils/seoHtml");
 const { getProductDetails } = require("./services/stone.service");
 
 const pageRoutes = require('./routes/page.routes');
@@ -254,6 +255,85 @@ app.get(
     }
   }
 );
+
+
+/* =========================================================
+   LOCATION SEO HTML
+========================================================= */
+
+app.get(
+  "/locations/:slug",
+  async (req, res) => {
+    try {
+      const { slug } = req.params;
+
+      console.log(
+        "[SEO] Location page requested:",
+        req.originalUrl
+      );
+
+      const location =
+        await companyService.getCompanyBySlug(slug);
+
+      if (!location || location.is_active !== true) {
+        return res.status(404).send(
+          "Location not found"
+        );
+      }
+
+      const canonicalPath =
+        `/locations/${encodeURIComponent(location.slug)}`;
+
+      // Redirect non-canonical slugs if necessary.
+      if (req.path !== canonicalPath) {
+        return res.redirect(301, canonicalPath);
+      }
+
+      const html =
+        await fs.promises.readFile(
+          frontendIndexPath,
+          "utf8"
+        );
+
+      const seoTags =
+        buildLocationSeo(location);
+
+      const finalHtml =
+        injectSeo(html, seoTags);
+
+      res.setHeader(
+        "Content-Type",
+        "text/html; charset=utf-8"
+      );
+
+      res.setHeader(
+        "X-SEO-Source",
+        "express-location"
+      );
+
+      return res.status(200).send(finalHtml);
+
+    } catch (error) {
+      if (
+        error.message === "Showroom not found"
+      ) {
+        return res.status(404).send(
+          "Location not found"
+        );
+      }
+
+      console.error(
+        "[SEO] Location SEO generation failed:",
+        error
+      );
+
+      return res.status(500).send(
+        "Location SEO generation failed"
+      );
+    }
+  }
+);
+
 
 /* =========================================================
    STATIC FRONTEND ASSETS

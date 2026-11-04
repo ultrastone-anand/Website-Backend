@@ -906,6 +906,368 @@ function injectSeo(html, seoTags) {
   );
 }
 
+
+/* =========================================================
+   LOCATION SEO HELPERS
+========================================================= */
+
+function getLocationCanonicalUrl(location) {
+  if (!valid(location?.slug)) {
+    throw new Error(
+      "Location slug is required for SEO generation."
+    );
+  }
+
+  return `${SITE_URL}/locations/${encodeURIComponent(
+    String(location.slug).trim()
+  )}`;
+}
+
+function getLocationImage(location) {
+  return (
+    safeUrl(location.banner_image_url) ||
+    safeUrl(location.image_url) ||
+    ""
+  );
+}
+
+function getLocationDescription(location) {
+  if (valid(location.meta_description)) {
+    return String(location.meta_description).trim();
+  }
+
+  if (valid(location.short_description)) {
+    return String(location.short_description).trim();
+  }
+
+  const place = [
+    location.city,
+    location.state
+  ].filter(Boolean).join(", ");
+
+  return (
+    `Explore premium natural and engineered stone ` +
+    `surfaces at Ultra Stones in ${place || "the USA"}. ` +
+    `Discover marble, quartzite, quartz and more.`
+  );
+}
+
+/* =========================================================
+   BUSINESS HOURS PARSER
+========================================================= */
+
+function parseLocationHours(value) {
+  if (!valid(value)) return null;
+
+  const normalized = String(value).trim();
+
+  if (/closed/i.test(normalized)) {
+    return null;
+  }
+
+  const match = normalized.match(
+    /^(\d{1,2}:\d{2}\s*[AP]M)\s*(?:to|-)\s*(\d{1,2}:\d{2}\s*[AP]M)$/i
+  );
+
+  if (!match) return null;
+
+  const to24Hour = (time) => {
+    const parts = time.match(
+      /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i
+    );
+
+    if (!parts) return null;
+
+    let hour = Number(parts[1]);
+    const minute = Number(parts[2]);
+    const period = parts[3].toUpperCase();
+
+    if (
+      hour < 1 ||
+      hour > 12 ||
+      minute > 59
+    ) {
+      return null;
+    }
+
+    if (period === "AM") {
+      hour = hour === 12 ? 0 : hour;
+    } else {
+      hour = hour === 12 ? 12 : hour + 12;
+    }
+
+    return `${String(hour).padStart(2, "0")}:${String(
+      minute
+    ).padStart(2, "0")}`;
+  };
+
+  const opens = to24Hour(match[1]);
+  const closes = to24Hour(match[2]);
+
+  if (!opens || !closes) return null;
+
+  return { opens, closes };
+}
+
+/* =========================================================
+   LOCATION STRUCTURED DATA
+========================================================= */
+
+function buildLocationSchema(
+  location,
+  canonical,
+  description,
+  image
+) {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Store",
+    "@id": `${canonical}#store`,
+    name: `Ultra Stones - ${location.name}`,
+    url: canonical,
+    description,
+    branchOf: {
+      "@type": "Organization",
+      name: "Ultra Stones",
+      url: SITE_URL
+    }
+  };
+
+  if (valid(location.primary_phone)) {
+    schema.telephone = String(
+      location.primary_phone
+    ).trim();
+  }
+
+  if (valid(location.email)) {
+    schema.email = String(location.email).trim();
+  }
+
+  if (image) {
+    schema.image = image;
+  }
+
+  const address = {
+    "@type": "PostalAddress"
+  };
+
+  if (valid(location.address)) {
+    address.streetAddress = location.address;
+  }
+
+  if (valid(location.city)) {
+    address.addressLocality = location.city;
+  }
+
+  if (valid(location.state)) {
+    address.addressRegion = location.state;
+  }
+
+  if (valid(location.zip_code)) {
+    address.postalCode = location.zip_code;
+  }
+
+  if (valid(location.country)) {
+    const country = String(location.country)
+      .trim()
+      .toUpperCase();
+
+    address.addressCountry =
+      country === "USA" ||
+      country === "UNITED STATES"
+        ? "US"
+        : country;
+  }
+
+  if (Object.keys(address).length > 1) {
+    schema.address = address;
+  }
+
+  const latitude = Number(location.latitude);
+  const longitude = Number(location.longitude);
+
+  if (
+    location.latitude != null &&
+    location.longitude != null &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    longitude >= -180 &&
+    longitude <= 180
+  ) {
+    schema.geo = {
+      "@type": "GeoCoordinates",
+      latitude,
+      longitude
+    };
+  }
+
+  const hours = [];
+
+  const addHours = (value, days) => {
+    const parsed = parseLocationHours(value);
+
+    if (!parsed) return;
+
+    hours.push({
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: days,
+      opens: parsed.opens,
+      closes: parsed.closes
+    });
+  };
+
+  addHours(
+    location.business_hours_mon_fri,
+    [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday"
+    ]
+  );
+
+  addHours(
+    location.business_hours_saturday,
+    ["Saturday"]
+  );
+
+  addHours(
+    location.business_hours_sunday,
+    ["Sunday"]
+  );
+
+  if (hours.length) {
+    schema.openingHoursSpecification = hours;
+  }
+
+  return serializeJsonLd(schema);
+}
+
+/* =========================================================
+   LOCATION SEO GENERATION
+========================================================= */
+
+function buildLocationSeo(location) {
+  if (!location || !valid(location.slug)) {
+    throw new Error(
+      "Valid location data is required."
+    );
+  }
+
+  const place = [
+    location.city,
+    location.state
+  ].filter(Boolean).join(", ");
+
+  const title = valid(location.meta_title)
+    ? String(location.meta_title).trim()
+    : `Natural Stone Showroom in ${place} | Ultra Stones`;
+
+  const description =
+    getLocationDescription(location);
+
+  const canonical =
+    getLocationCanonicalUrl(location);
+
+  const image = getLocationImage(location);
+
+  const schemaMarkup = buildLocationSchema(
+    location,
+    canonical,
+    description,
+    image
+  );
+
+  return `
+<!-- =====================================================
+     ULTRA STONES - LOCATION SEO
+===================================================== -->
+
+<title>${escapeHtml(title)}</title>
+
+<meta
+  name="description"
+  content="${escapeHtml(description)}"
+/>
+
+<meta
+  name="robots"
+  content="index, follow, max-image-preview:large"
+/>
+
+<link
+  rel="canonical"
+  href="${escapeHtml(canonical)}"
+/>
+
+<!-- OPEN GRAPH -->
+
+<meta property="og:type" content="website" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:site_name" content="Ultra Stones" />
+
+<meta
+  property="og:title"
+  content="${escapeHtml(title)}"
+/>
+
+<meta
+  property="og:description"
+  content="${escapeHtml(description)}"
+/>
+
+<meta
+  property="og:url"
+  content="${escapeHtml(canonical)}"
+/>
+
+${
+  image
+    ? `<meta
+  property="og:image"
+  content="${escapeHtml(image)}"
+/>`
+    : ""
+}
+
+<!-- TWITTER / X -->
+
+<meta
+  name="twitter:card"
+  content="${image ? "summary_large_image" : "summary"}"
+/>
+
+<meta
+  name="twitter:title"
+  content="${escapeHtml(title)}"
+/>
+
+<meta
+  name="twitter:description"
+  content="${escapeHtml(description)}"
+/>
+
+${
+  image
+    ? `<meta
+  name="twitter:image"
+  content="${escapeHtml(image)}"
+/>`
+    : ""
+}
+
+<!-- LOCATION STRUCTURED DATA -->
+
+<script type="application/ld+json">${schemaMarkup}</script>
+
+<!-- END LOCATION SEO -->
+`;
+}
+
+
 /* =========================================================
    EXPORTS
 ========================================================= */
@@ -913,5 +1275,6 @@ function injectSeo(html, seoTags) {
 module.exports = {
   buildProductSeo,
   buildBlogSeo,
+  buildLocationSeo,
   injectSeo
 };
