@@ -1,12 +1,13 @@
+
 const prisma = require("../config/prisma");
 
 const auditService = require("./audit.service");
 
 const { serialize } = require("../utils/serialize");
 
-// ==============================
+// ============================================================
 // HELPERS
-// ==============================
+// ============================================================
 
 const httpError = (message, status = 400) => {
   const error = new Error(message);
@@ -56,7 +57,10 @@ const parseBoolean = (value) => {
 const parseDisplayOrder = (value) => {
   const order = Number(value);
 
-  if (!Number.isSafeInteger(order) || order < 0) {
+  if (
+    !Number.isSafeInteger(order) ||
+    order < 0
+  ) {
     throw httpError("Invalid display order");
   }
 
@@ -74,42 +78,107 @@ const makeSlug = (value) =>
     .replace(/^-+|-+$/g, "");
 
 const hasField = (body, field) =>
-  Object.prototype.hasOwnProperty.call(body, field);
+  Object.prototype.hasOwnProperty.call(
+    body,
+    field
+  );
 
 const normalizeText = (value) =>
   value === null || value === undefined
     ? null
     : String(value).trim() || null;
 
+// ============================================================
+// RESOURCE CATEGORY HELPERS
+// ============================================================
+
+const RESOURCE_CATEGORIES = [
+  "CARE_MAINTENANCE",
+  "WARRANTY",
+  "FAQ",
+  "SAFETY",
+];
+
+const parseResourceCategory = (value) => {
+  const category = String(value || "")
+    .trim()
+    .toUpperCase();
+
+  if (
+    !RESOURCE_CATEGORIES.includes(category)
+  ) {
+    throw httpError(
+      "Invalid resource category. Allowed values: CARE_MAINTENANCE, WARRANTY, FAQ, SAFETY"
+    );
+  }
+
+  return category;
+};
+
+// ============================================================
+// RESOURCE VALIDATION
+// ============================================================
+
 const validateResource = (data) => {
   if (!data.title) {
-    throw httpError("Resource title is required");
+    throw httpError(
+      "Resource title is required"
+    );
   }
 
   if (!data.slug) {
-    throw httpError("Resource slug is required");
+    throw httpError(
+      "Resource slug is required"
+    );
   }
 
-  if (!["PDF", "TEXT"].includes(data.resource_type)) {
-    throw httpError("Resource type must be PDF or TEXT");
+  if (
+    !["PDF", "TEXT"].includes(
+      data.resource_type
+    )
+  ) {
+    throw httpError(
+      "Resource type must be PDF or TEXT"
+    );
   }
 
-  if (data.resource_type === "PDF" && !data.file_url) {
-    throw httpError("PDF file is required");
+  if (
+    !RESOURCE_CATEGORIES.includes(
+      data.resource_category
+    )
+  ) {
+    throw httpError(
+      "Valid resource category is required"
+    );
   }
 
-  if (data.resource_type === "TEXT" && !data.content) {
-    throw httpError("Text content is required");
+  if (
+    data.resource_type === "PDF" &&
+    !data.file_url
+  ) {
+    throw httpError(
+      "PDF file is required"
+    );
+  }
+
+  if (
+    data.resource_type === "TEXT" &&
+    !data.content
+  ) {
+    throw httpError(
+      "Text content is required"
+    );
   }
 };
 
-// ==============================
-// GET ALL - ADMIN
-// ==============================
+// ============================================================
+// GET ALL RESOURCES - ADMIN
+// ============================================================
 
 const getResources = async (query = {}) => {
   const where = {};
 
+  // Filter by stone category
   if (
     query.category_id !== undefined &&
     query.category_id !== ""
@@ -119,24 +188,45 @@ const getResources = async (query = {}) => {
     );
   }
 
+  // Filter by resource format
   if (
     query.resource_type !== undefined &&
     query.resource_type !== ""
   ) {
-    const type = String(query.resource_type).toUpperCase();
+    const type = String(
+      query.resource_type
+    ).toUpperCase();
 
-    if (!["PDF", "TEXT"].includes(type)) {
-      throw httpError("Invalid resource type");
+    if (
+      !["PDF", "TEXT"].includes(type)
+    ) {
+      throw httpError(
+        "Invalid resource type"
+      );
     }
 
     where.resource_type = type;
   }
 
+  // Filter by document classification
+  if (
+    query.resource_category !== undefined &&
+    query.resource_category !== ""
+  ) {
+    where.resource_category =
+      parseResourceCategory(
+        query.resource_category
+      );
+  }
+
+  // Filter by active status
   if (
     query.is_active !== undefined &&
     query.is_active !== ""
   ) {
-    where.is_active = parseBoolean(query.is_active);
+    where.is_active = parseBoolean(
+      query.is_active
+    );
   }
 
   const resources =
@@ -163,33 +253,54 @@ const getResources = async (query = {}) => {
   return serialize(resources);
 };
 
-// ==============================
+// ============================================================
 // GET ALL ACTIVE RESOURCES - PUBLIC
-// ==============================
+// ============================================================
 
-const getPublicResources = async () => {
+const getPublicResources = async (
+  query = {}
+) => {
+  const where = {
+    is_active: true,
+
+    stone_categories: {
+      is: {
+        is_active: true,
+      },
+    },
+  };
+
+  // Optional classification filter
+  if (
+    query.type !== undefined &&
+    query.type !== ""
+  ) {
+    where.resource_category =
+      parseResourceCategory(
+        query.type
+      );
+  }
+
   const resources =
     await prisma.stone_category_resources.findMany({
-      where: {
-        is_active: true,
-
-        stone_categories: {
-          is: {
-            is_active: true,
-          },
-        },
-      },
+      where,
 
       select: {
         id: true,
         category_id: true,
+
         title: true,
         slug: true,
         description: true,
+
         resource_type: true,
+        resource_category: true,
+
         content: true,
+
         file_url: true,
         file_name: true,
+
         display_order: true,
 
         stone_categories: {
@@ -211,11 +322,14 @@ const getPublicResources = async () => {
   return serialize(resources);
 };
 
-// ==============================
-// GET BY CATEGORY - PUBLIC
-// ==============================
+// ============================================================
+// GET RESOURCES BY CATEGORY SLUG - PUBLIC
+// ============================================================
 
-const getResourcesByCategory = async (slug) => {
+const getResourcesByCategory = async (
+  slug,
+  query = {}
+) => {
   const category =
     await prisma.stone_categories.findFirst({
       where: {
@@ -231,25 +345,47 @@ const getResourcesByCategory = async (slug) => {
     });
 
   if (!category) {
-    throw httpError("Category not found", 404);
+    throw httpError(
+      "Category not found",
+      404
+    );
+  }
+
+  const where = {
+    category_id: category.id,
+    is_active: true,
+  };
+
+  // Optional classification filter
+  if (
+    query.type !== undefined &&
+    query.type !== ""
+  ) {
+    where.resource_category =
+      parseResourceCategory(
+        query.type
+      );
   }
 
   const resources =
     await prisma.stone_category_resources.findMany({
-      where: {
-        category_id: category.id,
-        is_active: true,
-      },
+      where,
 
       select: {
         id: true,
+
         title: true,
         slug: true,
         description: true,
+
         resource_type: true,
+        resource_category: true,
+
         content: true,
+
         file_url: true,
         file_name: true,
+
         display_order: true,
       },
 
@@ -265,9 +401,9 @@ const getResourcesByCategory = async (slug) => {
   });
 };
 
-// ==============================
-// GET BY ID
-// ==============================
+// ============================================================
+// GET RESOURCE BY ID - ADMIN
+// ============================================================
 
 const getResourceById = async (id) => {
   const resource =
@@ -288,22 +424,27 @@ const getResourceById = async (id) => {
     });
 
   if (!resource) {
-    throw httpError("Resource not found", 404);
+    throw httpError(
+      "Resource not found",
+      404
+    );
   }
 
   return serialize(resource);
 };
 
-// ==============================
-// CREATE
-// ==============================
+// ============================================================
+// CREATE RESOURCE
+// ============================================================
 
 const createResource = async (
   body,
   uploadedFile = null,
   audit = {}
 ) => {
-  const categoryId = parseCategoryId(body.category_id);
+  const categoryId = parseCategoryId(
+    body.category_id
+  );
 
   const category =
     await prisma.stone_categories.findUnique({
@@ -313,30 +454,48 @@ const createResource = async (
     });
 
   if (!category) {
-    throw httpError("Category not found", 404);
+    throw httpError(
+      "Category not found",
+      404
+    );
   }
 
   const type = String(
     body.resource_type || ""
-  ).toUpperCase();
+  )
+    .trim()
+    .toUpperCase();
 
-  const title = normalizeText(body.title);
+  const title = normalizeText(
+    body.title
+  );
+
+  const resourceCategory =
+    parseResourceCategory(
+      body.resource_category
+    );
 
   const data = {
     category_id: categoryId,
 
     title,
 
-    slug: makeSlug(body.slug || title),
+    slug: makeSlug(
+      body.slug || title
+    ),
 
-    description: normalizeText(body.description),
+    description: normalizeText(
+      body.description
+    ),
 
     resource_type: type,
 
-    content:
-      type === "TEXT"
-        ? normalizeText(body.content)
-        : normalizeText(body.content),
+    resource_category:
+      resourceCategory,
+
+    content: normalizeText(
+      body.content
+    ),
 
     file_url:
       type === "PDF"
@@ -359,45 +518,55 @@ const createResource = async (
         : null,
 
     file_size:
-      type === "PDF" && uploadedFile?.file_size != null
-        ? BigInt(uploadedFile.file_size)
+      type === "PDF" &&
+      uploadedFile?.file_size != null
+        ? BigInt(
+            uploadedFile.file_size
+          )
         : null,
 
     display_order:
       body.display_order === undefined ||
       body.display_order === ""
         ? 0
-        : parseDisplayOrder(body.display_order),
+        : parseDisplayOrder(
+            body.display_order
+          ),
 
     is_active:
       body.is_active === undefined
         ? true
-        : parseBoolean(body.is_active),
+        : parseBoolean(
+            body.is_active
+          ),
   };
 
   validateResource(data);
 
-  const created = await auditService.track({
-    audit,
+  const created =
+    await auditService.track({
+      audit,
 
-    action: "CREATE",
+      action: "CREATE",
 
-    resourceType: "CATEGORY_RESOURCE",
+      resourceType:
+        "CATEGORY_RESOURCE",
 
-    moduleName: "Stone Management",
+      moduleName:
+        "Stone Management",
 
-    operation: () =>
-      prisma.stone_category_resources.create({
-        data,
-      }),
-  });
+      operation: () =>
+        prisma.stone_category_resources.create({
+          data,
+        }),
+    });
 
   return serialize(created);
 };
 
-// ==============================
-// UPDATE
-// ==============================
+// ============================================================
+// UPDATE RESOURCE
+// ============================================================
 
 const updateResource = async (
   id,
@@ -415,15 +584,25 @@ const updateResource = async (
     });
 
   if (!existing) {
-    throw httpError("Resource not found", 404);
+    throw httpError(
+      "Resource not found",
+      404
+    );
   }
 
   const data = {};
 
-  if (hasField(body, "category_id")) {
-    const categoryId = parseCategoryId(
-      body.category_id
-    );
+  // Update stone category
+  if (
+    hasField(
+      body,
+      "category_id"
+    )
+  ) {
+    const categoryId =
+      parseCategoryId(
+        body.category_id
+      );
 
     const category =
       await prisma.stone_categories.findUnique({
@@ -433,75 +612,173 @@ const updateResource = async (
       });
 
     if (!category) {
-      throw httpError("Category not found", 404);
+      throw httpError(
+        "Category not found",
+        404
+      );
     }
 
-    data.category_id = categoryId;
+    data.category_id =
+      categoryId;
   }
 
-  if (hasField(body, "title")) {
-    data.title = normalizeText(body.title);
-  }
-
-  if (hasField(body, "slug")) {
-    data.slug = makeSlug(body.slug);
-  }
-
-  if (hasField(body, "description")) {
-    data.description = normalizeText(
-      body.description
+  // Update title
+  if (
+    hasField(
+      body,
+      "title"
+    )
+  ) {
+    data.title = normalizeText(
+      body.title
     );
   }
 
-  if (hasField(body, "content")) {
-    data.content = normalizeText(body.content);
-  }
-
-  if (hasField(body, "display_order")) {
-    data.display_order = parseDisplayOrder(
-      body.display_order
+  // Update slug
+  if (
+    hasField(
+      body,
+      "slug"
+    )
+  ) {
+    data.slug = makeSlug(
+      body.slug
     );
   }
 
-  if (hasField(body, "is_active")) {
-    data.is_active = parseBoolean(
-      body.is_active
-    );
+  // Update description
+  if (
+    hasField(
+      body,
+      "description"
+    )
+  ) {
+    data.description =
+      normalizeText(
+        body.description
+      );
   }
 
-  if (hasField(body, "resource_type")) {
-    data.resource_type = String(
-      body.resource_type
-    ).toUpperCase();
+  // Update content
+  if (
+    hasField(
+      body,
+      "content"
+    )
+  ) {
+    data.content =
+      normalizeText(
+        body.content
+      );
+  }
+
+  // Update display order
+  if (
+    hasField(
+      body,
+      "display_order"
+    )
+  ) {
+    data.display_order =
+      parseDisplayOrder(
+        body.display_order
+      );
+  }
+
+  // Update active status
+  if (
+    hasField(
+      body,
+      "is_active"
+    )
+  ) {
+    data.is_active =
+      parseBoolean(
+        body.is_active
+      );
+  }
+
+  // Update resource format
+  if (
+    hasField(
+      body,
+      "resource_type"
+    )
+  ) {
+    data.resource_type =
+      String(
+        body.resource_type
+      )
+        .trim()
+        .toUpperCase();
+  }
+
+  // Update document classification
+  if (
+    hasField(
+      body,
+      "resource_category"
+    )
+  ) {
+    data.resource_category =
+      parseResourceCategory(
+        body.resource_category
+      );
   }
 
   const finalType =
-    data.resource_type || existing.resource_type;
+    data.resource_type ||
+    existing.resource_type;
 
-  if (!["PDF", "TEXT"].includes(finalType)) {
-    throw httpError("Invalid resource type");
+  if (
+    !["PDF", "TEXT"].includes(
+      finalType
+    )
+  ) {
+    throw httpError(
+      "Invalid resource type"
+    );
   }
 
-  if (uploadedFile && finalType !== "PDF") {
+  if (
+    uploadedFile &&
+    finalType !== "PDF"
+  ) {
     throw httpError(
       "PDF upload is only allowed for PDF resources"
     );
   }
 
-  if (finalType === "TEXT") {
+  // Clear PDF fields for TEXT resources
+  if (
+    finalType === "TEXT"
+  ) {
     data.file_url = null;
     data.file_object_key = null;
     data.file_name = null;
     data.file_mime_type = null;
     data.file_size = null;
-  } else if (uploadedFile) {
-    data.file_url = uploadedFile.secure_url;
-    data.file_object_key = uploadedFile.public_id;
-    data.file_name = uploadedFile.file_name;
-    data.file_mime_type = "application/pdf";
+  }
+
+  // Replace PDF if a new file is uploaded
+  else if (uploadedFile) {
+    data.file_url =
+      uploadedFile.secure_url;
+
+    data.file_object_key =
+      uploadedFile.public_id;
+
+    data.file_name =
+      uploadedFile.file_name;
+
+    data.file_mime_type =
+      "application/pdf";
+
     data.file_size =
       uploadedFile.file_size != null
-        ? BigInt(uploadedFile.file_size)
+        ? BigInt(
+            uploadedFile.file_size
+          )
         : null;
   }
 
@@ -512,44 +789,55 @@ const updateResource = async (
 
   validateResource(finalData);
 
-  const updated = await auditService.track({
-    audit,
+  const updated =
+    await auditService.track({
+      audit,
 
-    action: "UPDATE",
+      action: "UPDATE",
 
-    resourceType: "CATEGORY_RESOURCE",
+      resourceType:
+        "CATEGORY_RESOURCE",
 
-    resourceId: existing.id,
+      resourceId:
+        existing.id,
 
-    moduleName: "Stone Management",
+      moduleName:
+        "Stone Management",
 
-    oldValues: serialize(existing),
+      oldValues:
+        serialize(existing),
 
-    operation: () =>
-      prisma.stone_category_resources.update({
-        where: {
-          id: resourceId,
-        },
+      operation: () =>
+        prisma.stone_category_resources.update({
+          where: {
+            id: resourceId,
+          },
 
-        data: {
-          ...data,
-          updated_at: new Date(),
-        },
-      }),
-  });
+          data: {
+            ...data,
+            updated_at:
+              new Date(),
+          },
+        }),
+    });
 
   return {
-    resource: serialize(updated),
+    resource:
+      serialize(updated),
+
     previousFileKey:
-      existing.file_object_key || null,
+      existing.file_object_key ||
+      null,
+
     currentFileKey:
-      updated.file_object_key || null,
+      updated.file_object_key ||
+      null,
   };
 };
 
-// ==============================
-// STATUS
-// ==============================
+// ============================================================
+// UPDATE RESOURCE STATUS
+// ============================================================
 
 const updateResourceStatus = async (
   id,
@@ -566,41 +854,54 @@ const updateResourceStatus = async (
     });
 
   if (!existing) {
-    throw httpError("Resource not found", 404);
+    throw httpError(
+      "Resource not found",
+      404
+    );
   }
 
-  const updated = await auditService.track({
-    audit,
+  const updated =
+    await auditService.track({
+      audit,
 
-    action: "UPDATE",
+      action: "UPDATE",
 
-    resourceType: "CATEGORY_RESOURCE",
+      resourceType:
+        "CATEGORY_RESOURCE",
 
-    resourceId: existing.id,
+      resourceId:
+        existing.id,
 
-    moduleName: "Stone Management",
+      moduleName:
+        "Stone Management",
 
-    oldValues: serialize(existing),
+      oldValues:
+        serialize(existing),
 
-    operation: () =>
-      prisma.stone_category_resources.update({
-        where: {
-          id: resourceId,
-        },
+      operation: () =>
+        prisma.stone_category_resources.update({
+          where: {
+            id: resourceId,
+          },
 
-        data: {
-          is_active: parseBoolean(isActive),
-          updated_at: new Date(),
-        },
-      }),
-  });
+          data: {
+            is_active:
+              parseBoolean(
+                isActive
+              ),
+
+            updated_at:
+              new Date(),
+          },
+        }),
+    });
 
   return serialize(updated);
 };
 
-// ==============================
-// DELETE
-// ==============================
+// ============================================================
+// DELETE RESOURCE
+// ============================================================
 
 const deleteResource = async (
   id,
@@ -616,35 +917,51 @@ const deleteResource = async (
     });
 
   if (!existing) {
-    throw httpError("Resource not found", 404);
+    throw httpError(
+      "Resource not found",
+      404
+    );
   }
 
-  const deleted = await auditService.track({
-    audit,
+  const deleted =
+    await auditService.track({
+      audit,
 
-    action: "DELETE",
+      action: "DELETE",
 
-    resourceType: "CATEGORY_RESOURCE",
+      resourceType:
+        "CATEGORY_RESOURCE",
 
-    resourceId: existing.id,
+      resourceId:
+        existing.id,
 
-    moduleName: "Stone Management",
+      moduleName:
+        "Stone Management",
 
-    oldValues: serialize(existing),
+      oldValues:
+        serialize(existing),
 
-    operation: () =>
-      prisma.stone_category_resources.delete({
-        where: {
-          id: resourceId,
-        },
-      }),
-  });
+      operation: () =>
+        prisma.stone_category_resources.delete({
+          where: {
+            id: resourceId,
+          },
+        }),
+    });
 
   return {
-    resource: serialize(deleted),
-    fileKey: existing.file_object_key || null,
+    resource:
+      serialize(deleted),
+
+    fileKey:
+      existing.file_object_key ||
+      null,
   };
 };
+
+// ============================================================
+// EXPORTS
+// ============================================================
 
 module.exports = {
   getResources,

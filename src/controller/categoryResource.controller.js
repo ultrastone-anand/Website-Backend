@@ -113,13 +113,17 @@ const getResources = async (req, res) => {
   }
 };
 
+
 // ==============================
 // GET ALL ACTIVE RESOURCES - PUBLIC
+// SUPPORTS RESOURCE CATEGORY FILTER
 // ==============================
 
 const getPublicResources = async (req, res) => {
   try {
-    const data = await service.getPublicResources();
+    const data = await service.getPublicResources(
+      req.query
+    );
 
     return res.status(200).json({
       success: true,
@@ -129,6 +133,7 @@ const getPublicResources = async (req, res) => {
     return sendError(res, error);
   }
 };
+
 
 // ==============================
 // GET BY CATEGORY
