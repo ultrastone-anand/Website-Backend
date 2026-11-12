@@ -1,48 +1,60 @@
+
 const jwt = require("jsonwebtoken");
 
-const authenticate = (
-  req,
-  res,
-  next
-) => {
+const authenticate = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).json({
+      message: "Authentication required",
+    });
+  }
+
+  // Require exactly: Bearer <token>
+  const match = /^Bearer\s+(\S+)$/i.exec(authHeader);
+
+  if (!match) {
+    return res.status(401).json({
+      message: "Invalid authorization format",
+    });
+  }
+
+  const token = match[1];
 
   try {
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET,
+      {
+        algorithms: ["HS256"],
+      }
+    );
 
-    const authHeader =
-      req.headers.authorization;
-
-    if (!authHeader) {
-
+    // JWT payload must identify a user
+    if (
+      !decoded ||
+      typeof decoded !== "object" ||
+      (!decoded.id && !decoded.userId)
+    ) {
       return res.status(401).json({
-        message: "No token provided"
+        message: "Invalid token payload",
       });
-
     }
-
-    const token =
-      authHeader.replace(
-        "Bearer ",
-        ""
-      );
-
-    const decoded =
-      jwt.verify(
-        token,
-        process.env.JWT_SECRET
-      );
 
     req.user = decoded;
 
-    next();
-
+    return next();
   } catch (error) {
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({
+        message: "Session expired. Please login again.",
+      });
+    }
 
     return res.status(401).json({
-      message: "Invalid token"
+      message: "Invalid authentication token",
     });
-
   }
-
 };
 
 module.exports = authenticate;
