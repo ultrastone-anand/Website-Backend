@@ -1,3 +1,4 @@
+
 const productRemarkService = require(
   "../services/productRemark.service"
 );
@@ -6,177 +7,103 @@ const { serialize } = require(
   "../utils/serialize"
 );
 
-// ================== CREATE REMARK ==================
+// ============================================================
+// CREATE REMARK
+// ============================================================
 
-const createRemark = async (
-  req,
-  res
-) => {
-
+const createRemark = async (req, res, next) => {
   try {
-
     const remark =
       await productRemarkService.createRemark(
-
         req.params.productId,
-
         req.user.id,
-
         req.body
-
       );
 
-    res.status(201).json({
-
+    return res.status(201).json({
       success: true,
-
-      message:
-        "Remark added successfully",
-
-      data: serialize(remark)
-
+      message: "Remark added successfully",
+      data: serialize(remark),
     });
 
   } catch (error) {
-
-    res.status(500).json({
-
-      success: false,
-
-      message: error.message
-
-    });
-
+    return next(error);
   }
-
 };
 
-// ================== GET PRODUCT REMARKS ==================
+// ============================================================
+// GET PRODUCT REMARKS
+// ============================================================
 
-const getProductRemarks = async (
-  req,
-  res
-) => {
-
+const getProductRemarks = async (req, res, next) => {
   try {
-
     const remarks =
       await productRemarkService.getProductRemarks(
-
         req.params.productId
-
       );
 
-    res.status(200).json({
-
+    return res.status(200).json({
       success: true,
-
-      data: serialize(remarks)
-
+      data: serialize(remarks),
     });
 
   } catch (error) {
-
-    res.status(500).json({
-
-      success: false,
-
-      message: error.message
-
-    });
-
+    return next(error);
   }
-
 };
 
-// ================== UPDATE REMARK ==================
+// ============================================================
+// UPDATE REMARK
+// ============================================================
 
-const updateRemark = async (
-  req,
-  res
-) => {
-
+const updateRemark = async (req, res, next) => {
   try {
-
     const remark =
       await productRemarkService.updateRemark(
-
         req.params.remarkId,
-
         req.user.id,
-
         req.body
-
       );
 
-    res.status(200).json({
-
+    return res.status(200).json({
       success: true,
-
-      message:
-        "Remark updated successfully",
-
-      data: serialize(remark)
-
+      message: "Remark updated successfully",
+      data: serialize(remark),
     });
 
   } catch (error) {
-
-    res.status(500).json({
-
-      success: false,
-
-      message: error.message
-
-    });
-
+    return next(error);
   }
-
 };
 
-// ================== DELETE REMARK ==================
+// ============================================================
+// DELETE REMARK
+// ============================================================
 
-const deleteRemark = async (
-  req,
-  res
-) => {
-
+const deleteRemark = async (req, res, next) => {
   try {
-
     await productRemarkService.deleteRemark(
-
       req.params.remarkId,
-
       req.user.id
-
     );
 
-    res.status(200).json({
-
+    return res.status(200).json({
       success: true,
-
-      message:
-        "Remark deleted successfully"
-
+      message: "Remark deleted successfully",
     });
 
   } catch (error) {
-
-    res.status(500).json({
-
-      success: false,
-
-      message: error.message
-
-    });
-
+    return next(error);
   }
-
 };
+
+// ============================================================
+// EXPORTS
+// ============================================================
 
 module.exports = {
   createRemark,
   getProductRemarks,
   updateRemark,
-  deleteRemark
+  deleteRemark,
 };

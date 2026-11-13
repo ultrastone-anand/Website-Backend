@@ -1,76 +1,91 @@
+
 const DashboardService = require("../services/dashboard.service");
+
+// ============================================================
+// DASHBOARD CONTROLLER
+// ============================================================
+
 class DashboardController {
-  static async adminDashboard(req, res) {
+
+  // ==========================================================
+  // ADMIN DASHBOARD
+  // ==========================================================
+
+  static async adminDashboard(req, res, next) {
     try {
-      const data = await DashboardService.getAdminDashboard();
+      const data =
+        await DashboardService.getAdminDashboard();
 
       return res.status(200).json({
         success: true,
         data,
       });
-    } catch (error) {
-      console.error(error);
 
-      return res.status(500).json({
-        success: false,
-        message: error.message,
-      });
+    } catch (error) {
+      return next(error);
     }
   }
 
-  static async designerDashboard(req, res) {
+  // ==========================================================
+  // DESIGNER DASHBOARD
+  // ==========================================================
+
+  static async designerDashboard(req, res, next) {
     try {
-      const data = await DashboardService.getDesignerDashboard();
+      const data =
+        await DashboardService.getDesignerDashboard();
 
       return res.status(200).json({
         success: true,
         data,
       });
-    } catch (error) {
-      console.error(error);
 
-      return res.status(500).json({
-        success: false,
-        message: error.message,
-      });
+    } catch (error) {
+      return next(error);
     }
   }
 
-  static async seoDashboard(req, res) {
+  // ==========================================================
+  // SEO DASHBOARD
+  // ==========================================================
+
+  static async seoDashboard(req, res, next) {
     try {
-      const data = await DashboardService.getSeoDashboard();
+      const data =
+        await DashboardService.getSeoDashboard();
 
       return res.status(200).json({
         success: true,
         data,
       });
-    } catch (error) {
-      console.error(error);
 
-      return res.status(500).json({
-        success: false,
-        message: error.message,
-      });
+    } catch (error) {
+      return next(error);
     }
   }
 
-  static async blogDashboard(req, res) {
+  // ==========================================================
+  // BLOG DASHBOARD
+  // ==========================================================
+
+  static async blogDashboard(req, res, next) {
     try {
-      const data = await DashboardService.getBlogDashboard();
+      const data =
+        await DashboardService.getBlogDashboard();
 
       return res.status(200).json({
         success: true,
         data,
       });
-    } catch (error) {
-      console.error(error);
 
-      return res.status(500).json({
-        success: false,
-        message: error.message,
-      });
+    } catch (error) {
+      return next(error);
     }
   }
 }
+
+// ============================================================
+// EXPORTS
+// ============================================================
 
 module.exports = DashboardController;

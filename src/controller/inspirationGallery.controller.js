@@ -1,8 +1,59 @@
+
 const service = require("../services/inspirationGallery.service");
 
-/* =========================================================
-   CATEGORIES
-========================================================= */
+// =========================================================
+// SAFE ERROR HANDLING
+// =========================================================
+
+// Only explicitly approved service messages can be
+// returned to API clients.
+
+const SAFE_GALLERY_ERRORS = {
+  "Product slug is required": 400,
+  "Product not found": 404,
+  "Gallery image not found": 404,
+  "Invalid product ID": 400,
+  "One or more products were not found": 400,
+  "Image not found": 404,
+};
+
+const sendGalleryError = (
+  res,
+  error,
+  label,
+  fallbackMessage,
+  allowedMessages = []
+) => {
+  // Full error details remain server-side only.
+  console.error(label, error);
+
+  const message = error?.message;
+
+  if (
+    allowedMessages.includes(message) &&
+    Object.prototype.hasOwnProperty.call(
+      SAFE_GALLERY_ERRORS,
+      message
+    )
+  ) {
+    return res.status(
+      SAFE_GALLERY_ERRORS[message]
+    ).json({
+      success: false,
+      message,
+    });
+  }
+
+  // Never expose unexpected internal error messages.
+  return res.status(500).json({
+    success: false,
+    message: fallbackMessage,
+  });
+};
+
+// =========================================================
+// CATEGORIES
+// =========================================================
 
 const getCategories = async (req, res) => {
   try {
@@ -13,17 +64,12 @@ const getCategories = async (req, res) => {
       data,
     });
   } catch (error) {
-    console.error(
+    return sendGalleryError(
+      res,
+      error,
       "Get inspiration gallery categories error:",
-      error
+      "Failed to fetch gallery categories"
     );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to fetch gallery categories",
-    });
   }
 };
 
@@ -39,17 +85,12 @@ const createCategory = async (req, res) => {
       data,
     });
   } catch (error) {
-    console.error(
+    return sendGalleryError(
+      res,
+      error,
       "Create inspiration gallery category error:",
-      error
+      "Failed to create gallery category"
     );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to create gallery category",
-    });
   }
 };
 
@@ -77,17 +118,12 @@ const updateCategory = async (req, res) => {
       data,
     });
   } catch (error) {
-    console.error(
+    return sendGalleryError(
+      res,
+      error,
       "Update inspiration gallery category error:",
-      error
+      "Failed to update gallery category"
     );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to update gallery category",
-    });
   }
 };
 
@@ -113,23 +149,18 @@ const deleteCategory = async (req, res) => {
       message: "Category deleted successfully",
     });
   } catch (error) {
-    console.error(
+    return sendGalleryError(
+      res,
+      error,
       "Delete inspiration gallery category error:",
-      error
+      "Failed to delete gallery category"
     );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to delete gallery category",
-    });
   }
 };
 
-/* =========================================================
-   IMAGES
-========================================================= */
+// =========================================================
+// IMAGES
+// =========================================================
 
 const getImages = async (req, res) => {
   try {
@@ -147,23 +178,18 @@ const getImages = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    console.error(
+    return sendGalleryError(
+      res,
+      error,
       "Get inspiration gallery images error:",
-      error
+      "Failed to fetch inspiration gallery images"
     );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to fetch inspiration gallery images",
-    });
   }
 };
 
-/* =========================================================
-   GET IMAGES BY PRODUCT SLUG
-========================================================= */
+// =========================================================
+// GET IMAGES BY PRODUCT SLUG
+// =========================================================
 
 const getImagesBySlug = async (req, res) => {
   try {
@@ -182,39 +208,22 @@ const getImagesBySlug = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(
+    return sendGalleryError(
+      res,
+      error,
       "Get inspiration images by slug error:",
-      error
+      "Failed to fetch product inspiration images",
+      [
+        "Product slug is required",
+        "Product not found",
+      ]
     );
-
-    let statusCode = 500;
-
-    if (
-      error.message ===
-      "Product slug is required"
-    ) {
-      statusCode = 400;
-    }
-
-    if (
-      error.message ===
-      "Product not found"
-    ) {
-      statusCode = 404;
-    }
-
-    return res.status(statusCode).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to fetch product inspiration images",
-    });
   }
 };
 
-/* =========================================================
-   IMAGE UPLOAD
-========================================================= */
+// =========================================================
+// IMAGE UPLOAD
+// =========================================================
 
 const createImageUploadUrls = async (
   req,
@@ -231,17 +240,12 @@ const createImageUploadUrls = async (
       data,
     });
   } catch (error) {
-    console.error(
+    return sendGalleryError(
+      res,
+      error,
       "Create inspiration gallery upload URLs error:",
-      error
+      "Failed to create image upload URLs"
     );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to create image upload URLs",
-    });
   }
 };
 
@@ -261,23 +265,18 @@ const saveUploadedImages = async (
       data,
     });
   } catch (error) {
-    console.error(
+    return sendGalleryError(
+      res,
+      error,
       "Save inspiration gallery images error:",
-      error
+      "Failed to save gallery images"
     );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to save gallery images",
-    });
   }
 };
 
-/* =========================================================
-   SEARCH PRODUCTS
-========================================================= */
+// =========================================================
+// SEARCH PRODUCTS
+// =========================================================
 
 /*
  * GET
@@ -285,6 +284,7 @@ const saveUploadedImages = async (
  *
  * Used by the CMS product selector.
  */
+
 const searchProducts = async (
   req,
   res
@@ -304,23 +304,18 @@ const searchProducts = async (
       data: products,
     });
   } catch (error) {
-    console.error(
+    return sendGalleryError(
+      res,
+      error,
       "Search inspiration gallery products error:",
-      error
+      "Failed to search products"
     );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to search products",
-    });
   }
 };
 
-/* =========================================================
-   GET PRODUCTS LINKED TO IMAGE
-========================================================= */
+// =========================================================
+// GET PRODUCTS LINKED TO IMAGE
+// =========================================================
 
 /*
  * GET
@@ -329,6 +324,7 @@ const searchProducts = async (
  * Example:
  * /api/inspiration-gallery/images/474/products
  */
+
 const getImageProducts = async (
   req,
   res
@@ -359,29 +355,21 @@ const getImageProducts = async (
       data: products,
     });
   } catch (error) {
-    console.error(
+    return sendGalleryError(
+      res,
+      error,
       "Get inspiration image products error:",
-      error
+      "Failed to fetch linked products",
+      [
+        "Gallery image not found",
+      ]
     );
-
-    const statusCode =
-      error.message ===
-      "Gallery image not found"
-        ? 404
-        : 500;
-
-    return res.status(statusCode).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to fetch linked products",
-    });
   }
 };
 
-/* =========================================================
-   UPDATE PRODUCTS LINKED TO IMAGE
-========================================================= */
+// =========================================================
+// UPDATE PRODUCTS LINKED TO IMAGE
+// =========================================================
 
 /*
  * PUT
@@ -399,6 +387,7 @@ const getImageProducts = async (
  *
  * [] is valid and means remove all product links.
  */
+
 const updateImageProducts = async (
   req,
   res
@@ -436,6 +425,7 @@ const updateImageProducts = async (
      * Service will safely convert them
      * to BigInt for Prisma/PostgreSQL.
      */
+
     const productIds =
       product_ids.map(
         (id) => String(id)
@@ -454,41 +444,23 @@ const updateImageProducts = async (
       data: products,
     });
   } catch (error) {
-    console.error(
+    return sendGalleryError(
+      res,
+      error,
       "Update inspiration image products error:",
-      error
+      "Failed to update linked products",
+      [
+        "Gallery image not found",
+        "Invalid product ID",
+        "One or more products were not found",
+      ]
     );
-
-    let statusCode = 500;
-
-    if (
-      error.message ===
-      "Gallery image not found"
-    ) {
-      statusCode = 404;
-    }
-
-    if (
-      error.message ===
-        "Invalid product ID" ||
-      error.message ===
-        "One or more products were not found"
-    ) {
-      statusCode = 400;
-    }
-
-    return res.status(statusCode).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to update linked products",
-    });
   }
 };
 
-/* =========================================================
-   UPDATE IMAGE ALT
-========================================================= */
+// =========================================================
+// UPDATE IMAGE ALT
+// =========================================================
 
 const updateImageAlt = async (
   req,
@@ -509,13 +481,14 @@ const updateImageAlt = async (
       image,
     });
   } catch (error) {
+    // Existing global error middleware handles this.
     return next(error);
   }
 };
 
-/* =========================================================
-   DELETE IMAGE
-========================================================= */
+// =========================================================
+// DELETE IMAGE
+// =========================================================
 
 const deleteImage = async (
   req,
@@ -547,29 +520,21 @@ const deleteImage = async (
         "Image deleted successfully",
     });
   } catch (error) {
-    console.error(
+    return sendGalleryError(
+      res,
+      error,
       "Delete inspiration gallery image error:",
-      error
+      "Failed to delete gallery image",
+      [
+        "Image not found",
+      ]
     );
-
-    const statusCode =
-      error.message ===
-      "Image not found"
-        ? 404
-        : 500;
-
-    return res.status(statusCode).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to delete gallery image",
-    });
   }
 };
 
-/* =========================================================
-   EXPORTS
-========================================================= */
+// =========================================================
+// EXPORTS
+// =========================================================
 
 module.exports = {
   // Categories

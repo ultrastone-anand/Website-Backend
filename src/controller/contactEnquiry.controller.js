@@ -1,246 +1,178 @@
+
 const contactEnquiryService = require(
   "../services/contactEnquiry.service"
 );
+
 const { serialize } = require("../utils/serialize");
 
-// ================== CREATE ENQUIRY ==================
+// ============================================================
+// CREATE ENQUIRY
+// ============================================================
 
-const createEnquiry = async (
-  req,
-  res
-) => {
-
+const createEnquiry = async (req, res, next) => {
   try {
-
     const {
       name,
       subject,
       email,
       phone,
-      message
+      message,
     } = req.body;
 
     const emailRegex =
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    const cleanedPhone =
-      phone?.replace(
-        /\D/g,
-        ""
-      );
+    const cleanedPhone = phone?.replace(
+      /\D/g,
+      ""
+    );
+
+    // --------------------------------------------------------
+    // NAME VALIDATION
+    // --------------------------------------------------------
 
     if (!name?.trim()) {
-
       return res.status(400).json({
-
         success: false,
-
-        message:
-          "Name is required"
-
+        message: "Name is required",
       });
-
     }
+
+    // --------------------------------------------------------
+    // SUBJECT VALIDATION
+    // --------------------------------------------------------
 
     if (!subject?.trim()) {
-
       return res.status(400).json({
-
         success: false,
-
-        message:
-          "Subject is required"
-
+        message: "Subject is required",
       });
-
     }
+
+    // --------------------------------------------------------
+    // EMAIL VALIDATION
+    // --------------------------------------------------------
 
     if (!email?.trim()) {
-
       return res.status(400).json({
-
         success: false,
-
-        message:
-          "Email is required"
-
+        message: "Email is required",
       });
-
     }
 
-    if (
-      !emailRegex.test(email)
-    ) {
-
+    if (!emailRegex.test(email)) {
       return res.status(400).json({
-
         success: false,
-
-        message:
-          "Invalid email address"
-
+        message: "Invalid email address",
       });
-
     }
+
+    // --------------------------------------------------------
+    // PHONE VALIDATION
+    // --------------------------------------------------------
 
     if (!phone?.trim()) {
-
       return res.status(400).json({
-
         success: false,
-
-        message:
-          "Phone number is required"
-
+        message: "Phone number is required",
       });
-
     }
 
     if (
       cleanedPhone.length < 10 ||
       cleanedPhone.length > 15
     ) {
-
       return res.status(400).json({
-
         success: false,
-
-        message:
-          "Invalid phone number"
-
+        message: "Invalid phone number",
       });
-
     }
+
+    // --------------------------------------------------------
+    // CREATE ENQUIRY
+    // --------------------------------------------------------
 
     const enquiry =
       await contactEnquiryService.createEnquiry(
         req.body
       );
 
-    res.status(201).json({
-
+    return res.status(201).json({
       success: true,
+      message: "Enquiry submitted successfully",
+      data: serialize(enquiry),
+    });
 
-      message:
-        "Enquiry submitted successfully",
+  } catch (error) {
+    return next(error);
+  }
+};
 
-      data:
-        serialize(enquiry)
+// ============================================================
+// GET ALL ENQUIRIES
+// ============================================================
 
+const getAllEnquiries = async (req, res, next) => {
+  try {
+    const enquiries =
+      await contactEnquiryService.getAllEnquiries();
+
+    return res.status(200).json({
+      success: true,
+      data: serialize(enquiries),
+    });
+
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ============================================================
+// UPDATE ENQUIRY STATUS
+// ============================================================
+
+const updateStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const enquiry =
+      await contactEnquiryService.updateStatus(
+        id,
+        req.body
+      );
+
+    return res.status(200).json({
+      success: true,
+      data: serialize(enquiry),
     });
 
   } catch (error) {
 
-    res.status(500).json({
+    // --------------------------------------------------------
+    // KNOWN ERROR — ENQUIRY NOT FOUND
+    // --------------------------------------------------------
 
-      success: false,
+    if (error.message === "Enquiry not found") {
+      return res.status(404).json({
+        success: false,
+        message: "Enquiry not found",
+      });
+    }
 
-      message:
-        error.message
+    // --------------------------------------------------------
+    // UNEXPECTED ERRORS
+    // --------------------------------------------------------
 
-    });
-
+    return next(error);
   }
-
 };
 
-// ================== GET ALL ENQUIRIES ==================
-
-const getAllEnquiries =async (
-    req,
-    res
-  ) => {
-
-    try {
-
-      const enquiries =
-        await contactEnquiryService.getAllEnquiries();
-
-      res.status(200).json({
-
-        success: true,
-
-        data: serialize(enquiries)
-
-      });
-
-    } catch (error) {
-
-      res.status(500).json({
-
-        success: false,
-
-        message: error.message
-
-      });
-
-    }
-
-  };
-
-// ================== UPDATE STATUS ==================
-
-const updateStatus = async (
-    req,
-    res
-  ) => {
-
-    try {
-
-      const { id } =
-        req.params;
-
-      const enquiry =
-        await contactEnquiryService.updateStatus(
-          id,
-          req.body
-        );
-
-      res.status(200).json({
-
-        success: true,
-
-        data: serialize(enquiry)
-
-      });
-
-    } catch (error) {
-
-      if (
-        error.message ===
-        "Enquiry not found"
-      ) {
-
-        return res.status(404).json({
-
-          success: false,
-
-          message:
-            error.message
-
-        });
-
-      }
-
-      res.status(500).json({
-
-        success: false,
-
-        message:
-          error.message
-
-      });
-
-    }
-
-  };
+// ============================================================
+// EXPORTS
+// ============================================================
 
 module.exports = {
-
   createEnquiry,
-
   getAllEnquiries,
-
-  updateStatus
-
+  updateStatus,
 };

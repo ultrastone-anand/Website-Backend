@@ -1,3 +1,4 @@
+
 const service = require("../services/categoryResource.service");
 
 const getAuditContext = require("../utils/getAuditContext");
@@ -10,6 +11,15 @@ const {
 // ==============================
 // HELPERS
 // ==============================
+
+// Only explicitly approved messages may be
+// returned to API clients.
+const SAFE_ERROR_MESSAGES = new Set([
+  "PDF size cannot exceed 100 MB",
+  "Only PDF files are allowed",
+  "PDF upload requires resource_type PDF",
+  "Please upload a PDF file",
+]);
 
 const sendError = (res, error) => {
   console.error("Category Resource Error:", error);
@@ -29,12 +39,31 @@ const sendError = (res, error) => {
     });
   }
 
-  return res.status(error.status || 500).json({
+  // Only return known, explicitly approved
+  // validation messages.
+  if (
+    error.status === 400 &&
+    SAFE_ERROR_MESSAGES.has(error.message)
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+
+  // Preserve recognized service-level HTTP
+  // statuses without exposing raw messages.
+  const statusCode =
+    Number.isInteger(error.status) &&
+    error.status >= 400 &&
+    error.status <= 499
+      ? error.status
+      : 500;
+
+  return res.status(statusCode).json({
     success: false,
     message:
-      error.status || process.env.NODE_ENV === "development"
-        ? error.message
-        : "Failed to process category resource",
+      "Failed to process category resource",
   });
 };
 
@@ -65,7 +94,7 @@ const validatePdf = (file) => {
 const uploadPdf = async (file) => {
   validatePdf(file);
 
-  // Uses your existing R2 upload utility.
+  // Uses existing R2 upload utility.
   const uploaded = await uploadToR2(
     file,
     "ultrastones/category-resources"
@@ -113,7 +142,6 @@ const getResources = async (req, res) => {
   }
 };
 
-
 // ==============================
 // GET ALL ACTIVE RESOURCES - PUBLIC
 // SUPPORTS RESOURCE CATEGORY FILTER
@@ -133,7 +161,6 @@ const getPublicResources = async (req, res) => {
     return sendError(res, error);
   }
 };
-
 
 // ==============================
 // GET BY CATEGORY

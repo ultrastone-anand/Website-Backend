@@ -1,150 +1,178 @@
-// controller/page.controller.js
+
 const fs = require("fs");
 const path = require("path");
 
 const pageService = require("../services/page.service");
 const { uploadToR2 } = require("../utils/uploadToR2");
 
-exports.createPage = async (req, res) => {
+// ============================================================
+// CREATE PAGE
+// ============================================================
+
+exports.createPage = async (req, res, next) => {
   try {
     const data = await pageService.createPage(req.body);
-    res.status(201).json({ success: true, data });
+
+    return res.status(201).json({
+      success: true,
+      data,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: error.message });
+    return next(error);
   }
 };
 
-exports.updatePage = async (req, res) => {
+// ============================================================
+// UPDATE PAGE
+// ============================================================
+
+exports.updatePage = async (req, res, next) => {
   try {
-    const data = await pageService.updatePage(req.params.id, req.body);
-    res.json({ success: true, data });
+    const data = await pageService.updatePage(
+      req.params.id,
+      req.body
+    );
+
+    return res.json({
+      success: true,
+      data,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: error.message });
+    return next(error);
   }
 };
 
-exports.getPageBySlug = async (req, res) => {
+// ============================================================
+// GET PAGE BY SLUG
+// ============================================================
+
+exports.getPageBySlug = async (req, res, next) => {
   try {
-    const data = await pageService.getPageBySlug(req.params.slug);
+    const data = await pageService.getPageBySlug(
+      req.params.slug
+    );
 
     if (!data) {
-      return res.status(404).json({ success: false, message: "Page not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Page not found",
+      });
     }
 
-    res.json({ success: true, data });
+    return res.json({
+      success: true,
+      data,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: error.message });
+    return next(error);
   }
 };
 
-exports.deletePage = async (req, res) => {
+// ============================================================
+// DELETE PAGE
+// ============================================================
+
+exports.deletePage = async (req, res, next) => {
   try {
     await pageService.deletePage(req.params.id);
-    res.json({ success: true, message: "Page deleted successfully" });
+
+    return res.json({
+      success: true,
+      message: "Page deleted successfully",
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: error.message });
+    return next(error);
   }
 };
 
+// ============================================================
+// UPLOAD PAGE IMAGE
+// ============================================================
 
-exports.uploadPageImage = async (req, res) => {
-
+exports.uploadPageImage = async (req, res, next) => {
   try {
+    const data = await pageService.uploadPageImage(
+      req.file
+    );
 
-    const data = await pageService.uploadPageImage(req.file);
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Image uploaded successfully",
-      data
+      data,
     });
-
   } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-
+    return next(error);
   }
-
 };
 
-// =====================================
-
+// ============================================================
 // UPLOAD PAGE PDF TO R2
+// ============================================================
 
-// =====================================
-
-exports.uploadPagePdf = async (
-  req,
-  res
-) => {
+exports.uploadPagePdf = async (req, res, next) => {
   try {
+    // --------------------------------------------------------
+    // VALIDATE FILE EXISTS
+    // --------------------------------------------------------
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        message:
-          "PDF file is required.",
+        message: "PDF file is required.",
       });
     }
+
+    // --------------------------------------------------------
+    // VALIDATE PDF FILE TYPE
+    // --------------------------------------------------------
+
     const extension = path
       .extname(req.file.originalname)
       .toLowerCase();
+
     const isPdf =
-      req.file.mimetype ===
-        "application/pdf" &&
+      req.file.mimetype === "application/pdf" &&
       extension === ".pdf";
+
     if (!isPdf) {
       if (req.file.path) {
-        await fs
+        await fs.promises
           .unlink(req.file.path)
           .catch(() => null);
       }
+
       return res.status(400).json({
         success: false,
-        message:
-          "Only PDF files are allowed.",
+        message: "Only PDF files are allowed.",
       });
     }
-    const uploadedPdf =
-      await uploadToR2(
-        req.file,
-        "page-pdfs"
-      );
+
+    // --------------------------------------------------------
+    // UPLOAD TO CLOUDFLARE R2
+    // --------------------------------------------------------
+
+    const uploadedPdf = await uploadToR2(
+      req.file,
+      "page-pdfs"
+    );
+
+    // --------------------------------------------------------
+    // SUCCESS RESPONSE
+    // --------------------------------------------------------
+
     return res.status(201).json({
       success: true,
-      message:
-        "PDF uploaded successfully",
+      message: "PDF uploaded successfully",
       data: {
-        fileName:
-          req.file.originalname,
-        storedFileName:
-          uploadedPdf.public_id,
-        pdfUrl:
-          uploadedPdf.secure_url,
-        publicId:
-          uploadedPdf.public_id,
-        size:
-          req.file.size,
-        mimeType:
-          req.file.mimetype,
+        fileName: req.file.originalname,
+        storedFileName: uploadedPdf.public_id,
+        pdfUrl: uploadedPdf.secure_url,
+        publicId: uploadedPdf.public_id,
+        size: req.file.size,
+        mimeType: req.file.mimetype,
       },
     });
   } catch (error) {
-    console.error(
-      "Page PDF upload error:",
-      error
-    );
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to upload PDF",
-    });
+    return next(error);
   }
 };

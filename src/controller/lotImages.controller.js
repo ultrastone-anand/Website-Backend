@@ -1,7 +1,10 @@
+
 const service = require(
   "../services/lotImages.service"
 );
 
+// ----------------------------------------------------------------------
+// BIGINT SERIALIZATION
 // ----------------------------------------------------------------------
 
 const serializeBigInt = (data) =>
@@ -13,6 +16,43 @@ const serializeBigInt = (data) =>
     )
   );
 
+// ----------------------------------------------------------------------
+// SAFE ERROR HANDLING
+// ----------------------------------------------------------------------
+
+// Only known, explicitly approved service messages
+// can be returned to API clients.
+
+const SAFE_LOT_ERRORS = new Set([
+  "Product not found",
+  "Valid product ID is required",
+  "Lot not found",
+  "Lot image not found",
+]);
+
+const sendLotError = (
+  res,
+  error,
+  label,
+  fallbackMessage,
+  statusCode
+) => {
+  // Full error details remain on the server.
+  console.error(label, error);
+
+  const message =
+    SAFE_LOT_ERRORS.has(error?.message)
+      ? error.message
+      : fallbackMessage;
+
+  return res.status(statusCode).json({
+    success: false,
+    message,
+  });
+};
+
+// ----------------------------------------------------------------------
+// GET PRODUCT LOTS
 // ----------------------------------------------------------------------
 
 const getProductLots = async (
@@ -30,11 +70,6 @@ const getProductLots = async (
       data: serializeBigInt(data),
     });
   } catch (error) {
-    console.error(
-      "Get product lots error:",
-      error
-    );
-
     const statusCode =
       error.message ===
       "Product not found"
@@ -44,15 +79,18 @@ const getProductLots = async (
           ? 400
           : 500;
 
-    return res.status(statusCode).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to fetch product lots",
-    });
+    return sendLotError(
+      res,
+      error,
+      "Get product lots error:",
+      "Failed to fetch product lots",
+      statusCode
+    );
   }
 };
 
+// ----------------------------------------------------------------------
+// CREATE LOT IMAGE UPLOAD URLS
 // ----------------------------------------------------------------------
 
 const createLotImageUploadUrls = async (
@@ -70,20 +108,18 @@ const createLotImageUploadUrls = async (
       data: serializeBigInt(data),
     });
   } catch (error) {
-    console.error(
+    return sendLotError(
+      res,
+      error,
       "Create lot image upload URLs error:",
-      error
+      "Failed to create upload URLs",
+      400
     );
-
-    return res.status(400).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to create upload URLs",
-    });
   }
 };
 
+// ----------------------------------------------------------------------
+// SAVE LOT IMAGES
 // ----------------------------------------------------------------------
 
 const saveLotImages = async (
@@ -103,11 +139,6 @@ const saveLotImages = async (
       data: serializeBigInt(data),
     });
   } catch (error) {
-    console.error(
-      "Save lot images error:",
-      error
-    );
-
     const statusCode =
       error.message ===
         "Product not found" ||
@@ -115,15 +146,18 @@ const saveLotImages = async (
         ? 404
         : 400;
 
-    return res.status(statusCode).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to save lot images",
-    });
+    return sendLotError(
+      res,
+      error,
+      "Save lot images error:",
+      "Failed to save lot images",
+      statusCode
+    );
   }
 };
 
+// ----------------------------------------------------------------------
+// UPDATE LOT
 // ----------------------------------------------------------------------
 
 const updateLot = async (req, res) => {
@@ -141,25 +175,23 @@ const updateLot = async (req, res) => {
       data: serializeBigInt(data),
     });
   } catch (error) {
-    console.error(
-      "Update lot error:",
-      error
-    );
-
     const statusCode =
       error.message === "Lot not found"
         ? 404
         : 400;
 
-    return res.status(statusCode).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to update lot",
-    });
+    return sendLotError(
+      res,
+      error,
+      "Update lot error:",
+      "Failed to update lot",
+      statusCode
+    );
   }
 };
 
+// ----------------------------------------------------------------------
+// UPDATE LOT IMAGE
 // ----------------------------------------------------------------------
 
 const updateLotImage = async (
@@ -180,26 +212,24 @@ const updateLotImage = async (
       data: serializeBigInt(data),
     });
   } catch (error) {
-    console.error(
-      "Update lot image error:",
-      error
-    );
-
     const statusCode =
       error.message ===
       "Lot image not found"
         ? 404
         : 400;
 
-    return res.status(statusCode).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to update lot image",
-    });
+    return sendLotError(
+      res,
+      error,
+      "Update lot image error:",
+      "Failed to update lot image",
+      statusCode
+    );
   }
 };
 
+// ----------------------------------------------------------------------
+// DELETE LOT IMAGE
 // ----------------------------------------------------------------------
 
 const deleteLotImage = async (
@@ -217,26 +247,24 @@ const deleteLotImage = async (
         "Lot image deleted successfully",
     });
   } catch (error) {
-    console.error(
-      "Delete lot image error:",
-      error
-    );
-
     const statusCode =
       error.message ===
       "Lot image not found"
         ? 404
         : 400;
 
-    return res.status(statusCode).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to delete lot image",
-    });
+    return sendLotError(
+      res,
+      error,
+      "Delete lot image error:",
+      "Failed to delete lot image",
+      statusCode
+    );
   }
 };
 
+// ----------------------------------------------------------------------
+// DELETE LOT
 // ----------------------------------------------------------------------
 
 const deleteLot = async (req, res) => {
@@ -251,25 +279,23 @@ const deleteLot = async (req, res) => {
         "Lot and all images deleted successfully",
     });
   } catch (error) {
-    console.error(
-      "Delete lot error:",
-      error
-    );
-
     const statusCode =
       error.message === "Lot not found"
         ? 404
         : 400;
 
-    return res.status(statusCode).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to delete lot",
-    });
+    return sendLotError(
+      res,
+      error,
+      "Delete lot error:",
+      "Failed to delete lot",
+      statusCode
+    );
   }
 };
 
+// ----------------------------------------------------------------------
+// EXPORTS
 // ----------------------------------------------------------------------
 
 module.exports = {

@@ -1,192 +1,154 @@
-const lookupService = require('../services/lookup.service');
-const { serialize } = require('../utils/serialize');
 
-// =========================
+const lookupService = require("../services/lookup.service");
+const { serialize } = require("../utils/serialize");
+
+// ============================================================
 // LOOKUP MASTER
-// =========================
+// ============================================================
 
-exports.getAllLookups = async (req, res) => {
+// GET ALL LOOKUPS
+exports.getAllLookups = async (req, res, next) => {
   try {
     const data = await lookupService.getLookups();
 
-    res.json({
+    return res.json({
       success: true,
-      data : serialize(data),
+      data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.getLookupById = async (req, res) => {
+// GET LOOKUP BY ID
+exports.getLookupById = async (req, res, next) => {
   try {
     const data = await lookupService.getLookupById(
       req.params.id
     );
 
-    res.json({
+    return res.json({
       success: true,
-      data : serialize(data),
+      data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.createLookup = async (req, res) => {
+// CREATE LOOKUP
+exports.createLookup = async (req, res, next) => {
   try {
     const data = await lookupService.createLookup(
       req.body
     );
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      data : serialize(data),
+      data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.updateLookup = async (req, res) => {
+// UPDATE LOOKUP
+exports.updateLookup = async (req, res, next) => {
   try {
     const data = await lookupService.updateLookup(
       req.params.id,
       req.body
     );
 
-    res.json({
+    return res.json({
       success: true,
-      data : serialize(data),
+      data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.deleteLookup = async (req, res) => {
+// DELETE LOOKUP
+exports.deleteLookup = async (req, res, next) => {
   try {
     await lookupService.deleteLookup(req.params.id);
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Lookup deleted successfully',
+      message: "Lookup deleted successfully",
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-// =========================
+// ============================================================
 // LOOKUP DETAILS
-// =========================
+// ============================================================
 
-exports.getLookupDetails = async (req, res) => {
+// GET LOOKUP DETAILS
+exports.getLookupDetails = async (req, res, next) => {
   try {
-    const data =
-      await lookupService.getLookupDetails(
-        req.params.lookupId
-      );
+    const data = await lookupService.getLookupDetails(
+      req.params.lookupId
+    );
 
-    res.json({
+    return res.json({
       success: true,
-      data : serialize(data),
+      data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.createLookupDetail = async (req, res) => {
+// CREATE LOOKUP DETAIL
+exports.createLookupDetail = async (req, res, next) => {
   try {
-    const data =
-      await lookupService.createLookupDetail(
-        req.params.lookupId,
-        req.body
-      );
+    const data = await lookupService.createLookupDetail(
+      req.params.lookupId,
+      req.body
+    );
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      data : serialize(data),
+      data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.updateLookupDetail = async (req, res) => {
+// UPDATE LOOKUP DETAIL
+exports.updateLookupDetail = async (req, res, next) => {
   try {
-    const data =
-      await lookupService.updateLookupDetail(
-        req.params.id,
-        req.body
-      );
+    const data = await lookupService.updateLookupDetail(
+      req.params.id,
+      req.body
+    );
 
-    res.json({
+    return res.json({
       success: true,
-      data : serialize(data),
+      data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.deleteLookupDetail = async (req, res) => {
+// DELETE LOOKUP DETAIL
+exports.deleteLookupDetail = async (req, res, next) => {
   try {
     await lookupService.deleteLookupDetail(
       req.params.id
     );
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Lookup detail deleted successfully',
+      message: "Lookup detail deleted successfully",
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };

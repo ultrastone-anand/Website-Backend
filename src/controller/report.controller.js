@@ -1,90 +1,75 @@
+
 const reportService = require("../services/report.service");
 
-// ================== PRODUCT AUDIT REPORT ==================
+// ============================================================
+// PRODUCT AUDIT REPORT
+// ============================================================
 
-const getProductAuditReport = async (req, res) => {
+const getProductAuditReport = async (req, res, next) => {
   try {
     const { slug } = req.params;
-
-    const report = await reportService.getProductAuditReport(slug);
-
-    res.status(200).json({
-      success: true,
-
-      data: report,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-
-      message: error.message,
-    });
-  }
-};
-
-const getCategoryProductReport = async (req, res) => {
-  try {
-    const { slug } = req.params;
-
-    const report = await reportService.getCategoryProductReport(slug);
-
-    res.status(200).json({
-      success: true,
-
-      data: report,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-
-      message: error.message,
-    });
-  }
-};
-
-const getCategoryProductsReport = async (
-  req,
-  res
-) => {
-
-  try {
-
-    const { slug } =
-      req.params;
 
     const report =
-      await reportService.getCategoryProductsReport(
-        slug
-      );
+      await reportService.getProductAuditReport(slug);
 
     return res.status(200).json({
-
       success: true,
-
-      ...report
-
+      data: report,
     });
 
   } catch (error) {
-
-    return res.status(500).json({
-
-      success: false,
-
-      message:
-        error.message
-
-    });
-
+    return next(error);
   }
-
 };
 
+// ============================================================
+// CATEGORY PRODUCT REPORT
+// ============================================================
+
+const getCategoryProductReport = async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+
+    const report =
+      await reportService.getCategoryProductReport(slug);
+
+    return res.status(200).json({
+      success: true,
+      data: report,
+    });
+
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ============================================================
+// CATEGORY PRODUCTS REPORT
+// ============================================================
+
+const getCategoryProductsReport = async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+
+    const report =
+      await reportService.getCategoryProductsReport(slug);
+
+    return res.status(200).json({
+      success: true,
+      ...report,
+    });
+
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ============================================================
+// EXPORTS
+// ============================================================
 
 module.exports = {
   getProductAuditReport,
-
   getCategoryProductReport,
-
-  getCategoryProductsReport
+  getCategoryProductsReport,
 };

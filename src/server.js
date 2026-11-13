@@ -13,6 +13,8 @@ const {
   buildLocationSeo,
 } = require("./utils/seoHtml");
 
+const errorHandler = require("./middlewares/error.middleware");
+
 const {
   getProductDetails,
 } = require("./services/stone.service");
@@ -637,8 +639,10 @@ app.use(async (req, res) => {
   }
 });
 
-/* =========================================================
-   EXPORT
-========================================================= */
+// ============================================================
+// GLOBAL ERROR HANDLER
+// ============================================================
+
+app.use(errorHandler);
 
 module.exports = app;

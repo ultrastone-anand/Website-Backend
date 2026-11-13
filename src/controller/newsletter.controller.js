@@ -1,100 +1,71 @@
+
 const newsletterService = require(
   "../services/newsletter.service"
 );
+
 const { serialize } = require("../utils/serialize");
 
-// ================== SUBSCRIBE ==================
+// ============================================================
+// SUBSCRIBE
+// ============================================================
 
-const subscribe = async (
-  req,
-  res
-) => {
-
+const subscribe = async (req, res, next) => {
   try {
-
     const subscriber =
-      await newsletterService.subscribe(
-        req.body
-      );
+      await newsletterService.subscribe(req.body);
 
-    res.status(201).json({
-
+    return res.status(201).json({
       success: true,
-
-      message:
-        "Successfully subscribed",
-
-      data: serialize(subscriber)
-
+      message: "Successfully subscribed",
+      data: serialize(subscriber),
     });
 
   } catch (error) {
 
-    if (
-      error.message ===
-      "Email already subscribed"
-    ) {
+    // --------------------------------------------------------
+    // KNOWN VALIDATION ERROR
+    // --------------------------------------------------------
 
+    if (error.message === "Email already subscribed") {
       return res.status(400).json({
-
         success: false,
-
-        message: error.message
-
+        message: "Email already subscribed",
       });
-
     }
 
-    res.status(500).json({
+    // --------------------------------------------------------
+    // UNEXPECTED ERRORS
+    // Forward to centralized error middleware
+    // --------------------------------------------------------
 
-      success: false,
-
-      message: error.message
-
-    });
-
+    return next(error);
   }
-
 };
 
-// ================== GET ALL SUBSCRIBERS ==================
+// ============================================================
+// GET ALL SUBSCRIBERS
+// ============================================================
 
-const getAllSubscribers =async (
-    req,
-    res
-  ) => {
+const getAllSubscribers = async (req, res, next) => {
+  try {
+    const subscribers =
+      await newsletterService.getAllSubscribers();
 
-    try {
+    return res.status(200).json({
+      success: true,
+      data: serialize(subscribers),
+    });
 
-      const subscribers =
-        await newsletterService.getAllSubscribers();
+  } catch (error) {
+    return next(error);
+  }
+};
 
-      res.status(200).json({
-
-        success: true,
-
-        data: serialize(subscribers)
-
-      });
-
-    } catch (error) {
-
-      res.status(500).json({
-
-        success: false,
-
-        message: error.message
-
-      });
-
-    }
-
-  };
+// ============================================================
+// EXPORTS
+// ============================================================
 
 module.exports = {
-
   subscribe,
-
-  getAllSubscribers
-
+  getAllSubscribers,
 };

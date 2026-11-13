@@ -1,3 +1,4 @@
+
 const productRegistrationService = require(
   "../services/ProductRegistration.service"
 );
@@ -9,35 +10,95 @@ const getAuditContext = require("../utils/getAuditContext");
 // ======================================================
 
 const getErrorStatusCode = (error) => {
-  if (error.statusCode) {
-    return error.statusCode;
+  const statusCode = error?.statusCode;
+
+  if (
+    Number.isInteger(statusCode) &&
+    statusCode >= 400 &&
+    statusCode <= 599
+  ) {
+    return statusCode;
   }
 
-  if (error.code === "P2025") {
+  if (error?.code === "P2025") {
     return 404;
   }
 
-  if (error.code === "P2002") {
+  if (error?.code === "P2002") {
     return 409;
   }
 
-  if (error.code === "P2003") {
+  if (error?.code === "P2003") {
     return 400;
   }
 
-  if (error.code === "P2004") {
+  if (error?.code === "P2004") {
     return 400;
   }
 
-  if (error.code === "P2011") {
+  if (error?.code === "P2011") {
     return 400;
   }
 
-  if (error.code === "P2000") {
+  if (error?.code === "P2000") {
     return 400;
   }
 
   return 500;
+};
+
+// ======================================================
+// SAFE ERROR MESSAGE HELPER
+// ======================================================
+
+const getSafeErrorMessage = (error, statusCode) => {
+  // Never expose raw Prisma/database error messages.
+  switch (error?.code) {
+    case "P2025":
+      return "Registration not found";
+
+    case "P2002":
+      return "A registration with these details already exists";
+
+    case "P2003":
+      return "Invalid reference provided";
+
+    case "P2004":
+    case "P2011":
+    case "P2000":
+      return "Invalid registration data";
+
+    default:
+      break;
+  }
+
+  // Preserve HTTP status codes without exposing
+  // unverified internal service error messages.
+  switch (statusCode) {
+    case 400:
+      return "Invalid registration request";
+
+    case 401:
+      return "Unauthorized";
+
+    case 403:
+      return "Access denied";
+
+    case 404:
+      return "Registration not found";
+
+    case 409:
+      return "Registration conflict";
+
+    case 413:
+      return "Uploaded file is too large";
+
+    case 422:
+      return "Invalid registration data";
+
+    default:
+      return "An unexpected error occurred";
+  }
 };
 
 const handleError = (res, error, label) => {
@@ -47,10 +108,7 @@ const handleError = (res, error, label) => {
 
   return res.status(statusCode).json({
     success: false,
-    message:
-      statusCode === 500
-        ? "An unexpected error occurred"
-        : error.message,
+    message: getSafeErrorMessage(error, statusCode),
   });
 };
 

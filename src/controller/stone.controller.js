@@ -1,12 +1,70 @@
+
 const prisma = require("../config/prisma");
+
 const stoneservice = require("../services/stone.service");
+
 const getAuditContext = require("../utils/getAuditContext");
-const { createR2UploadUrl} = require("../utils/r2Presigned");
-const { serialize } = require('../utils/serialize');
-const { uploadToR2 , deleteFileFromR2 } = require("../utils/uploadToR2");
 
+const { createR2UploadUrl } = require("../utils/r2Presigned");
 
+const { serialize } = require("../utils/serialize");
 
+const {
+  uploadToR2,
+  deleteFileFromR2,
+} = require("../utils/uploadToR2");
+
+// ======================================================
+// SAFE ERROR HANDLING
+// ======================================================
+
+const sendStoneError = (
+  res,
+  error,
+  label,
+  fallbackMessage
+) => {
+  console.error(label, error);
+
+  return res.status(500).json({
+    success: false,
+    message: fallbackMessage,
+  });
+};
+
+const sendKnownStoneError = (
+  res,
+  error,
+  label,
+  fallbackMessage,
+  knownErrors = {}
+) => {
+  console.error(label, error);
+
+  const message = error?.message;
+
+  if (
+    typeof message === "string" &&
+    Object.prototype.hasOwnProperty.call(
+      knownErrors,
+      message
+    )
+  ) {
+    return res.status(knownErrors[message]).json({
+      success: false,
+      message,
+    });
+  }
+
+  return res.status(500).json({
+    success: false,
+    message: fallbackMessage,
+  });
+};
+
+// ======================================================
+// R2 HELPERS
+// ======================================================
 
 const getR2ObjectKeyFromUrl = (fileUrl) => {
   if (!fileUrl || !process.env.R2_PUBLIC_URL) {
@@ -14,9 +72,10 @@ const getR2ObjectKeyFromUrl = (fileUrl) => {
   }
 
   const normalizedPublicUrl =
-    process.env.R2_PUBLIC_URL.replace(/\/+$/, '');
+    process.env.R2_PUBLIC_URL.replace(/\/+$/, "");
 
-  const normalizedFileUrl = String(fileUrl).trim();
+  const normalizedFileUrl =
+    String(fileUrl).trim();
 
   if (
     !normalizedFileUrl.startsWith(
@@ -31,169 +90,151 @@ const getR2ObjectKeyFromUrl = (fileUrl) => {
   );
 };
 
-// ================== GET ALLs ==================
-
-const getStones = async (
-  req,
-  res
+const cleanupR2Object = async (
+  objectKey,
+  errorLabel
 ) => {
+  if (!objectKey) {
+    return;
+  }
 
   try {
+    await deleteFileFromR2(objectKey);
+  } catch (error) {
+    console.error(errorLabel, error);
+  }
+};
 
+// ======================================================
+// GET ALL STONES
+// ======================================================
+
+const getStones = async (req, res) => {
+  try {
     const result =
       await stoneservice.getStones();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      data: result
+      data: result,
     });
-
   } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-
+    return sendStoneError(
+      res,
+      error,
+      "Get Stones Error:",
+      "Failed to fetch stones"
+    );
   }
-
 };
 
-const getCategoryProducts = async (
-  req,
-  res
-) => {
+// ======================================================
+// GET CATEGORY PRODUCTS
+// ======================================================
 
+const getCategoryProducts = async (req, res) => {
   try {
-
-    const { slug } =
-      req.params;
+    const { slug } = req.params;
 
     const data =
-      await stoneservice.getCategoryProducts(
-        slug
-      );
+      await stoneservice.getCategoryProducts(slug);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      ...data
+      ...data,
     });
-
   } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-
+    return sendStoneError(
+      res,
+      error,
+      "Get Category Products Error:",
+      "Failed to fetch category products"
+    );
   }
-
 };
 
-const getProductDetails = async (
-  req,
-  res
-) => {
+// ======================================================
+// GET PRODUCT DETAILS
+// ======================================================
 
+const getProductDetails = async (req, res) => {
   try {
-
-    const { slug } =
-      req.params;
+    const { slug } = req.params;
 
     const product =
-      await stoneservice.getProductDetails(
-        slug
-      );
+      await stoneservice.getProductDetails(slug);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      product
+      product,
     });
-
   } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-
+    return sendStoneError(
+      res,
+      error,
+      "Get Product Details Error:",
+      "Failed to fetch product details"
+    );
   }
-
 };
 
-const searchProducts = async (
-  req,
-  res
-) => {
-  try {
-    const searchTerm =
-      String(
-        req.query.q || ''
-      ).trim();
+// ======================================================
+// SEARCH PRODUCTS
+// ======================================================
 
-    if (
-      searchTerm.length < 2
-    ) {
+const searchProducts = async (req, res) => {
+  try {
+    const searchTerm = String(
+      req.query.q || ""
+    ).trim();
+
+    if (searchTerm.length < 2) {
       return res.status(400).json({
         success: false,
-        message:
-          'Enter at least 2 characters',
+        message: "Enter at least 2 characters",
       });
     }
 
-    const requestedPage =
-      Number.parseInt(
-        req.query.page,
-        10
-      );
+    const requestedPage = Number.parseInt(
+      req.query.page,
+      10
+    );
 
-    const requestedLimit =
-      Number.parseInt(
-        req.query.limit,
-        10
-      );
+    const requestedLimit = Number.parseInt(
+      req.query.limit,
+      10
+    );
 
     const page =
-      Number.isInteger(
-        requestedPage
-      ) &&
+      Number.isInteger(requestedPage) &&
       requestedPage > 0
         ? requestedPage
         : 1;
 
     const limit =
-      Number.isInteger(
-        requestedLimit
-      ) &&
+      Number.isInteger(requestedLimit) &&
       requestedLimit > 0
-        ? Math.min(
-            requestedLimit,
-            50
-          )
+        ? Math.min(requestedLimit, 50)
         : 24;
 
     const categoryId =
-      req.query.category_id ||
-      null;
+      req.query.category_id || null;
 
     const allowedStatuses = [
-      'active',
-      'inactive',
-      'all',
+      "active",
+      "inactive",
+      "all",
     ];
 
-    const requestedStatus =
-      String(
-        req.query.status ||
-          'active'
-      ).toLowerCase();
+    const requestedStatus = String(
+      req.query.status || "active"
+    ).toLowerCase();
 
-    const status =
-      allowedStatuses.includes(
-        requestedStatus
-      )
-        ? requestedStatus
-        : 'active';
+    const status = allowedStatuses.includes(
+      requestedStatus
+    )
+      ? requestedStatus
+      : "active";
 
     const result =
       await stoneservice.searchProducts({
@@ -206,28 +247,23 @@ const searchProducts = async (
 
     return res.status(200).json({
       success: true,
-      message:
-        'Products searched successfully',
+      message: "Products searched successfully",
       data: result.products,
-      pagination:
-        result.pagination,
+      pagination: result.pagination,
     });
   } catch (error) {
-    console.error(
-      'searchProducts error:',
-      error
+    return sendStoneError(
+      res,
+      error,
+      "Search Products Error:",
+      "Failed to search products"
     );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        'Failed to search products',
-    });
   }
 };
 
-// ==================  CATEGORY CRUD ==================
+// ======================================================
+// CATEGORY CRUD
+// ======================================================
 
 const createCategory = async (req, res) => {
   let uploadedThumbnailKey = null;
@@ -244,13 +280,11 @@ const createCategory = async (req, res) => {
     const silicaDatasheetFile =
       req.files?.silica_datasheet?.[0];
 
-    // Upload category thumbnail to Cloudflare R2
     if (thumbnailFile) {
-      const uploadedThumbnail =
-        await uploadToR2(
-          thumbnailFile,
-          'category-thumbnails'
-        );
+      const uploadedThumbnail = await uploadToR2(
+        thumbnailFile,
+        "category-thumbnails"
+      );
 
       payload.thumbnail_url =
         uploadedThumbnail.secure_url;
@@ -259,13 +293,11 @@ const createCategory = async (req, res) => {
         uploadedThumbnail.public_id;
     }
 
-    // Upload silica datasheet PDF to Cloudflare R2
     if (silicaDatasheetFile) {
-      const uploadedDatasheet =
-        await uploadToR2(
-          silicaDatasheetFile,
-          'category-silica-datasheets'
-        );
+      const uploadedDatasheet = await uploadToR2(
+        silicaDatasheetFile,
+        "category-silica-datasheets"
+      );
 
       payload.silica_datasheet_url =
         uploadedDatasheet.secure_url;
@@ -285,60 +317,46 @@ const createCategory = async (req, res) => {
       data,
     });
   } catch (error) {
-    const cleanupPromises = [];
+    await Promise.all([
+      cleanupR2Object(
+        uploadedThumbnailKey,
+        "Failed to clean uploaded thumbnail:"
+      ),
+      cleanupR2Object(
+        uploadedDatasheetKey,
+        "Failed to clean uploaded datasheet:"
+      ),
+    ]);
 
-    // Delete orphaned thumbnail if DB creation fails.
-    if (uploadedThumbnailKey) {
-      cleanupPromises.push(
-        deleteFileFromR2(
-          uploadedThumbnailKey
-        ).catch((deleteError) => {
-          console.error(
-            'Failed to clean uploaded thumbnail:',
-            deleteError
-          );
-        })
-      );
-    }
+    console.error("Create Category Error:", error);
 
-    // Delete orphaned PDF if DB creation fails.
-    if (uploadedDatasheetKey) {
-      cleanupPromises.push(
-        deleteFileFromR2(
-          uploadedDatasheetKey
-        ).catch((deleteError) => {
-          console.error(
-            'Failed to clean uploaded datasheet:',
-            deleteError
-          );
-        })
-      );
-    }
-
-    await Promise.all(cleanupPromises);
-
-    if (error.code === 'P2002') {
-      const target =
-        Array.isArray(error.meta?.target)
-          ? error.meta.target.join(', ')
-          : error.meta?.target;
+    if (error?.code === "P2002") {
+      const target = Array.isArray(
+        error.meta?.target
+      )
+        ? error.meta.target.join(", ")
+        : error.meta?.target;
 
       return res.status(400).json({
         success: false,
-        message: target?.includes('name')
-          ? 'Category name already exists'
-          : 'Slug already exists',
+        message:
+          typeof target === "string" &&
+          target.includes("name")
+            ? "Category name already exists"
+            : "Slug already exists",
       });
     }
 
     return res.status(500).json({
       success: false,
-      message:
-        error.message ||
-        'Failed to create category',
+      message: "Failed to create category",
     });
   }
 };
+
+// ======================================================
+// UPDATE CATEGORY
+// ======================================================
 
 const updateCategory = async (req, res) => {
   let newlyUploadedThumbnailKey = null;
@@ -350,7 +368,7 @@ const updateCategory = async (req, res) => {
     if (!Number.isInteger(categoryId)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid category ID',
+        message: "Invalid category ID",
       });
     }
 
@@ -364,7 +382,7 @@ const updateCategory = async (req, res) => {
     if (!existingCategory) {
       return res.status(404).json({
         success: false,
-        message: 'Category not found',
+        message: "Category not found",
       });
     }
 
@@ -378,13 +396,11 @@ const updateCategory = async (req, res) => {
     const silicaDatasheetFile =
       req.files?.silica_datasheet?.[0];
 
-    // Upload new thumbnail to R2.
     if (thumbnailFile) {
-      const uploadedThumbnail =
-        await uploadToR2(
-          thumbnailFile,
-          'category-thumbnails'
-        );
+      const uploadedThumbnail = await uploadToR2(
+        thumbnailFile,
+        "category-thumbnails"
+      );
 
       payload.thumbnail_url =
         uploadedThumbnail.secure_url;
@@ -393,13 +409,11 @@ const updateCategory = async (req, res) => {
         uploadedThumbnail.public_id;
     }
 
-    // Upload new silica datasheet PDF to R2.
     if (silicaDatasheetFile) {
-      const uploadedDatasheet =
-        await uploadToR2(
-          silicaDatasheetFile,
-          'category-silica-datasheets'
-        );
+      const uploadedDatasheet = await uploadToR2(
+        silicaDatasheetFile,
+        "category-silica-datasheets"
+      );
 
       payload.silica_datasheet_url =
         uploadedDatasheet.secure_url;
@@ -417,7 +431,6 @@ const updateCategory = async (req, res) => {
 
     const cleanupPromises = [];
 
-    // Delete old thumbnail only after successful DB update.
     if (
       thumbnailFile &&
       existingCategory.thumbnail_url &&
@@ -431,19 +444,14 @@ const updateCategory = async (req, res) => {
 
       if (oldThumbnailKey) {
         cleanupPromises.push(
-          deleteFileFromR2(
-            oldThumbnailKey
-          ).catch((deleteError) => {
-            console.error(
-              'Failed to delete previous thumbnail:',
-              deleteError
-            );
-          })
+          cleanupR2Object(
+            oldThumbnailKey,
+            "Failed to delete previous thumbnail:"
+          )
         );
       }
     }
 
-    // Delete old PDF only after successful DB update.
     if (
       silicaDatasheetFile &&
       existingCategory.silica_datasheet_url &&
@@ -457,14 +465,10 @@ const updateCategory = async (req, res) => {
 
       if (oldDatasheetKey) {
         cleanupPromises.push(
-          deleteFileFromR2(
-            oldDatasheetKey
-          ).catch((deleteError) => {
-            console.error(
-              'Failed to delete previous datasheet:',
-              deleteError
-            );
-          })
+          cleanupR2Object(
+            oldDatasheetKey,
+            "Failed to delete previous datasheet:"
+          )
         );
       }
     }
@@ -476,75 +480,55 @@ const updateCategory = async (req, res) => {
       data,
     });
   } catch (error) {
-    const cleanupPromises = [];
+    await Promise.all([
+      cleanupR2Object(
+        newlyUploadedThumbnailKey,
+        "Failed to clean uploaded thumbnail:"
+      ),
+      cleanupR2Object(
+        newlyUploadedDatasheetKey,
+        "Failed to clean uploaded datasheet:"
+      ),
+    ]);
 
-    // Delete newly uploaded thumbnail if DB update fails.
-    if (newlyUploadedThumbnailKey) {
-      cleanupPromises.push(
-        deleteFileFromR2(
-          newlyUploadedThumbnailKey
-        ).catch((deleteError) => {
-          console.error(
-            'Failed to clean uploaded thumbnail:',
-            deleteError
-          );
-        })
-      );
-    }
+    console.error("Update Category Error:", error);
 
-    // Delete newly uploaded PDF if DB update fails.
-    if (newlyUploadedDatasheetKey) {
-      cleanupPromises.push(
-        deleteFileFromR2(
-          newlyUploadedDatasheetKey
-        ).catch((deleteError) => {
-          console.error(
-            'Failed to clean uploaded datasheet:',
-            deleteError
-          );
-        })
-      );
-    }
-
-    await Promise.all(cleanupPromises);
-
-    if (error.code === 'P2002') {
-      const target =
-        Array.isArray(error.meta?.target)
-          ? error.meta.target.join(', ')
-          : error.meta?.target;
+    if (error?.code === "P2002") {
+      const target = Array.isArray(
+        error.meta?.target
+      )
+        ? error.meta.target.join(", ")
+        : error.meta?.target;
 
       return res.status(400).json({
         success: false,
-        message: target?.includes('name')
-          ? 'Category name already exists'
-          : 'Slug already exists',
+        message:
+          typeof target === "string" &&
+          target.includes("name")
+            ? "Category name already exists"
+            : "Slug already exists",
       });
     }
 
-    if (
-      error.message === 'Category not found'
-    ) {
+    if (error?.message === "Category not found") {
       return res.status(404).json({
         success: false,
-        message: error.message,
+        message: "Category not found",
       });
     }
 
     return res.status(500).json({
       success: false,
-      message:
-        error.message ||
-        'Failed to update category',
+      message: "Failed to update category",
     });
   }
 };
-// ================== PRODUCT CRUD ==================
 
-const createProduct = async (
-  req,
-  res
-) => {
+// ======================================================
+// PRODUCT CRUD
+// ======================================================
+
+const createProduct = async (req, res) => {
   let uploadedDatasheetKey = null;
 
   try {
@@ -555,13 +539,11 @@ const createProduct = async (
     const silicaDatasheetFile =
       req.files?.silica_datasheet?.[0];
 
-    // Upload silica datasheet PDF to R2
     if (silicaDatasheetFile) {
-      const uploadedDatasheet =
-        await uploadToR2(
-          silicaDatasheetFile,
-          "ultrastones/products/silica-datasheets"
-        );
+      const uploadedDatasheet = await uploadToR2(
+        silicaDatasheetFile,
+        "ultrastones/products/silica-datasheets"
+      );
 
       payload.silica_datasheet_url =
         uploadedDatasheet.secure_url;
@@ -570,12 +552,9 @@ const createProduct = async (
         uploadedDatasheet.public_id;
     }
 
-    /*
-     * Remove silica_datasheet from files because
-     * it has already been uploaded to R2.
-     *
-     * All other product files remain unchanged.
-     */
+    // Datasheet already uploaded by the controller.
+    // Preserve all other media for the service.
+
     const serviceFiles = {
       ...(req.files || {}),
     };
@@ -594,34 +573,23 @@ const createProduct = async (
       data,
     });
   } catch (error) {
-    /*
-     * If R2 upload succeeded but database creation
-     * failed, delete the orphaned PDF.
-     */
-    if (uploadedDatasheetKey) {
-      await deleteFileFromR2(
-        uploadedDatasheetKey
-      ).catch((deleteError) => {
-        console.error(
-          "Failed to clean uploaded product datasheet:",
-          deleteError
-        );
-      });
-    }
-
-    console.error(
-      "createProduct error:",
-      error
+    await cleanupR2Object(
+      uploadedDatasheetKey,
+      "Failed to clean uploaded product datasheet:"
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to create product",
-    });
+    return sendStoneError(
+      res,
+      error,
+      "Create Product Error:",
+      "Failed to create product"
+    );
   }
 };
+
+// ======================================================
+// UPDATE PRODUCT
+// ======================================================
 
 const updateProduct = async (req, res) => {
   let newlyUploadedDatasheetKey = null;
@@ -643,7 +611,6 @@ const updateProduct = async (req, res) => {
         where: {
           id: productId,
         },
-
         select: {
           id: true,
           silica_datasheet_url: true,
@@ -665,11 +632,10 @@ const updateProduct = async (req, res) => {
       req.files?.silica_datasheet?.[0];
 
     if (silicaDatasheetFile) {
-      const uploadedDatasheet =
-        await uploadToR2(
-          silicaDatasheetFile,
-          "ultrastones/products/silica-datasheets"
-        );
+      const uploadedDatasheet = await uploadToR2(
+        silicaDatasheetFile,
+        "ultrastones/products/silica-datasheets"
+      );
 
       payload.silica_datasheet_url =
         uploadedDatasheet.secure_url;
@@ -678,10 +644,6 @@ const updateProduct = async (req, res) => {
         uploadedDatasheet.public_id;
     }
 
-    /*
-     * The PDF is already uploaded by the controller.
-     * Other product media still goes to the service.
-     */
     const serviceFiles = {
       ...(req.files || {}),
     };
@@ -696,10 +658,9 @@ const updateProduct = async (req, res) => {
         getAuditContext(req)
       );
 
-    /*
-     * Delete the old R2 PDF only after the database
-     * update succeeds.
-     */
+    // Delete the previous PDF only after
+    // the database update succeeds.
+
     if (
       silicaDatasheetFile &&
       existingProduct.silica_datasheet_url &&
@@ -712,14 +673,10 @@ const updateProduct = async (req, res) => {
         );
 
       if (oldDatasheetKey) {
-        await deleteFileFromR2(
-          oldDatasheetKey
-        ).catch((deleteError) => {
-          console.error(
-            "Failed to delete previous product datasheet:",
-            deleteError
-          );
-        });
+        await cleanupR2Object(
+          oldDatasheetKey,
+          "Failed to delete previous product datasheet:"
+        );
       }
     }
 
@@ -728,37 +685,21 @@ const updateProduct = async (req, res) => {
       data,
     });
   } catch (error) {
-    /*
-     * The new PDF reached R2, but the service or
-     * database update failed.
-     */
-    if (newlyUploadedDatasheetKey) {
-      await deleteFileFromR2(
-        newlyUploadedDatasheetKey
-      ).catch((deleteError) => {
-        console.error(
-          "Failed to remove orphaned product datasheet:",
-          deleteError
-        );
-      });
-    }
-
-    console.error(
-      "updateProduct error:",
-      error
+    await cleanupR2Object(
+      newlyUploadedDatasheetKey,
+      "Failed to remove orphaned product datasheet:"
     );
 
-    if (
-      error.message ===
-      "Product not found"
-    ) {
+    console.error("Update Product Error:", error);
+
+    if (error?.message === "Product not found") {
       return res.status(404).json({
         success: false,
-        message: error.message,
+        message: "Product not found",
       });
     }
 
-    if (error.code === "P2002") {
+    if (error?.code === "P2002") {
       return res.status(400).json({
         success: false,
         message:
@@ -768,42 +709,40 @@ const updateProduct = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message:
-        error.message ||
-        "Failed to update product",
+      message: "Failed to update product",
     });
   }
 };
 
+// ======================================================
+// DELETE PRODUCT
+// ======================================================
 
-const deleteProduct = async (
-  req,
-  res
-) => {
-
+const deleteProduct = async (req, res) => {
   try {
-
     const data =
       await stoneservice.deleteProduct(
         req.params.id,
         getAuditContext(req)
       );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      data: serialize(data)
+      data: serialize(data),
     });
-
   } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-
+    return sendStoneError(
+      res,
+      error,
+      "Delete Product Error:",
+      "Failed to delete product"
+    );
   }
-
 };
+
+// ======================================================
+// BULK CREATE PRODUCTS
+// ======================================================
 
 const bulkCreateProducts = async (
   req,
@@ -818,27 +757,29 @@ const bulkCreateProducts = async (
 
     return res.status(201).json({
       success: true,
-      message: `${result.count} products created successfully`,
+      message:
+        `${result.count} products created successfully`,
       data: result,
     });
   } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Bulk upload failed",
-    });
+    return sendStoneError(
+      res,
+      error,
+      "Bulk Create Products Error:",
+      "Bulk upload failed"
+    );
   }
 };
+
+// ======================================================
+// BULK DEACTIVATE PRODUCTS
+// ======================================================
 
 const bulkDeactivateProducts = async (
   req,
   res
 ) => {
   try {
-
     const { ids } = req.body;
 
     if (
@@ -847,12 +788,9 @@ const bulkDeactivateProducts = async (
     ) {
       return res.status(400).json({
         success: false,
-        message:
-          "Please provide product ids",
+        message: "Please provide product ids",
       });
     }
-
-
 
     const result =
       await stoneservice.bulkDeactivateProducts(
@@ -864,25 +802,25 @@ const bulkDeactivateProducts = async (
       success: true,
       data: result,
     });
-
   } catch (error) {
-
-    console.error(error);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-
+    return sendStoneError(
+      res,
+      error,
+      "Bulk Deactivate Products Error:",
+      "Failed to deactivate products"
+    );
   }
 };
+
+// ======================================================
+// UPDATE PRODUCT STATUS
+// ======================================================
 
 const updateProductStatus = async (
   req,
   res
 ) => {
   try {
-
     const { is_active } = req.body;
 
     const product =
@@ -891,33 +829,33 @@ const updateProductStatus = async (
         is_active
       );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message:
         "Product status updated successfully",
       data: product,
     });
-
   } catch (error) {
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-
+    return sendStoneError(
+      res,
+      error,
+      "Update Product Status Error:",
+      "Failed to update product status"
+    );
   }
 };
+
+// ======================================================
+// UPDATE PUBLISH STATUS
+// ======================================================
 
 const updatePublishStatus = async (
   req,
   res
 ) => {
-
   try {
-
     const { id } = req.params;
     const { is_publish } = req.body;
-
 
     const result =
       await stoneservice.updatePublishStatus(
@@ -930,26 +868,25 @@ const updatePublishStatus = async (
       success: true,
       data: serialize(result),
     });
-
   } catch (error) {
-
-    console.error(error);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-
+    return sendStoneError(
+      res,
+      error,
+      "Update Publish Status Error:",
+      "Failed to update publish status"
+    );
   }
-
 };
+
+// ======================================================
+// BULK PUBLISH PRODUCTS
+// ======================================================
 
 const bulkPublishProducts = async (
   req,
   res
 ) => {
   try {
-
     const { ids } = req.body;
 
     if (
@@ -958,12 +895,9 @@ const bulkPublishProducts = async (
     ) {
       return res.status(400).json({
         success: false,
-        message:
-          "Please provide product ids",
+        message: "Please provide product ids",
       });
     }
-
-
 
     const result =
       await stoneservice.bulkPublishProducts(
@@ -975,48 +909,59 @@ const bulkPublishProducts = async (
       success: true,
       data: result,
     });
-
   } catch (error) {
-
-    console.error(error);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-
+    return sendStoneError(
+      res,
+      error,
+      "Bulk Publish Products Error:",
+      "Failed to publish products"
+    );
   }
 };
 
- const deleteStoneProductMedia = async (req, res) => {
-    try {
+// ======================================================
+// DELETE STONE PRODUCT MEDIA
+// ======================================================
 
-        const { mediaId } = req.params;
+const deleteStoneProductMedia = async (
+  req,
+  res
+) => {
+  try {
+    const { mediaId } = req.params;
 
-        const result =
-            await stoneservice.deleteStoneProductMedia(
-                mediaId
-            );
+    const result =
+      await stoneservice.deleteStoneProductMedia(
+        mediaId
+      );
 
-        return res.status(200).json({
-            success: true,
-            message: "Media deleted successfully.",
-            data: serialize(result),
-        });
-
-    } catch (error) {
-
-        console.error(error);
-
-        return res.status(400).json({
-            success: false,
-            message: error.message,
-        });
-
-    }
+    return res.status(200).json({
+      success: true,
+      message: "Media deleted successfully.",
+      data: serialize(result),
+    });
+  } catch (error) {
+    return sendKnownStoneError(
+      res,
+      error,
+      "Delete Stone Product Media Error:",
+      "Failed to delete product media",
+      {
+        "Media not found": 404,
+        "Invalid media ID": 400,
+      }
+    );
+  }
 };
 
-const getVideoUploadUrl = async (req, res) => {
+// ======================================================
+// VIDEO UPLOAD URL
+// ======================================================
+
+const getVideoUploadUrl = async (
+  req,
+  res
+) => {
   try {
     const { fileName } = req.body;
 
@@ -1037,17 +982,23 @@ const getVideoUploadUrl = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    console.error("Presigned URL Error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return sendStoneError(
+      res,
+      error,
+      "Presigned URL Error:",
+      "Failed to create video upload URL"
+    );
   }
 };
 
+// ======================================================
+// MEDIA BASE64
+// ======================================================
 
-const getMediaBase64 = async (req, res) => {
+const getMediaBase64 = async (
+  req,
+  res
+) => {
   try {
     const { url } = req.query;
 
@@ -1058,81 +1009,76 @@ const getMediaBase64 = async (req, res) => {
       });
     }
 
-    const result = await stoneservice.getMediaBase64(url);
+    const result =
+      await stoneservice.getMediaBase64(url);
 
-    res.json({
+    return res.json({
       success: true,
       ...result,
     });
-  } catch (err) {
-    console.error(err);
-
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+  } catch (error) {
+    return sendStoneError(
+      res,
+      error,
+      "Get Media Base64 Error:",
+      "Failed to fetch image data"
+    );
   }
 };
 
-const getBrowseProducts = async (req, res) => {
+// ======================================================
+// BROWSE PRODUCTS
+// ======================================================
 
+const getBrowseProducts = async (
+  req,
+  res
+) => {
   try {
-
-    const requestedLimit = Number.parseInt(req.query.limit, 10);
+    const requestedLimit = Number.parseInt(
+      req.query.limit,
+      10
+    );
 
     const limit =
-
-      Number.isInteger(requestedLimit) && requestedLimit > 0
-
+      Number.isInteger(requestedLimit) &&
+      requestedLimit > 0
         ? Math.min(requestedLimit, 20)
-
         : 6;
 
-    const products = await stoneservice.getBrowseProducts(limit);
+    const products =
+      await stoneservice.getBrowseProducts(limit);
 
     return res.status(200).json({
-
       success: true,
-
-      message: "Browse products fetched successfully",
-
+      message:
+        "Browse products fetched successfully",
       count: products.length,
-
       data: products,
-
     });
-
   } catch (error) {
-
-    console.error("getBrowseProducts error:", error);
-
-    return res.status(500).json({
-
-      success: false,
-
-      message: "Failed to fetch browse products",
-
-      error:
-
-        process.env.NODE_ENV === "development"
-
-          ? error.message
-
-          : undefined,
-
-    });
-
+    return sendStoneError(
+      res,
+      error,
+      "Get Browse Products Error:",
+      "Failed to fetch browse products"
+    );
   }
-
 };
+
+// ======================================================
+// EXPORTS
+// ======================================================
 
 module.exports = {
   getStones,
   getCategoryProducts,
   getProductDetails,
   searchProducts,
+
   createCategory,
   updateCategory,
+
   createProduct,
   updateProduct,
   deleteProduct,
@@ -1141,6 +1087,7 @@ module.exports = {
   bulkDeactivateProducts,
   updatePublishStatus,
   bulkPublishProducts,
+
   deleteStoneProductMedia,
   getVideoUploadUrl,
   getMediaBase64,

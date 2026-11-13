@@ -1,4 +1,6 @@
+
 const GlobalSearchService = require("../services/globalsearch.service");
+
 const parseTypes = (types) => {
   if (!types) {
     return [];
@@ -16,7 +18,7 @@ const parseTypes = (types) => {
     .filter(Boolean);
 };
 
- const searchWebsite = async (req, res) => {
+const searchWebsite = async (req, res) => {
   try {
     const query = String(req.query.q || "").trim();
     const limit = req.query.limit;
@@ -61,15 +63,13 @@ const parseTypes = (types) => {
       data: searchResult,
     });
   } catch (error) {
+    // Log the full error internally only.
     console.error("Global search controller error:", error);
 
+    // Never expose internal error details to API clients.
     return res.status(500).json({
       success: false,
       message: "Unable to perform global search.",
-      error:
-        process.env.NODE_ENV === "development"
-          ? error.message
-          : undefined,
     });
   }
 };

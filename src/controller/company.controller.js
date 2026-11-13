@@ -1,232 +1,225 @@
-const companyService = require('../services/company.service');
-const { serialize } = require('../utils/serialize');
 
-// =========================
+const companyService = require("../services/company.service");
+const { serialize } = require("../utils/serialize");
+
+// ============================================================
 // COMPANY MASTER
-// =========================
+// ============================================================
 
-exports.getCompany = async (req, res) => {
+exports.getCompany = async (req, res, next) => {
   try {
     const data = await companyService.getCompany();
 
-    res.json({
+    return res.json({
       success: true,
-      data : serialize(data),
+      data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.getCompanyById = async (req, res) => {
+exports.getCompanyById = async (req, res, next) => {
   try {
-    const data = await companyService.getCompanyById(
-      req.params.id
-    );
+    const id = Number(req.params.id);
 
-    res.json({
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid company ID",
+      });
+    }
+
+    const data = await companyService.getCompanyById(id);
+
+    return res.json({
       success: true,
-      data : serialize(data),
+      data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.createCompany = async (req, res) => {
+exports.createCompany = async (req, res, next) => {
   try {
-    const data = await companyService.createCompany(
-      req.body
-    );
+    const data = await companyService.createCompany(req.body);
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      data : serialize(data),
+      data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.updateCompany = async (req, res) => {
+exports.updateCompany = async (req, res, next) => {
   try {
+    const id = Number(req.params.id);
+
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid company ID",
+      });
+    }
+
     const data = await companyService.updateCompany(
-      req.params.id,
+      id,
       req.body
     );
 
-    res.json({
+    return res.json({
       success: true,
-      data : serialize(data),
+      data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.deleteCompany = async (req, res) => {
+exports.deleteCompany = async (req, res, next) => {
   try {
-    await companyService.deleteCompany(req.params.id);
+    const id = Number(req.params.id);
 
-    res.json({
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid company ID",
+      });
+    }
+
+    await companyService.deleteCompany(id);
+
+    return res.json({
       success: true,
-      message: 'Company deleted successfully',
+      message: "Company deleted successfully",
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.getCompanyBySlug = async (req, res) => {
+exports.getCompanyBySlug = async (req, res, next) => {
   try {
-    const data = await companyService.getCompanyBySlug(req.params.slug);
+    const data = await companyService.getCompanyBySlug(
+      req.params.slug
+    );
 
     if (!data) {
       return res.status(404).json({
         success: false,
-        message: 'Company not found',
+        message: "Company not found",
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-// =========================
+// ============================================================
 // SOCIAL MEDIA
-// =========================
+// ============================================================
 
-exports.getAllSocialMedia = async (req, res) => {
+exports.getAllSocialMedia = async (req, res, next) => {
   try {
     const data = await companyService.getAllSocialMedia();
 
-    res.json({
+    return res.json({
       success: true,
       data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.getSocialMedia = async (req, res) => {
+exports.getSocialMedia = async (req, res, next) => {
   try {
-    const data = await companyService.getSocialMedia(
-      req.params.id
-    );
+    const id = Number(req.params.id);
 
-    res.json({
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid social media ID",
+      });
+    }
+
+    const data = await companyService.getSocialMedia(id);
+
+    return res.json({
       success: true,
       data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.createSocialMedia = async (req, res) => {
+exports.createSocialMedia = async (req, res, next) => {
   try {
-const data = await companyService.createSocialMedia(
-  req.body
-);
-
-    res.status(201).json({
-      success: true,
-      data: serialize(data),
-    });
-  } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-exports.updateSocialMedia = async (req, res) => {
-  try {
-    const data = await companyService.updateSocialMedia(
-      req.params.id,
+    const data = await companyService.createSocialMedia(
       req.body
     );
 
-    res.json({
+    return res.status(201).json({
       success: true,
       data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
-exports.deleteSocialMedia = async (req, res) => {
+exports.updateSocialMedia = async (req, res, next) => {
   try {
-    await companyService.deleteSocialMedia(
-      req.params.id
+    const id = Number(req.params.id);
+
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid social media ID",
+      });
+    }
+
+    const data = await companyService.updateSocialMedia(
+      id,
+      req.body
     );
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Social media deleted successfully',
+      data: serialize(data),
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return next(error);
   }
 };
 
+exports.deleteSocialMedia = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid social media ID",
+      });
+    }
+
+    await companyService.deleteSocialMedia(id);
+
+    return res.json({
+      success: true,
+      message: "Social media deleted successfully",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
