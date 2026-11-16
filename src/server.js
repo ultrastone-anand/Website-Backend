@@ -9,8 +9,9 @@ const companyService = require("./services/company.service");
 const {
   buildProductSeo,
   buildBlogSeo,
-  injectSeo,
   buildLocationSeo,
+  buildCategorySeo,
+  injectSeo,
 } = require("./utils/seoHtml");
 
 const errorHandler = require("./middlewares/error.middleware");
@@ -40,6 +41,7 @@ const instagramRoutes = require("./routes/instagram.routes");
 const newsLetterRoutes = require("./routes/newsletter.routes");
 const ceuRequestRoutes = require("./routes/ceuRequest.routes");
 const contactRoutes = require("./routes/contactEnquiry.routes");
+const categorySeoRoutes = require("./routes/categorySeo.routes");
 const GlobalSerchRoutes = require("./routes/globalsearch.route");
 const ProductRemarkRoutes = require("./routes/productRemark.routes");
 const sampleRequestRoutes = require("./routes/sampleRequest.routes");
@@ -103,12 +105,12 @@ app.use("/api/blog", blogRoutes);
 app.use("/api/pages", pageRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/stones", stoneRoutes);
-app.use("/api/home-hero", homeHeroRoutes);
 app.use("/api/careers", careerRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/lookups", lookupRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/home-hero", homeHeroRoutes);
 app.use("/api/dashboard", dasboardRoutes);
 app.use("/api/activitie", activityRoutes);
 app.use("/api/search", GlobalSerchRoutes);
@@ -117,6 +119,7 @@ app.use("/api/lot-images", lotImagesRoutes);
 app.use("/api/newsletter", newsLetterRoutes);
 app.use("/api/products", ProductRemarkRoutes);
 app.use("/api/ceu-request", ceuRequestRoutes);
+app.use("/api/category-seo", categorySeoRoutes);
 app.use("/api/sample-requests", sampleRequestRoutes);
 app.use("/api/display-request", displayRequestRoutes);
 app.use("/api/contact-request", contactRequestRoutes);
@@ -135,6 +138,7 @@ app.use("/", sitemapRoutes);
    FRONTEND CONFIGURATION
 
    IMPORTANT:
+
    Express must use the current frontend HTML.
 
    Previously:
@@ -156,6 +160,31 @@ const FRONTEND_INTERNAL_URL = String(
 ).replace(/\/+$/, "");
 
 const FRONTEND_REQUEST_TIMEOUT_MS = 5000;
+
+/* =========================================================
+   CATEGORY SEO INTERNAL CONFIGURATION
+
+   The category SEO public API is already registered:
+
+   GET /api/category-seo/public/:slug
+
+   Since this Express application owns that route,
+   we can retrieve its public data through the
+   internal HTTP endpoint.
+
+   PORT must be the actual listening port inside
+   the backend container.
+
+   Optional override:
+   CATEGORY_SEO_INTERNAL_URL=http://127.0.0.1:8080
+========================================================= */
+
+const CATEGORY_SEO_INTERNAL_URL = String(
+  process.env.CATEGORY_SEO_INTERNAL_URL ||
+    `http://127.0.0.1:${process.env.PORT || 5001}`
+).replace(/\/+$/, "");
+
+const CATEGORY_SEO_REQUEST_TIMEOUT_MS = 5000;
 
 /* =========================================================
    FRONTEND HTML FETCHER
@@ -241,6 +270,119 @@ const getFrontendHtml = async () => {
   }
 
   return html;
+};
+
+/* =========================================================
+   CATEGORY SEO DATA FETCHER
+
+   Uses the existing public Category SEO API.
+
+   Expected response:
+
+   {
+     success: true,
+     data: {
+       category_id: 30,
+       category_name: "12MM Kaolin Slabs",
+       category_slug: "12mm-kaolin-slabs",
+       title: "Kaolin Slabs",
+       description: "Slab Description",
+       canonical_url: "...",
+       og_title: "...",
+       og_description: "...",
+       og_image: null,
+       robots_index: true,
+       robots_follow: true,
+       schema_markup: null
+     }
+   }
+========================================================= */
+
+const getCategorySeoData = async (slug) => {
+  const normalizedSlug = String(
+    slug || ""
+  ).trim();
+
+  if (!normalizedSlug) {
+    throw new Error(
+      "Category slug is required."
+    );
+  }
+
+  const url =
+    `${CATEGORY_SEO_INTERNAL_URL}` +
+    `/api/category-seo/public/` +
+    encodeURIComponent(normalizedSlug);
+
+  let response;
+
+  try {
+    response = await fetch(url, {
+      method: "GET",
+
+      headers: {
+        Accept: "application/json",
+      },
+
+      signal: AbortSignal.timeout(
+        CATEGORY_SEO_REQUEST_TIMEOUT_MS
+      ),
+    });
+  } catch (error) {
+    console.error(
+      "[SEO] Category SEO API request failed:",
+      error
+    );
+
+    throw new Error(
+      "Category SEO API is unavailable"
+    );
+  }
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      `Category SEO API returned HTTP ${response.status}`
+    );
+  }
+
+  const contentType = String(
+    response.headers.get("content-type") || ""
+  ).toLowerCase();
+
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      `Unexpected Category SEO content type: ${contentType}`
+    );
+  }
+
+  const result = await response.json();
+
+  if (
+    !result ||
+    result.success !== true ||
+    !result.data ||
+    typeof result.data !== "object" ||
+    Array.isArray(result.data)
+  ) {
+    throw new Error(
+      "Invalid Category SEO API response"
+    );
+  }
+
+  if (
+    String(result.data.category_slug || "") !==
+    normalizedSlug
+  ) {
+    throw new Error(
+      "Category SEO slug mismatch"
+    );
+  }
+
+  return result.data;
 };
 
 /* =========================================================
@@ -382,12 +524,123 @@ app.get(
 );
 
 /* =========================================================
+   CATEGORY SEO HTML
+
+   Route:
+   /product-category/:slug
+
+   SEO data source:
+   GET /api/category-seo/public/:slug
+
+   This route must be registered before the
+   React SPA fallback.
+
+   Flow:
+   1. Read category slug.
+   2. Fetch Category SEO data.
+   3. Fetch current frontend index.html.
+   4. Build Category SEO tags.
+   5. Remove homepage SEO and inject category SEO.
+   6. Return SEO-ready HTML.
+========================================================= */
+
+app.get(
+  "/product-category/:slug",
+  async (req, res) => {
+    try {
+      const { slug } = req.params;
+
+      console.log(
+        "[SEO] Category page requested:",
+        req.originalUrl
+      );
+
+      /* -----------------------------------------
+         VALIDATE SLUG
+      ----------------------------------------- */
+
+      if (!slug || !String(slug).trim()) {
+        return res.status(404).send(
+          "Category not found"
+        );
+      }
+
+      /* -----------------------------------------
+         FETCH CATEGORY SEO DATA
+      ----------------------------------------- */
+
+      const category =
+        await getCategorySeoData(slug);
+
+      if (!category) {
+        return res.status(404).send(
+          "Category not found"
+        );
+      }
+
+      /* -----------------------------------------
+         FETCH CURRENT FRONTEND HTML
+      ----------------------------------------- */
+
+      const html = await getFrontendHtml();
+
+      /* -----------------------------------------
+         BUILD CATEGORY SEO
+
+         Uses buildCategorySeo() from:
+         src/utils/seoHtml.js
+      ----------------------------------------- */
+
+      const seoTags =
+        buildCategorySeo(category);
+
+      /* -----------------------------------------
+         INJECT CATEGORY SEO
+
+         injectSeo() removes existing:
+         - Title
+         - Description
+         - Robots
+         - Googlebot
+         - Canonical
+         - Open Graph
+         - Twitter metadata
+
+         Then injects category-specific tags.
+      ----------------------------------------- */
+
+      const finalHtml = injectSeo(
+        html,
+        seoTags
+      );
+
+      /* -----------------------------------------
+         RESPONSE
+      ----------------------------------------- */
+
+      setSeoHeaders(
+        res,
+        "express-category"
+      );
+
+      return res.status(200).send(
+        finalHtml
+      );
+    } catch (error) {
+      return sendSeoError(
+        res,
+        "Category SEO",
+        error
+      );
+    }
+  }
+);
+
+/* =========================================================
    BLOG SEO HTML
 
    Route:
    /blog/:identifier
-
-   Existing SEO logic preserved.
 ========================================================= */
 
 app.get(
@@ -469,9 +722,6 @@ app.get(
 
    Route:
    /locations/:slug
-
-   Existing location SEO and canonical
-   redirect behavior preserved.
 ========================================================= */
 
 app.get(
@@ -569,13 +819,14 @@ app.get(
 );
 
 /* =========================================================
-   REACT ROUTER FALLBACK
+   REACT SPA FALLBACK
 
-   For requests reaching the backend that are
-   not API routes or SEO routes, serve the
-   current frontend HTML.
+   IMPORTANT:
+   This must remain AFTER all SEO HTML routes.
 
-   This avoids using outdated local dist files.
+   Otherwise:
+   /product-category/:slug
+   would receive the homepage HTML.
 ========================================================= */
 
 app.use(async (req, res) => {
@@ -639,9 +890,9 @@ app.use(async (req, res) => {
   }
 });
 
-// ============================================================
-// GLOBAL ERROR HANDLER
-// ============================================================
+/* =========================================================
+   GLOBAL ERROR HANDLER
+========================================================= */
 
 app.use(errorHandler);
 

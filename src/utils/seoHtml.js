@@ -1,9 +1,10 @@
-// src/utils/seoHtml.js
+
+ // src/utils/seoHtml.js
 
 const SITE_URL = "https://www.ultrastones.com";
 
 /* =========================================================
-   HTML ESCAPING
+   COMMON HELPERS
 ========================================================= */
 
 function escapeHtml(value = "") {
@@ -14,10 +15,6 @@ function escapeHtml(value = "") {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
-
-/* =========================================================
-   VALUE VALIDATION
-========================================================= */
 
 function valid(value) {
   if (value === null || value === undefined) {
@@ -39,14 +36,8 @@ function valid(value) {
   );
 }
 
-/* =========================================================
-   URL VALIDATION
-========================================================= */
-
 function safeUrl(value) {
-  if (!valid(value)) {
-    return "";
-  }
+  if (!valid(value)) return "";
 
   try {
     const url = new URL(String(value).trim());
@@ -64,22 +55,84 @@ function safeUrl(value) {
   }
 }
 
+function cleanCanonical(value) {
+  const url = safeUrl(value);
+
+  if (!url) return "";
+
+  const parsed = new URL(url);
+  parsed.search = "";
+  parsed.hash = "";
+
+  return parsed.href;
+}
+
+function serializeJsonLd(data) {
+  return JSON.stringify(data)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
+function getValidSchemaMarkup(schemaMarkup) {
+  if (!valid(schemaMarkup)) return "";
+
+  try {
+    const parsed =
+      typeof schemaMarkup === "string"
+        ? JSON.parse(schemaMarkup)
+        : schemaMarkup;
+
+    if (
+      parsed === null ||
+      typeof parsed !== "object" ||
+      Object.keys(parsed).length === 0
+    ) {
+      return "";
+    }
+
+    return serializeJsonLd(parsed);
+  } catch (error) {
+    console.warn(
+      "[SEO] Invalid JSON-LD schema:",
+      error.message
+    );
+
+    return "";
+  }
+}
+
+function schemaScript(schema) {
+  return schema
+    ? `<script type="application/ld+json">${schema}</script>`
+    : "";
+}
+
+function metaName(name, content) {
+  return `<meta name="${escapeHtml(name)}" content="${escapeHtml(content)}" />`;
+}
+
+function metaProperty(property, content) {
+  return `<meta property="${escapeHtml(property)}" content="${escapeHtml(content)}" />`;
+}
+
+function canonicalTag(url) {
+  return `<link rel="canonical" href="${escapeHtml(url)}" />`;
+}
+
 /* =========================================================
-   CANONICAL URL GENERATION - PRODUCT
+   PRODUCT HELPERS
 ========================================================= */
 
 function getCanonicalUrl(product, reqPath = "") {
-  const databaseCanonical = safeUrl(
+  const databaseCanonical = cleanCanonical(
     product?.seo?.canonical_url
   );
 
   if (databaseCanonical) {
-    const url = new URL(databaseCanonical);
-
-    url.search = "";
-    url.hash = "";
-
-    return url.href;
+    return databaseCanonical;
   }
 
   const categorySlug =
@@ -105,27 +158,6 @@ function getCanonicalUrl(product, reqPath = "") {
 
   return `${SITE_URL}${normalizedPath}`;
 }
-
-/* =========================================================
-   CANONICAL URL GENERATION - BLOG
-========================================================= */
-
-function getBlogCanonicalUrl(blog) {
-  if (!valid(blog?.slug)) {
-    throw new Error(
-      "Blog slug is required for SEO generation."
-    );
-  }
-
-  return (
-    `${SITE_URL}/blog/` +
-    encodeURIComponent(String(blog.slug).trim())
-  );
-}
-
-/* =========================================================
-   PRODUCT IMAGE SELECTION
-========================================================= */
 
 function getImage(product) {
   const media = Array.isArray(product?.media)
@@ -156,88 +188,6 @@ function getImage(product) {
   );
 }
 
-/* =========================================================
-   BLOG IMAGE SELECTION
-========================================================= */
-
-function getBlogImage(blog) {
-  const coverUrl = safeUrl(
-    blog?.cover?.url
-  );
-
-  if (coverUrl) {
-    return coverUrl;
-  }
-
-  const contentMedia = Array.isArray(
-    blog?.content_media
-  )
-    ? blog.content_media
-    : [];
-
-  const firstImage = contentMedia.find(
-    (item) =>
-      safeUrl(item?.url) &&
-      (
-        !item.mime_type ||
-        String(item.mime_type).startsWith("image/")
-      )
-  );
-
-  return safeUrl(firstImage?.url) || "";
-}
-
-/* =========================================================
-   SAFE JSON-LD SERIALIZATION
-========================================================= */
-
-function serializeJsonLd(data) {
-  return JSON.stringify(data)
-    .replace(/</g, "\\u003c")
-    .replace(/>/g, "\\u003e")
-    .replace(/&/g, "\\u0026")
-    .replace(/\u2028/g, "\\u2028")
-    .replace(/\u2029/g, "\\u2029");
-}
-
-/* =========================================================
-   CUSTOM JSON-LD VALIDATION
-========================================================= */
-
-function getValidSchemaMarkup(schemaMarkup) {
-  if (!valid(schemaMarkup)) {
-    return "";
-  }
-
-  try {
-    const parsed =
-      typeof schemaMarkup === "string"
-        ? JSON.parse(schemaMarkup)
-        : schemaMarkup;
-
-    if (
-      parsed === null ||
-      typeof parsed !== "object" ||
-      Object.keys(parsed).length === 0
-    ) {
-      return "";
-    }
-
-    return serializeJsonLd(parsed);
-  } catch (error) {
-    console.warn(
-      "[SEO] Invalid JSON-LD schema:",
-      error.message
-    );
-
-    return "";
-  }
-}
-
-/* =========================================================
-   AUTOMATIC PRODUCT STRUCTURED DATA
-========================================================= */
-
 function buildProductSchema(
   product,
   canonical,
@@ -260,17 +210,13 @@ function buildProductSchema(
   const schema = {
     "@context": "https://schema.org",
     "@type": "Product",
-
     "@id": `${canonical}#product`,
-
     name: String(product.name || "").trim(),
-
     url: canonical,
-
     brand: {
       "@type": "Brand",
-      name: "Ultra Stones"
-    }
+      name: "Ultra Stones",
+    },
   };
 
   if (valid(description)) {
@@ -292,14 +238,8 @@ function buildProductSchema(
   return serializeJsonLd(schema);
 }
 
-/* =========================================================
-   CHECK WHETHER CUSTOM SCHEMA CONTAINS PRODUCT
-========================================================= */
-
 function containsProductSchema(schemaMarkup) {
-  if (!schemaMarkup) {
-    return false;
-  }
+  if (!schemaMarkup) return false;
 
   try {
     const parsed = JSON.parse(schemaMarkup);
@@ -337,8 +277,143 @@ function containsProductSchema(schemaMarkup) {
 }
 
 /* =========================================================
-   AUTOMATIC BLOGPOSTING STRUCTURED DATA
+   PRODUCT SEO GENERATION
 ========================================================= */
+
+function buildProductSeo(product, reqPath = "") {
+  if (!product) {
+    throw new Error(
+      "Product data is required for SEO generation."
+    );
+  }
+
+  const seo = product.seo || {};
+
+  const title = valid(seo.meta_title)
+    ? seo.meta_title
+    : `${product.name} | Ultra Stones`;
+
+  const description = valid(seo.meta_description)
+    ? seo.meta_description
+    : valid(product.small_description)
+      ? product.small_description
+      : valid(product.long_description)
+        ? product.long_description.slice(0, 160)
+        : "Explore premium natural and engineered stone surfaces by Ultra Stones.";
+
+  const canonical = getCanonicalUrl(
+    product,
+    reqPath
+  );
+
+  const ogTitle = valid(seo.og_title)
+    ? seo.og_title
+    : title;
+
+  const ogDescription = valid(seo.og_description)
+    ? seo.og_description
+    : description;
+
+  const image =
+    safeUrl(seo.og_image) ||
+    getImage(product);
+
+  const robotsIndex =
+    seo.robots_index === false
+      ? "noindex"
+      : "index";
+
+  const robotsFollow =
+    seo.robots_follow === false
+      ? "nofollow"
+      : "follow";
+
+  const robots =
+    `${robotsIndex}, ${robotsFollow}`;
+
+  const customSchema = getValidSchemaMarkup(
+    seo.schema_markup
+  );
+
+  const automaticProductSchema =
+    containsProductSchema(customSchema)
+      ? ""
+      : buildProductSchema(
+          product,
+          canonical,
+          description,
+          image
+        );
+
+  return `
+<!-- ULTRA STONES - PRODUCT SEO -->
+
+<title>${escapeHtml(title)}</title>
+
+${metaName("description", description)}
+${metaName("robots", robots)}
+
+${canonicalTag(canonical)}
+
+${metaProperty("og:type", "product")}
+${metaProperty("og:title", ogTitle)}
+${metaProperty("og:description", ogDescription)}
+${metaProperty("og:url", canonical)}
+
+${image ? metaProperty("og:image", image) : ""}
+
+${metaName("twitter:card", "summary_large_image")}
+${metaName("twitter:title", ogTitle)}
+${metaName("twitter:description", ogDescription)}
+
+${image ? metaName("twitter:image", image) : ""}
+
+${schemaScript(customSchema)}
+${schemaScript(automaticProductSchema)}
+
+<!-- END PRODUCT SEO -->
+`;
+}
+
+/* =========================================================
+   BLOG HELPERS
+========================================================= */
+
+function getBlogCanonicalUrl(blog) {
+  if (!valid(blog?.slug)) {
+    throw new Error(
+      "Blog slug is required for SEO generation."
+    );
+  }
+
+  return (
+    `${SITE_URL}/blog/` +
+    encodeURIComponent(String(blog.slug).trim())
+  );
+}
+
+function getBlogImage(blog) {
+  const coverUrl = safeUrl(blog?.cover?.url);
+
+  if (coverUrl) return coverUrl;
+
+  const contentMedia = Array.isArray(
+    blog?.content_media
+  )
+    ? blog.content_media
+    : [];
+
+  const firstImage = contentMedia.find(
+    (item) =>
+      safeUrl(item?.url) &&
+      (
+        !item.mime_type ||
+        String(item.mime_type).startsWith("image/")
+      )
+  );
+
+  return safeUrl(firstImage?.url) || "";
+}
 
 function buildBlogSchema(
   blog,
@@ -349,25 +424,19 @@ function buildBlogSchema(
   const schema = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
-
     "@id": `${canonical}#article`,
-
     headline: String(blog.title || "").trim(),
-
     description: String(description || "").trim(),
-
     url: canonical,
-
     mainEntityOfPage: {
       "@type": "WebPage",
-      "@id": canonical
+      "@id": canonical,
     },
-
     publisher: {
       "@type": "Organization",
       name: "Ultra Stones",
-      url: SITE_URL
-    }
+      url: SITE_URL,
+    },
   };
 
   if (image) {
@@ -384,10 +453,6 @@ function buildBlogSchema(
       new Date(blog.updated_at).toISOString();
   }
 
-  // Include author only when a real name is available.
-  // The existing blog API currently returns author_id,
-  // not an author name.
-
   const authorName =
     blog.author?.name ||
     blog.author_name ||
@@ -396,225 +461,11 @@ function buildBlogSchema(
   if (valid(authorName)) {
     schema.author = {
       "@type": "Person",
-      name: String(authorName).trim()
+      name: String(authorName).trim(),
     };
   }
 
   return serializeJsonLd(schema);
-}
-
-/* =========================================================
-   PRODUCT SEO GENERATION
-========================================================= */
-
-function buildProductSeo(product, reqPath = "") {
-  if (!product) {
-    throw new Error(
-      "Product data is required for SEO generation."
-    );
-  }
-
-  const seo = product.seo || {};
-
-  /* -------------------------------------------------------
-     TITLE
-  ------------------------------------------------------- */
-
-  const title = valid(seo.meta_title)
-    ? seo.meta_title
-    : `${product.name} | Ultra Stones`;
-
-  /* -------------------------------------------------------
-     DESCRIPTION
-  ------------------------------------------------------- */
-
-  const description = valid(seo.meta_description)
-    ? seo.meta_description
-    : valid(product.small_description)
-      ? product.small_description
-      : valid(product.long_description)
-        ? product.long_description.slice(0, 160)
-        : "Explore premium natural and engineered stone surfaces by Ultra Stones.";
-
-  /* -------------------------------------------------------
-     CANONICAL
-  ------------------------------------------------------- */
-
-  const canonical = getCanonicalUrl(
-    product,
-    reqPath
-  );
-
-  /* -------------------------------------------------------
-     OPEN GRAPH
-  ------------------------------------------------------- */
-
-  const ogTitle = valid(seo.og_title)
-    ? seo.og_title
-    : title;
-
-  const ogDescription = valid(seo.og_description)
-    ? seo.og_description
-    : description;
-
-  const image =
-    safeUrl(seo.og_image) ||
-    getImage(product);
-
-  /* -------------------------------------------------------
-     ROBOTS
-  ------------------------------------------------------- */
-
-  const robotsIndex =
-    seo.robots_index === false
-      ? "noindex"
-      : "index";
-
-  const robotsFollow =
-    seo.robots_follow === false
-      ? "nofollow"
-      : "follow";
-
-  const robots =
-    `${robotsIndex}, ${robotsFollow}`;
-
-  /* -------------------------------------------------------
-     CUSTOM STRUCTURED DATA
-  ------------------------------------------------------- */
-
-  const customSchema = getValidSchemaMarkup(
-    seo.schema_markup
-  );
-
-  /* -------------------------------------------------------
-     AUTOMATIC PRODUCT STRUCTURED DATA
-  ------------------------------------------------------- */
-
-  const hasCustomProductSchema =
-    containsProductSchema(customSchema);
-
-  const automaticProductSchema =
-    hasCustomProductSchema
-      ? ""
-      : buildProductSchema(
-          product,
-          canonical,
-          description,
-          image
-        );
-
-  /* -------------------------------------------------------
-     COMBINE STRUCTURED DATA
-  ------------------------------------------------------- */
-
-  const schemaMarkup = [
-    customSchema,
-    automaticProductSchema
-  ]
-    .filter(Boolean)
-    .map(
-      (schema) =>
-        `<script type="application/ld+json">${schema}</script>`
-    )
-    .join("\n");
-
-  /* -------------------------------------------------------
-     GENERATE SEO HTML
-  ------------------------------------------------------- */
-
-  return `
-<!-- =====================================================
-     ULTRA STONES - PRODUCT SEO
-===================================================== -->
-
-<title>${escapeHtml(title)}</title>
-
-<meta
-  name="description"
-  content="${escapeHtml(description)}"
-/>
-
-<meta
-  name="robots"
-  content="${escapeHtml(robots)}"
-/>
-
-<link
-  rel="canonical"
-  href="${escapeHtml(canonical)}"
-/>
-
-<!-- =====================================================
-     OPEN GRAPH
-===================================================== -->
-
-<meta
-  property="og:type"
-  content="product"
-/>
-
-<meta
-  property="og:title"
-  content="${escapeHtml(ogTitle)}"
-/>
-
-<meta
-  property="og:description"
-  content="${escapeHtml(ogDescription)}"
-/>
-
-<meta
-  property="og:url"
-  content="${escapeHtml(canonical)}"
-/>
-
-${
-  image
-    ? `<meta
-  property="og:image"
-  content="${escapeHtml(image)}"
-/>`
-    : ""
-}
-
-<!-- =====================================================
-     TWITTER / X
-===================================================== -->
-
-<meta
-  name="twitter:card"
-  content="summary_large_image"
-/>
-
-<meta
-  name="twitter:title"
-  content="${escapeHtml(ogTitle)}"
-/>
-
-<meta
-  name="twitter:description"
-  content="${escapeHtml(ogDescription)}"
-/>
-
-${
-  image
-    ? `<meta
-  name="twitter:image"
-  content="${escapeHtml(image)}"
-/>`
-    : ""
-}
-
-<!-- =====================================================
-     PRODUCT STRUCTURED DATA
-===================================================== -->
-
-${schemaMarkup}
-
-<!-- =====================================================
-     END PRODUCT SEO
-===================================================== -->
-`;
 }
 
 /* =========================================================
@@ -628,17 +479,9 @@ function buildBlogSeo(blog, reqPath = "") {
     );
   }
 
-  /* -------------------------------------------------------
-     TITLE
-  ------------------------------------------------------- */
-
   const title = valid(blog.meta_title)
     ? blog.meta_title
     : `${blog.title} | Ultra Stones`;
-
-  /* -------------------------------------------------------
-     DESCRIPTION
-  ------------------------------------------------------- */
 
   const description = valid(blog.meta_description)
     ? blog.meta_description
@@ -646,15 +489,7 @@ function buildBlogSeo(blog, reqPath = "") {
       ? blog.description
       : "Explore design inspiration, stone applications, and expert insights from Ultra Stones.";
 
-  /* -------------------------------------------------------
-     CANONICAL
-  ------------------------------------------------------- */
-
   const canonical = getBlogCanonicalUrl(blog);
-
-  /* -------------------------------------------------------
-     IMAGE
-  ------------------------------------------------------- */
 
   const image = getBlogImage(blog);
 
@@ -663,10 +498,6 @@ function buildBlogSeo(blog, reqPath = "") {
     blog.title ||
     "Ultra Stones Blog";
 
-  /* -------------------------------------------------------
-     BLOG STRUCTURED DATA
-  ------------------------------------------------------- */
-
   const schemaMarkup = buildBlogSchema(
     blog,
     canonical,
@@ -674,241 +505,58 @@ function buildBlogSeo(blog, reqPath = "") {
     image
   );
 
-  /* -------------------------------------------------------
-     GENERATE SEO HTML
-  ------------------------------------------------------- */
+  const publishedTime = blog.published_at
+    ? metaProperty(
+        "article:published_time",
+        blog.published_at
+      )
+    : "";
+
+  const modifiedTime = blog.updated_at
+    ? metaProperty(
+        "article:modified_time",
+        blog.updated_at
+      )
+    : "";
 
   return `
-<!-- =====================================================
-     ULTRA STONES - BLOG SEO
-===================================================== -->
+<!-- ULTRA STONES - BLOG SEO -->
 
 <title>${escapeHtml(title)}</title>
 
-<meta
-  name="description"
-  content="${escapeHtml(description)}"
-/>
+${metaName("description", description)}
+${metaName("robots", "index, follow, max-image-preview:large")}
 
-<meta
-  name="robots"
-  content="index, follow, max-image-preview:large"
-/>
+${canonicalTag(canonical)}
 
-<link
-  rel="canonical"
-  href="${escapeHtml(canonical)}"
-/>
+${metaProperty("og:type", "article")}
+${metaProperty("og:locale", "en_US")}
+${metaProperty("og:site_name", "Ultra Stones")}
+${metaProperty("og:title", title)}
+${metaProperty("og:description", description)}
+${metaProperty("og:url", canonical)}
 
-<!-- =====================================================
-     OPEN GRAPH - ARTICLE
-===================================================== -->
+${image ? metaProperty("og:image", image) : ""}
+${image ? metaProperty("og:image:alt", imageAlt) : ""}
 
-<meta
-  property="og:type"
-  content="article"
-/>
+${publishedTime}
+${modifiedTime}
 
-<meta
-  property="og:locale"
-  content="en_US"
-/>
+${metaName("twitter:card", "summary_large_image")}
+${metaName("twitter:title", title)}
+${metaName("twitter:description", description)}
 
-<meta
-  property="og:site_name"
-  content="Ultra Stones"
-/>
+${image ? metaName("twitter:image", image) : ""}
+${image ? metaName("twitter:image:alt", imageAlt) : ""}
 
-<meta
-  property="og:title"
-  content="${escapeHtml(title)}"
-/>
+${schemaScript(schemaMarkup)}
 
-<meta
-  property="og:description"
-  content="${escapeHtml(description)}"
-/>
-
-<meta
-  property="og:url"
-  content="${escapeHtml(canonical)}"
-/>
-
-${
-  image
-    ? `<meta
-  property="og:image"
-  content="${escapeHtml(image)}"
-/>
-
-<meta
-  property="og:image:alt"
-  content="${escapeHtml(imageAlt)}"
-/>`
-    : ""
-}
-
-${
-  blog.published_at
-    ? `<meta
-  property="article:published_time"
-  content="${escapeHtml(blog.published_at)}"
-/>`
-    : ""
-}
-
-${
-  blog.updated_at
-    ? `<meta
-  property="article:modified_time"
-  content="${escapeHtml(blog.updated_at)}"
-/>`
-    : ""
-}
-
-<!-- =====================================================
-     TWITTER / X
-===================================================== -->
-
-<meta
-  name="twitter:card"
-  content="summary_large_image"
-/>
-
-<meta
-  name="twitter:title"
-  content="${escapeHtml(title)}"
-/>
-
-<meta
-  name="twitter:description"
-  content="${escapeHtml(description)}"
-/>
-
-${
-  image
-    ? `<meta
-  name="twitter:image"
-  content="${escapeHtml(image)}"
-/>
-
-<meta
-  name="twitter:image:alt"
-  content="${escapeHtml(imageAlt)}"
-/>`
-    : ""
-}
-
-<!-- =====================================================
-     BLOGPOSTING STRUCTURED DATA
-===================================================== -->
-
-<script type="application/ld+json">${schemaMarkup}</script>
-
-<!-- =====================================================
-     END BLOG SEO
-===================================================== -->
+<!-- END BLOG SEO -->
 `;
 }
 
 /* =========================================================
-   REMOVE EXISTING SEO TAGS
-========================================================= */
-
-function removeExistingSeo(html) {
-  let cleanHtml = html;
-
-  /* -------------------------------------------------------
-     REMOVE TITLE
-  ------------------------------------------------------- */
-
-  cleanHtml = cleanHtml.replace(
-    /<title\b[^>]*>[\s\S]*?<\/title\s*>/gi,
-    ""
-  );
-
-  /* -------------------------------------------------------
-     REMOVE META DESCRIPTION
-  ------------------------------------------------------- */
-
-  cleanHtml = cleanHtml.replace(
-    /<meta\b(?=[^>]*\bname\s*=\s*["']description["'])[^>]*>/gi,
-    ""
-  );
-
-  /* -------------------------------------------------------
-     REMOVE ROBOTS
-  ------------------------------------------------------- */
-
-  cleanHtml = cleanHtml.replace(
-    /<meta\b(?=[^>]*\bname\s*=\s*["']robots["'])[^>]*>/gi,
-    ""
-  );
-
-  /* -------------------------------------------------------
-     REMOVE CANONICAL
-  ------------------------------------------------------- */
-
-  cleanHtml = cleanHtml.replace(
-    /<link\b(?=[^>]*\brel\s*=\s*["']canonical["'])[^>]*>/gi,
-    ""
-  );
-
-  /* -------------------------------------------------------
-     REMOVE OPEN GRAPH
-  ------------------------------------------------------- */
-
-  cleanHtml = cleanHtml.replace(
-    /<meta\b(?=[^>]*\bproperty\s*=\s*["']og:[^"']*["'])[^>]*>/gi,
-    ""
-  );
-
-  /* -------------------------------------------------------
-     REMOVE TWITTER META
-  ------------------------------------------------------- */
-
-  cleanHtml = cleanHtml.replace(
-    /<meta\b(?=[^>]*\bname\s*=\s*["']twitter:[^"']*["'])[^>]*>/gi,
-    ""
-  );
-
-  return cleanHtml;
-}
-
-/* =========================================================
-   INJECT SEO INTO HTML
-========================================================= */
-
-function injectSeo(html, seoTags) {
-  if (!html || typeof html !== "string") {
-    throw new Error(
-      "Valid HTML template is required."
-    );
-  }
-
-  if (!seoTags || typeof seoTags !== "string") {
-    throw new Error(
-      "Valid SEO tags are required."
-    );
-  }
-
-  const cleanHtml = removeExistingSeo(html);
-
-  if (!/<\/head\s*>/i.test(cleanHtml)) {
-    throw new Error(
-      "HTML template is missing closing head tag."
-    );
-  }
-
-  return cleanHtml.replace(
-    /<\/head\s*>/i,
-    `${seoTags}\n</head>`
-  );
-}
-
-
-/* =========================================================
-   LOCATION SEO HELPERS
+   LOCATION HELPERS
 ========================================================= */
 
 function getLocationCanonicalUrl(location) {
@@ -918,9 +566,10 @@ function getLocationCanonicalUrl(location) {
     );
   }
 
-  return `${SITE_URL}/locations/${encodeURIComponent(
-    String(location.slug).trim()
-  )}`;
+  return (
+    `${SITE_URL}/locations/` +
+    encodeURIComponent(String(location.slug).trim())
+  );
 }
 
 function getLocationImage(location) {
@@ -942,7 +591,7 @@ function getLocationDescription(location) {
 
   const place = [
     location.city,
-    location.state
+    location.state,
   ].filter(Boolean).join(", ");
 
   return (
@@ -951,10 +600,6 @@ function getLocationDescription(location) {
     `Discover marble, quartzite, quartz and more.`
   );
 }
-
-/* =========================================================
-   BUSINESS HOURS PARSER
-========================================================= */
 
 function parseLocationHours(value) {
   if (!valid(value)) return null;
@@ -996,9 +641,10 @@ function parseLocationHours(value) {
       hour = hour === 12 ? 12 : hour + 12;
     }
 
-    return `${String(hour).padStart(2, "0")}:${String(
-      minute
-    ).padStart(2, "0")}`;
+    return (
+      `${String(hour).padStart(2, "0")}:` +
+      `${String(minute).padStart(2, "0")}`
+    );
   };
 
   const opens = to24Hour(match[1]);
@@ -1008,10 +654,6 @@ function parseLocationHours(value) {
 
   return { opens, closes };
 }
-
-/* =========================================================
-   LOCATION STRUCTURED DATA
-========================================================= */
 
 function buildLocationSchema(
   location,
@@ -1029,18 +671,18 @@ function buildLocationSchema(
     branchOf: {
       "@type": "Organization",
       name: "Ultra Stones",
-      url: SITE_URL
-    }
+      url: SITE_URL,
+    },
   };
 
   if (valid(location.primary_phone)) {
-    schema.telephone = String(
-      location.primary_phone
-    ).trim();
+    schema.telephone =
+      String(location.primary_phone).trim();
   }
 
   if (valid(location.email)) {
-    schema.email = String(location.email).trim();
+    schema.email =
+      String(location.email).trim();
   }
 
   if (image) {
@@ -1048,7 +690,7 @@ function buildLocationSchema(
   }
 
   const address = {
-    "@type": "PostalAddress"
+    "@type": "PostalAddress",
   };
 
   if (valid(location.address)) {
@@ -1099,7 +741,7 @@ function buildLocationSchema(
     schema.geo = {
       "@type": "GeoCoordinates",
       latitude,
-      longitude
+      longitude,
     };
   }
 
@@ -1114,7 +756,7 @@ function buildLocationSchema(
       "@type": "OpeningHoursSpecification",
       dayOfWeek: days,
       opens: parsed.opens,
-      closes: parsed.closes
+      closes: parsed.closes,
     });
   };
 
@@ -1125,7 +767,7 @@ function buildLocationSchema(
       "Tuesday",
       "Wednesday",
       "Thursday",
-      "Friday"
+      "Friday",
     ]
   );
 
@@ -1159,7 +801,7 @@ function buildLocationSeo(location) {
 
   const place = [
     location.city,
-    location.state
+    location.state,
   ].filter(Boolean).join(", ");
 
   const title = valid(location.meta_title)
@@ -1182,91 +824,274 @@ function buildLocationSeo(location) {
   );
 
   return `
-<!-- =====================================================
-     ULTRA STONES - LOCATION SEO
-===================================================== -->
+<!-- ULTRA STONES - LOCATION SEO -->
 
 <title>${escapeHtml(title)}</title>
 
-<meta
-  name="description"
-  content="${escapeHtml(description)}"
-/>
+${metaName("description", description)}
+${metaName("robots", "index, follow, max-image-preview:large")}
 
-<meta
-  name="robots"
-  content="index, follow, max-image-preview:large"
-/>
+${canonicalTag(canonical)}
 
-<link
-  rel="canonical"
-  href="${escapeHtml(canonical)}"
-/>
+${metaProperty("og:type", "website")}
+${metaProperty("og:locale", "en_US")}
+${metaProperty("og:site_name", "Ultra Stones")}
+${metaProperty("og:title", title)}
+${metaProperty("og:description", description)}
+${metaProperty("og:url", canonical)}
 
-<!-- OPEN GRAPH -->
+${image ? metaProperty("og:image", image) : ""}
 
-<meta property="og:type" content="website" />
-<meta property="og:locale" content="en_US" />
-<meta property="og:site_name" content="Ultra Stones" />
+${metaName("twitter:card", image ? "summary_large_image" : "summary")}
+${metaName("twitter:title", title)}
+${metaName("twitter:description", description)}
 
-<meta
-  property="og:title"
-  content="${escapeHtml(title)}"
-/>
+${image ? metaName("twitter:image", image) : ""}
 
-<meta
-  property="og:description"
-  content="${escapeHtml(description)}"
-/>
-
-<meta
-  property="og:url"
-  content="${escapeHtml(canonical)}"
-/>
-
-${
-  image
-    ? `<meta
-  property="og:image"
-  content="${escapeHtml(image)}"
-/>`
-    : ""
-}
-
-<!-- TWITTER / X -->
-
-<meta
-  name="twitter:card"
-  content="${image ? "summary_large_image" : "summary"}"
-/>
-
-<meta
-  name="twitter:title"
-  content="${escapeHtml(title)}"
-/>
-
-<meta
-  name="twitter:description"
-  content="${escapeHtml(description)}"
-/>
-
-${
-  image
-    ? `<meta
-  name="twitter:image"
-  content="${escapeHtml(image)}"
-/>`
-    : ""
-}
-
-<!-- LOCATION STRUCTURED DATA -->
-
-<script type="application/ld+json">${schemaMarkup}</script>
+${schemaScript(schemaMarkup)}
 
 <!-- END LOCATION SEO -->
 `;
 }
 
+/* =========================================================
+   CATEGORY SEO GENERATION
+
+   Public API:
+   GET /api/category-seo/public/:slug
+========================================================= */
+
+function buildCategorySeo(category) {
+  if (
+    !category ||
+    !valid(category.category_slug)
+  ) {
+    throw new Error(
+      "Valid category data and slug are required."
+    );
+  }
+
+  const categorySlug =
+    String(category.category_slug).trim();
+
+  const categoryName = valid(
+    category.category_name
+  )
+    ? String(category.category_name).trim()
+    : categorySlug.replace(/-/g, " ");
+
+  // ======================================================
+  // TITLE AND DESCRIPTION
+  // ======================================================
+
+  const title = valid(category.title)
+    ? String(category.title).trim()
+    : `${categoryName} | Ultra Stones`;
+
+  const description = valid(
+    category.description
+  )
+    ? String(category.description).trim()
+    : (
+        `Explore ${categoryName} at Ultra Stones. ` +
+        `Discover premium natural and engineered ` +
+        `stone surfaces for residential and ` +
+        `commercial projects.`
+      );
+
+  // ======================================================
+  // CANONICAL
+  // ======================================================
+
+  const defaultCanonical =
+    `${SITE_URL}/product-category/` +
+    encodeURIComponent(categorySlug);
+
+  const canonical =
+    cleanCanonical(category.canonical_url) ||
+    defaultCanonical;
+
+  // ======================================================
+  // OPEN GRAPH
+  // ======================================================
+
+  const ogTitle = valid(category.og_title)
+    ? String(category.og_title).trim()
+    : title;
+
+  const ogDescription = valid(
+    category.og_description
+  )
+    ? String(category.og_description).trim()
+    : description;
+
+  const ogImage = safeUrl(
+    category.og_image
+  );
+
+  // ======================================================
+  // ROBOTS
+  // ======================================================
+
+  const robotsIndex =
+    category.robots_index === false
+      ? "noindex"
+      : "index";
+
+  const robotsFollow =
+    category.robots_follow === false
+      ? "nofollow"
+      : "follow";
+
+  const robots =
+    `${robotsIndex}, ${robotsFollow}, ` +
+    "max-image-preview:large";
+
+  // ======================================================
+  // STRUCTURED DATA
+  // ======================================================
+
+  const customSchema = getValidSchemaMarkup(
+    category.schema_markup
+  );
+
+  // ======================================================
+  // GENERATE CATEGORY SEO
+  // ======================================================
+
+  return `
+<!-- =====================================================
+     ULTRA STONES - CATEGORY SEO
+===================================================== -->
+
+<title>${escapeHtml(title)}</title>
+
+${metaName("description", description)}
+${metaName("robots", robots)}
+${metaName("googlebot", robots)}
+
+${canonicalTag(canonical)}
+
+<!-- OPEN GRAPH -->
+
+${metaProperty("og:type", "website")}
+${metaProperty("og:locale", "en_US")}
+${metaProperty("og:site_name", "Ultra Stones")}
+
+${metaProperty("og:title", ogTitle)}
+${metaProperty("og:description", ogDescription)}
+${metaProperty("og:url", canonical)}
+
+${ogImage ? metaProperty("og:image", ogImage) : ""}
+${ogImage ? metaProperty("og:image:alt", categoryName) : ""}
+
+<!-- TWITTER / X -->
+
+${metaName("twitter:card", ogImage ? "summary_large_image" : "summary")}
+${metaName("twitter:title", ogTitle)}
+${metaName("twitter:description", ogDescription)}
+
+${ogImage ? metaName("twitter:image", ogImage) : ""}
+
+<!-- CUSTOM CATEGORY STRUCTURED DATA -->
+
+${schemaScript(customSchema)}
+
+<!-- END CATEGORY SEO -->
+`;
+}
+
+/* =========================================================
+   REMOVE EXISTING SEO TAGS
+
+   Prevent duplicate metadata when injecting
+   dynamic SEO into the frontend index.html.
+========================================================= */
+
+function removeExistingSeo(html) {
+  let cleanHtml = html;
+
+  // Remove existing title.
+  cleanHtml = cleanHtml.replace(
+    /<title\b[^>]*>[\s\S]*?<\/title\s*>/gi,
+    ""
+  );
+
+  // Remove existing description.
+  cleanHtml = cleanHtml.replace(
+    /<meta\b(?=[^>]*\bname\s*=\s*["']description["'])[^>]*>/gi,
+    ""
+  );
+
+  // Remove existing robots.
+  cleanHtml = cleanHtml.replace(
+    /<meta\b(?=[^>]*\bname\s*=\s*["']robots["'])[^>]*>/gi,
+    ""
+  );
+
+  // Remove existing Googlebot directives.
+  cleanHtml = cleanHtml.replace(
+    /<meta\b(?=[^>]*\bname\s*=\s*["']googlebot["'])[^>]*>/gi,
+    ""
+  );
+
+  // Remove existing canonical.
+  cleanHtml = cleanHtml.replace(
+    /<link\b(?=[^>]*\brel\s*=\s*["']canonical["'])[^>]*>/gi,
+    ""
+  );
+
+  // Remove existing Open Graph metadata.
+  cleanHtml = cleanHtml.replace(
+    /<meta\b(?=[^>]*\bproperty\s*=\s*["']og:[^"']*["'])[^>]*>/gi,
+    ""
+  );
+
+  // Remove existing Twitter metadata.
+  cleanHtml = cleanHtml.replace(
+    /<meta\b(?=[^>]*\bname\s*=\s*["']twitter:[^"']*["'])[^>]*>/gi,
+    ""
+  );
+
+  return cleanHtml;
+}
+
+/* =========================================================
+   INJECT SEO INTO FRONTEND HTML
+========================================================= */
+
+function injectSeo(html, seoTags) {
+  if (
+    !html ||
+    typeof html !== "string"
+  ) {
+    throw new Error(
+      "Valid HTML template is required."
+    );
+  }
+
+  if (
+    !seoTags ||
+    typeof seoTags !== "string"
+  ) {
+    throw new Error(
+      "Valid SEO tags are required."
+    );
+  }
+
+  const cleanHtml = removeExistingSeo(html);
+
+  if (!/<\/head\s*>/i.test(cleanHtml)) {
+    throw new Error(
+      "HTML template is missing closing head tag."
+    );
+  }
+
+  return cleanHtml.replace(
+    /<\/head\s*>/i,
+    `${seoTags}\n</head>`
+  );
+}
 
 /* =========================================================
    EXPORTS
@@ -1276,5 +1101,6 @@ module.exports = {
   buildProductSeo,
   buildBlogSeo,
   buildLocationSeo,
-  injectSeo
+  buildCategorySeo,
+  injectSeo,
 };

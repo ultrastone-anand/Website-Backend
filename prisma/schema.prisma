@@ -95,6 +95,14 @@ model stone_categories {
   silica_warning           Boolean?                   @default(false)
   silica_warning_message   String?
   silica_datasheet_url     String?
+  canonical_url            String?
+  og_title                 String?                    @db.VarChar(255)
+  og_description           String?
+  og_image                 String?
+  robots_index             Boolean                    @default(true)
+  robots_follow            Boolean                    @default(true)
+  schema_markup            Json?
+  seo_content              String?
   stone_categories         stone_categories?          @relation("stone_categoriesTostone_categories", fields: [parent_id], references: [id], onUpdate: NoAction)
   other_stone_categories   stone_categories[]         @relation("stone_categoriesTostone_categories")
   stone_category_resources stone_category_resources[]
