@@ -1,3 +1,4 @@
+
 const router =
   require("express").Router();
 
@@ -11,12 +12,21 @@ const authenticate =
     "../middlewares/auth.middleware"
   );
 
+const {
+  checkSampleHoneypot,
+  sampleRateLimiter,
+} = require(
+  "../middlewares/sampleSpam.middleware"
+);
+
 /* =========================================================
-   PUBLIC
+   PUBLIC - CREATE SAMPLE REQUEST
 ========================================================= */
 
 router.post(
   "/",
+  sampleRateLimiter,
+  checkSampleHoneypot,
   sampleRequestController.createSampleRequest
 );
 

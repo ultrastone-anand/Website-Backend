@@ -1,15 +1,20 @@
-const router =
-  require("express").Router();
 
-const displayRequestController =
-  require(
-    "../controller/displayRequest.controller"
-  );
+const router = require("express").Router();
 
-const authenticate =
-  require(
-    "../middlewares/auth.middleware"
-  );
+const displayRequestController = require(
+  "../controller/displayRequest.controller"
+);
+
+const authenticate = require(
+  "../middlewares/auth.middleware"
+);
+
+const {
+  checkDisplayHoneypot,
+  displayRateLimiter,
+} = require(
+  "../middlewares/displaySpam.middleware"
+);
 
 /* =========================================================
    PUBLIC - CREATE DISPLAY REQUEST
@@ -17,6 +22,8 @@ const authenticate =
 
 router.post(
   "/",
+  displayRateLimiter,
+  checkDisplayHoneypot,
   displayRequestController.createDisplayRequest
 );
 

@@ -1,3 +1,4 @@
+
 const router =
   require("express").Router();
 
@@ -11,12 +12,21 @@ const authenticate =
     "../middlewares/auth.middleware"
   );
 
+const {
+  checkCeuHoneypot,
+  ceuRateLimiter,
+} = require(
+  "../middlewares/ceuSpam.middleware"
+);
+
 /* =========================================================
-   PUBLIC
+   PUBLIC - CREATE CEU REQUEST
 ========================================================= */
 
 router.post(
   "/",
+  ceuRateLimiter,
+  checkCeuHoneypot,
   ceuRequestController.createCeuRequest
 );
 
