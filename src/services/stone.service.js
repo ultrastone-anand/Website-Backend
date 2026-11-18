@@ -116,11 +116,7 @@ const getCategoryProducts = async (slug) => {
   };
 };
 
-const getAdminProductDetails = async (slug) => {
-  return getProductDetails(slug, {
-    includeInactive: true,
-  });
-};
+
 const getProductDetails = async (
   slug,
   { includeInactive = false } = {}
@@ -135,95 +131,61 @@ const getProductDetails = async (
             is_published: true,
           }),
     },
+
     select: {
       // BASIC
-
       id: true,
       product_id: true,
-
       name: true,
       slug: true,
-
       small_description: true,
       long_description: true,
-
       category_id: true,
       sealer: true,
 
       // DETAILS
-
       finishes_available: true,
-
       pattern: true,
-
       thicknesses_cm: true,
-
       average_sizes_inches: true,
-
       stone_group: true,
-
       translucent: true,
-
       cut_to_size: true,
-
       origin_country: true,
-
       vein_color: true,
-
       pantone_colour: true,
 
       // APPLICATIONS
-
       color_enhancing: true,
-
       countertops_vanities: true,
-
       interior_floor: true,
-
       interior_wall: true,
-
       shower_wall: true,
-
       shower_floor: true,
-
       exterior_floor: true,
-
       exterior_wall: true,
-
       pool_fountain: true,
-
       fireplace: true,
-
       furniture_top: true,
 
+      // SILICA
       silica_warning: true,
-
       silica_warning_message: true,
-
       silica_datasheet_url: true,
 
       // SPECIFICATIONS
-
       abrasion_resistance: true,
-
       stain_resistance: true,
-
       etching_resistance: true,
-
       heat_resistance: true,
-
       uv_resistance: true,
-
       color_range: true,
-
       movement_index: true,
 
       // VARIATION
-
       variation_level: true,
 
       // FLAGS
-
       is_featured: true,
       is_new_arrival: true,
       is_trending: true,
@@ -231,18 +193,15 @@ const getProductDetails = async (
       is_published: true,
 
       // DATES
-
       created_at: true,
       updated_at: true,
 
       // CATEGORY
-
       stone_categories: {
         select: {
           id: true,
           name: true,
           slug: true,
-
           silica_warning: true,
           silica_warning_message: true,
           silica_datasheet_url: true,
@@ -250,7 +209,6 @@ const getProductDetails = async (
       },
 
       // SEO
-
       stone_product_seo: {
         select: {
           id: true,
@@ -267,10 +225,13 @@ const getProductDetails = async (
         },
       },
 
+      // FAQ
       product_faqs: {
-        where: {
-          is_active: true,
-        },
+        where: includeInactive
+          ? {}
+          : {
+              is_active: true,
+            },
 
         orderBy: {
           sort_order: "asc",
@@ -286,7 +247,6 @@ const getProductDetails = async (
       },
 
       // MEDIA
-
       media: {
         orderBy: {
           display_order: "asc",
@@ -308,27 +268,36 @@ const getProductDetails = async (
     return null;
   }
 
-  // Separate media types
+  // ========================================================
+  // MEDIA FORMATTING
+  // ========================================================
 
-  const closeup_images = product.media
-    .filter((item) => item.media_type === "closeup_image")
-    .map((item) => item.media_url);
+  const getMediaUrls = (type) =>
+    product.media
+      .filter(
+        (item) =>
+          String(item.media_type).toUpperCase() === type
+      )
+      .map((item) => item.media_url);
 
-  const slab_images = product.media
-    .filter((item) => item.media_type === "slab_image")
-    .map((item) => item.media_url);
+  const closeup_images =
+    getMediaUrls("CLOSEUP_IMAGE");
 
-  const featured_videos = product.media
-    .filter((item) => item.media_type === "featured_video")
-    .map((item) => item.media_url);
+  const slab_images =
+    getMediaUrls("SLAB_IMAGE");
 
-  const application_images = product.media
-    .filter((item) => item.media_type === "application_image")
-    .map((item) => item.media_url);
+  const featured_videos =
+    getMediaUrls("FEATURED_VIDEO");
 
-  const bookmatch_slipmatchs = product.media
-    .filter((item) => item.media_type === "bookmatch_slipmatch")
-    .map((item) => item.media_url);
+  const application_images =
+    getMediaUrls("APPLICATION_IMAGE");
+
+  const bookmatch_slipmatchs =
+    getMediaUrls("BOOKMATCH_SLIPMATCH");
+
+  // ========================================================
+  // SEPARATE SEO AND FAQ
+  // ========================================================
 
   const {
     stone_product_seo,
@@ -336,66 +305,99 @@ const getProductDetails = async (
     ...productWithoutSeo
   } = product;
 
-  return {
+  // ========================================================
+  // SERIALIZE IDS
+  // ========================================================
+
+  const toSafeId = (value) => {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    return value.toString();
+  };
+
+  // ========================================================
+  // FORMAT SEO
+  // ========================================================
+
+  const seo = stone_product_seo
+    ? {
+        id: toSafeId(stone_product_seo.id),
+
+        meta_title:
+          stone_product_seo.meta_title,
+
+        meta_description:
+          stone_product_seo.meta_description,
+
+        canonical_url:
+          stone_product_seo.canonical_url,
+
+        og_title:
+          stone_product_seo.og_title,
+
+        og_description:
+          stone_product_seo.og_description,
+
+        og_image:
+          stone_product_seo.og_image,
+
+        schema_markup:
+          stone_product_seo.schema_markup,
+
+        robots_index:
+          stone_product_seo.robots_index,
+
+        robots_follow:
+          stone_product_seo.robots_follow,
+
+        seo_content:
+          stone_product_seo.seo_content,
+      }
+    : null;
+
+  // ========================================================
+  // FORMAT FAQ
+  // ========================================================
+
+  const faqs = product_faqs.map((faq) => ({
+    id: toSafeId(faq.id),
+    question: faq.question,
+    answer: faq.answer,
+    sort_order: faq.sort_order,
+    is_active: faq.is_active,
+  }));
+
+  // ========================================================
+  // FINAL RESPONSE
+  // ========================================================
+
+  return serializeBigInt({
     ...productWithoutSeo,
 
-    id: Number(product.id),
+    id: toSafeId(product.id),
 
-    category_id: Number(product.category_id),
+    category_id: toSafeId(product.category_id),
+
+    stone_categories: product.stone_categories
+      ? {
+          ...product.stone_categories,
+          id: toSafeId(product.stone_categories.id),
+        }
+      : null,
 
     media: product.media.map((item) => ({
       ...item,
-      id: Number(item.id),
+      id: toSafeId(item.id),
     })),
 
-    seo: stone_product_seo ? {
-      id: Number(stone_product_seo.id),
-
-      meta_title:
-        stone_product_seo.meta_title,
-
-      meta_description:
-        stone_product_seo.meta_description,
-
-      canonical_url:
-        stone_product_seo.canonical_url,
-
-      og_title:
-        stone_product_seo.og_title,
-
-      og_description:
-        stone_product_seo.og_description,
-
-      og_image:
-        stone_product_seo.og_image,
-
-      schema_markup:
-        stone_product_seo.schema_markup,
-
-      robots_index:
-        stone_product_seo.robots_index,
-
-      robots_follow:
-        stone_product_seo.robots_follow,
-
-      seo_content:
-        stone_product_seo.seo_content,
-    }
-      : null,
-
-    faqs: product_faqs.map((faq) => ({
-      id: Number(faq.id),
-      question: faq.question,
-      answer: faq.answer,
-      sort_order: faq.sort_order,
-      is_active: faq.is_active,
-    })),
+    seo,
+    faqs,
 
     silica_warning:
       product.silica_warning ||
-
       product.stone_categories?.silica_warning ||
-
       false,
 
     silica_warning_message:
@@ -413,8 +415,19 @@ const getProductDetails = async (
     featured_videos,
     application_images,
     bookmatch_slipmatchs,
-  };
+  });
 };
+
+// ========================================================
+// CMS ADMIN PRODUCT DETAILS
+// ========================================================
+
+const getAdminProductDetails = async (slug) => {
+  return getProductDetails(slug, {
+    includeInactive: true,
+  });
+};
+
 
 const searchProducts = async ({
   searchTerm,
@@ -3708,8 +3721,8 @@ const getBrowseProducts = async (limit = 6) => {
 module.exports = {
   getStones,
   getCategoryProducts,
-  getAdminProductDetails,
   getProductDetails,
+  getAdminProductDetails,
   searchProducts,
 
   createCategory,

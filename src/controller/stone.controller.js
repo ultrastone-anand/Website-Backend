@@ -158,12 +158,13 @@ const getCategoryProducts = async (req, res) => {
 // ======================================================
 
 
+
 const getAdminProductDetails = async (req, res) => {
   try {
+    const { slug } = req.params;
+
     const product =
-      await stoneService.getAdminProductDetails(
-        req.params.slug
-      );
+      await stoneservice.getAdminProductDetails(slug);
 
     if (!product) {
       return res.status(404).json({
@@ -174,17 +175,18 @@ const getAdminProductDetails = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: product,
+      data: serialize(product),
     });
   } catch (error) {
-    console.error("Admin product details error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Unable to retrieve product",
-    });
+    return sendStoneError(
+      res,
+      error,
+      "Get Admin Product Details Error:",
+      "Unable to retrieve product"
+    );
   }
-};  
+};
+
 
 const getProductDetails = async (req, res) => {
   try {
