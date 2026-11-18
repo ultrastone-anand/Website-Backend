@@ -1,883 +1,436 @@
 
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
+  const express = require("express");
+  const cors = require("cors");
+  const path = require("path");
 
-const { getBlogById } = require("./services/blog.service");
-const companyService = require("./services/company.service");
+  const { getBlogById } = require("./services/blog.service");
+  const companyService = require("./services/company.service");
 
-const {
-  buildProductSeo,
-  buildBlogSeo,
-  buildLocationSeo,
-  buildCategorySeo,
-  injectSeo,
-} = require("./utils/seoHtml");
+  const {
+    buildProductSeo,
+    buildBlogSeo,
+    buildLocationSeo,
+    buildCategorySeo,
+    injectSeo,
+  } = require("./utils/seoHtml");
 
-const errorHandler = require("./middlewares/error.middleware");
+  const errorHandler = require("./middlewares/error.middleware");
 
-const {
-  getProductDetails,
-} = require("./services/stone.service");
+  const {
+    getProductDetails,
+  } = require("./services/stone.service");
 
-/* =========================================================
-   ROUTES
-========================================================= */
+  /* =========================================================
+    ROUTES
+  ========================================================= */
 
-const pageRoutes = require("./routes/page.routes");
-const blogRoutes = require("./routes/blog.routes");
-const userRoutes = require("./routes/user.routes");
-const stoneRoutes = require("./routes/stone.routes");
-const careerRoutes = require("./routes/career.routes");
-const reportRoutes = require("./routes/report.routes");
-const lookupRoutes = require("./routes/lookup.routes");
-const companyRoutes = require("./routes/company.routes");
-const sitemapRoutes = require("./routes/sitemap.routes");
-const activityRoutes = require("./routes/activity.routes");
-const homeHeroRoutes = require("./routes/homeHero.routes");
-const dasboardRoutes = require("./routes/dashboard.routes");
-const lotImagesRoutes = require("./routes/lotImages.routes");
-const instagramRoutes = require("./routes/instagram.routes");
-const newsLetterRoutes = require("./routes/newsletter.routes");
-const ceuRequestRoutes = require("./routes/ceuRequest.routes");
-const contactRoutes = require("./routes/contactEnquiry.routes");
-const categorySeoRoutes = require("./routes/categorySeo.routes");
-const GlobalSerchRoutes = require("./routes/globalsearch.route");
-const ProductRemarkRoutes = require("./routes/productRemark.routes");
-const sampleRequestRoutes = require("./routes/sampleRequest.routes");
-const displayRequestRoutes = require("./routes/displayRequest.routes");
-const contactRequestRoutes = require("./routes/contactRequest.routes");
-const bulkDescriptionRoutes = require("./routes/bulkDescription.routes");
-const categoryResourceRoutes = require("./routes/categoryResource.routes");
-const inspirationGalleryRoutes = require("./routes/inspirationGallery.routes");
-const productRegistrationRoutes = require("./routes/ProductRegistration.routes");
+  const pageRoutes = require("./routes/page.routes");
+  const blogRoutes = require("./routes/blog.routes");
+  const userRoutes = require("./routes/user.routes");
+  const stoneRoutes = require("./routes/stone.routes");
+  const careerRoutes = require("./routes/career.routes");
+  const reportRoutes = require("./routes/report.routes");
+  const lookupRoutes = require("./routes/lookup.routes");
+  const companyRoutes = require("./routes/company.routes");
+  const sitemapRoutes = require("./routes/sitemap.routes");
+  const activityRoutes = require("./routes/activity.routes");
+  const homeHeroRoutes = require("./routes/homeHero.routes");
+  const dasboardRoutes = require("./routes/dashboard.routes");
+  const lotImagesRoutes = require("./routes/lotImages.routes");
+  const instagramRoutes = require("./routes/instagram.routes");
+  const newsLetterRoutes = require("./routes/newsletter.routes");
+  const ceuRequestRoutes = require("./routes/ceuRequest.routes");
+  const contactRoutes = require("./routes/contactEnquiry.routes");
+  const categorySeoRoutes = require("./routes/categorySeo.routes");
+  const GlobalSerchRoutes = require("./routes/globalsearch.route");
+  const ProductRemarkRoutes = require("./routes/productRemark.routes");
+  const sampleRequestRoutes = require("./routes/sampleRequest.routes");
+  const displayRequestRoutes = require("./routes/displayRequest.routes");
+  const contactRequestRoutes = require("./routes/contactRequest.routes");
+  const bulkDescriptionRoutes = require("./routes/bulkDescription.routes");
+  const categoryResourceRoutes = require("./routes/categoryResource.routes");
+  const inspirationGalleryRoutes = require("./routes/inspirationGallery.routes");
+  const productRegistrationRoutes = require("./routes/ProductRegistration.routes");
 
-/* =========================================================
-   EXPRESS APPLICATION
-========================================================= */
+  /* =========================================================
+    EXPRESS APPLICATION
+  ========================================================= */
 
-const app = express();
+  const app = express();
 
-app.disable("x-powered-by");
+  app.disable("x-powered-by");
 
-app.use(cors());
+  app.use(cors());
 
-app.use(
-  express.json({
-    limit: "50mb",
-  })
-);
+  app.use(
+    express.json({
+      limit: "50mb",
+    })
+  );
 
-app.use(
-  express.urlencoded({
-    extended: true,
-    limit: "50mb",
-  })
-);
+  app.use(
+    express.urlencoded({
+      extended: true,
+      limit: "50mb",
+    })
+  );
 
-/* =========================================================
-   UPLOADS
-========================================================= */
+  /* =========================================================
+    UPLOADS
+  ========================================================= */
 
-app.use(
-  "/uploads",
-  express.static(
-    path.join(__dirname, "../uploads")
-  )
-);
+  app.use(
+    "/uploads",
+    express.static(
+      path.join(__dirname, "../uploads")
+    )
+  );
 
-/* =========================================================
-   API HEALTH
-========================================================= */
+  /* =========================================================
+    API HEALTH
+  ========================================================= */
 
-app.get("/", (req, res) => {
-  return res.json({
-    success: true,
-    message: "Ultrastone API Running",
+  app.get("/", (req, res) => {
+    return res.json({
+      success: true,
+      message: "Ultrastone API Running",
+    });
   });
-});
-
-/* =========================================================
-   API ROUTES
-========================================================= */
-
-app.use("/api/blog", blogRoutes);
-app.use("/api/pages", pageRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/stones", stoneRoutes);
-app.use("/api/careers", careerRoutes);
-app.use("/api/reports", reportRoutes);
-app.use("/api/lookups", lookupRoutes);
-app.use("/api/company", companyRoutes);
-app.use("/api/contact", contactRoutes);
-app.use("/api/home-hero", homeHeroRoutes);
-app.use("/api/dashboard", dasboardRoutes);
-app.use("/api/activitie", activityRoutes);
-app.use("/api/search", GlobalSerchRoutes);
-app.use("/api/instagram", instagramRoutes);
-app.use("/api/lot-images", lotImagesRoutes);
-app.use("/api/newsletter", newsLetterRoutes);
-app.use("/api/products", ProductRemarkRoutes);
-app.use("/api/ceu-request", ceuRequestRoutes);
-app.use("/api/category-seo", categorySeoRoutes);
-app.use("/api/sample-requests", sampleRequestRoutes);
-app.use("/api/display-request", displayRequestRoutes);
-app.use("/api/contact-request", contactRequestRoutes);
-app.use("/api/bulk-descriptions", bulkDescriptionRoutes);
-app.use("/api/category-resources", categoryResourceRoutes);
-app.use("/api/inspiration-gallery", inspirationGalleryRoutes);
-app.use("/api/product-registrations", productRegistrationRoutes);
-
-/* =========================================================
-   PUBLIC SITEMAP
-========================================================= */
-
-app.use("/", sitemapRoutes);
-
-/* =========================================================
-   FRONTEND CONFIGURATION
-
-   IMPORTANT:
-
-   Express must use the current frontend HTML.
-
-   Previously:
-   Backend read its own dist/index.html.
-
-   Problem:
-   That file contained old Vite asset hashes.
-
-   Solution:
-   Fetch the current index.html directly from
-   the frontend Nginx container.
-
-   This works over the existing Docker network.
-========================================================= */
-
-const FRONTEND_INTERNAL_URL = String(
-  process.env.FRONTEND_INTERNAL_URL ||
-    "http://frontend"
-).replace(/\/+$/, "");
-
-const FRONTEND_REQUEST_TIMEOUT_MS = 5000;
-
-/* =========================================================
-   CATEGORY SEO INTERNAL CONFIGURATION
-
-   The category SEO public API is already registered:
-
-   GET /api/category-seo/public/:slug
-
-   Since this Express application owns that route,
-   we can retrieve its public data through the
-   internal HTTP endpoint.
-
-   PORT must be the actual listening port inside
-   the backend container.
-
-   Optional override:
-   CATEGORY_SEO_INTERNAL_URL=http://127.0.0.1:8080
-========================================================= */
-
-const CATEGORY_SEO_INTERNAL_URL = String(
-  process.env.CATEGORY_SEO_INTERNAL_URL ||
-    `http://127.0.0.1:${process.env.PORT || 5001}`
-).replace(/\/+$/, "");
-
-const CATEGORY_SEO_REQUEST_TIMEOUT_MS = 5000;
-
-/* =========================================================
-   FRONTEND HTML FETCHER
-========================================================= */
-
-const getFrontendHtml = async () => {
-  const url = `${FRONTEND_INTERNAL_URL}/`;
-
-  let response;
-
-  try {
-    response = await fetch(url, {
-      method: "GET",
-
-      headers: {
-        Accept: "text/html",
-        "Cache-Control": "no-cache",
-      },
-
-      signal: AbortSignal.timeout(
-        FRONTEND_REQUEST_TIMEOUT_MS
-      ),
-    });
-  } catch (error) {
-    console.error(
-      "[SEO] Frontend HTML request failed:",
-      error
-    );
-
-    throw new Error(
-      "Current frontend HTML is unavailable"
-    );
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      `Frontend HTML returned HTTP ${response.status}`
-    );
-  }
-
-  const contentType = String(
-    response.headers.get("content-type") || ""
-  ).toLowerCase();
-
-  if (!contentType.includes("text/html")) {
-    throw new Error(
-      `Unexpected frontend content type: ${contentType}`
-    );
-  }
-
-  const html = await response.text();
-
-  if (
-    !/<html[\s>]/i.test(html) ||
-    !/<head[\s>]/i.test(html) ||
-    !/<\/head\s*>/i.test(html) ||
-    !/<body[\s>]/i.test(html)
-  ) {
-    throw new Error(
-      "Invalid frontend HTML template received"
-    );
-  }
-
-  /*
-   * Check for a Vite JavaScript entry.
-   *
-   * This helps detect an unexpected response
-   * before generating SEO HTML.
-   */
-
-  const hasModuleScript =
-    /<script\b[^>]*type=["']module["'][^>]*src=["'][^"']+\.js(?:\?[^"']*)?["']/i.test(
-      html
-    ) ||
-    /<script\b[^>]*src=["'][^"']+\.js(?:\?[^"']*)?["'][^>]*type=["']module["']/i.test(
-      html
-    );
-
-  if (!hasModuleScript) {
-    throw new Error(
-      "Frontend HTML does not contain a Vite module script"
-    );
-  }
-
-  return html;
-};
-
-/* =========================================================
-   CATEGORY SEO DATA FETCHER
-
-   Uses the existing public Category SEO API.
-
-   Expected response:
-
-   {
-     success: true,
-     data: {
-       category_id: 30,
-       category_name: "12MM Kaolin Slabs",
-       category_slug: "12mm-kaolin-slabs",
-       title: "Kaolin Slabs",
-       description: "Slab Description",
-       canonical_url: "...",
-       og_title: "...",
-       og_description: "...",
-       og_image: null,
-       robots_index: true,
-       robots_follow: true,
-       schema_markup: null
-     }
-   }
-========================================================= */
-
-const getCategorySeoData = async (slug) => {
-  const normalizedSlug = String(
-    slug || ""
-  ).trim();
-
-  if (!normalizedSlug) {
-    throw new Error(
-      "Category slug is required."
-    );
-  }
-
-  const url =
-    `${CATEGORY_SEO_INTERNAL_URL}` +
-    `/api/category-seo/public/` +
-    encodeURIComponent(normalizedSlug);
-
-  let response;
-
-  try {
-    response = await fetch(url, {
-      method: "GET",
-
-      headers: {
-        Accept: "application/json",
-      },
-
-      signal: AbortSignal.timeout(
-        CATEGORY_SEO_REQUEST_TIMEOUT_MS
-      ),
-    });
-  } catch (error) {
-    console.error(
-      "[SEO] Category SEO API request failed:",
-      error
-    );
-
-    throw new Error(
-      "Category SEO API is unavailable"
-    );
-  }
-
-  if (response.status === 404) {
-    return null;
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      `Category SEO API returned HTTP ${response.status}`
-    );
-  }
-
-  const contentType = String(
-    response.headers.get("content-type") || ""
-  ).toLowerCase();
-
-  if (!contentType.includes("application/json")) {
-    throw new Error(
-      `Unexpected Category SEO content type: ${contentType}`
-    );
-  }
-
-  const result = await response.json();
-
-  if (
-    !result ||
-    result.success !== true ||
-    !result.data ||
-    typeof result.data !== "object" ||
-    Array.isArray(result.data)
-  ) {
-    throw new Error(
-      "Invalid Category SEO API response"
-    );
-  }
-
-  if (
-    String(result.data.category_slug || "") !==
-    normalizedSlug
-  ) {
-    throw new Error(
-      "Category SEO slug mismatch"
-    );
-  }
-
-  return result.data;
-};
-
-/* =========================================================
-   SEO RESPONSE HEADERS
-========================================================= */
-
-const setSeoHeaders = (res, source) => {
-  res.setHeader(
-    "Content-Type",
-    "text/html; charset=utf-8"
-  );
-
-  res.setHeader(
-    "X-SEO-Source",
-    source
-  );
-
-  /*
-   * HTML should be revalidated after deployments.
-   * Versioned Vite assets can still be cached
-   * independently by Nginx.
-   */
-
-  res.setHeader(
-    "Cache-Control",
-    "no-cache, must-revalidate"
-  );
-};
-
-/* =========================================================
-   SEO ERROR RESPONSE
-========================================================= */
-
-const sendSeoError = (
-  res,
-  label,
-  error
-) => {
-  console.error(
-    `[SEO] ${label} generation failed:`,
-    error
-  );
-
-  /*
-   * Do not return stale local index.html.
-   * It may reference JavaScript files that
-   * no longer exist.
-   */
-
-  res.setHeader(
-    "Cache-Control",
-    "no-store"
-  );
-
-  return res.status(503).send(
-    "This page is temporarily unavailable. Please try again shortly."
-  );
-};
-
-/* =========================================================
-   PRODUCT SEO HTML
-
-   Route:
-   /product/:categorySlug/:productSlug
-
-   SEO logic remains unchanged.
-
-   Only the frontend HTML source is updated.
-========================================================= */
-
-app.get(
-  "/product/:categorySlug/:productSlug",
-  async (req, res) => {
+
+  /* =========================================================
+    API ROUTES
+  ========================================================= */
+
+  app.use("/api/blog", blogRoutes);
+  app.use("/api/pages", pageRoutes);
+  app.use("/api/users", userRoutes);
+  app.use("/api/stones", stoneRoutes);
+  app.use("/api/careers", careerRoutes);
+  app.use("/api/reports", reportRoutes);
+  app.use("/api/lookups", lookupRoutes);
+  app.use("/api/company", companyRoutes);
+  app.use("/api/contact", contactRoutes);
+  app.use("/api/home-hero", homeHeroRoutes);
+  app.use("/api/dashboard", dasboardRoutes);
+  app.use("/api/activitie", activityRoutes);
+  app.use("/api/search", GlobalSerchRoutes);
+  app.use("/api/instagram", instagramRoutes);
+  app.use("/api/lot-images", lotImagesRoutes);
+  app.use("/api/newsletter", newsLetterRoutes);
+  app.use("/api/products", ProductRemarkRoutes);
+  app.use("/api/ceu-request", ceuRequestRoutes);
+  app.use("/api/category-seo", categorySeoRoutes);
+  app.use("/api/sample-requests", sampleRequestRoutes);
+  app.use("/api/display-request", displayRequestRoutes);
+  app.use("/api/contact-request", contactRequestRoutes);
+  app.use("/api/bulk-descriptions", bulkDescriptionRoutes);
+  app.use("/api/category-resources", categoryResourceRoutes);
+  app.use("/api/inspiration-gallery", inspirationGalleryRoutes);
+  app.use("/api/product-registrations", productRegistrationRoutes);
+
+  /* =========================================================
+    PUBLIC SITEMAP
+  ========================================================= */
+
+  app.use("/", sitemapRoutes);
+
+  /* =========================================================
+    FRONTEND CONFIGURATION
+
+    IMPORTANT:
+
+    Express must use the current frontend HTML.
+
+    Previously:
+    Backend read its own dist/index.html.
+
+    Problem:
+    That file contained old Vite asset hashes.
+
+    Solution:
+    Fetch the current index.html directly from
+    the frontend Nginx container.
+
+    This works over the existing Docker network.
+  ========================================================= */
+
+  const FRONTEND_INTERNAL_URL = String(
+    process.env.FRONTEND_INTERNAL_URL ||
+      "http://frontend"
+  ).replace(/\/+$/, "");
+
+  const FRONTEND_REQUEST_TIMEOUT_MS = 5000;
+
+  /* =========================================================
+    CATEGORY SEO INTERNAL CONFIGURATION
+
+    The category SEO public API is already registered:
+
+    GET /api/category-seo/public/:slug
+
+    Since this Express application owns that route,
+    we can retrieve its public data through the
+    internal HTTP endpoint.
+
+    PORT must be the actual listening port inside
+    the backend container.
+
+    Optional override:
+    CATEGORY_SEO_INTERNAL_URL=http://127.0.0.1:8080
+  ========================================================= */
+
+  const CATEGORY_SEO_INTERNAL_URL = String(
+    process.env.CATEGORY_SEO_INTERNAL_URL ||
+      `http://127.0.0.1:${process.env.PORT || 5001}`
+  ).replace(/\/+$/, "");
+
+  const CATEGORY_SEO_REQUEST_TIMEOUT_MS = 5000;
+
+  /* =========================================================
+    FRONTEND HTML FETCHER
+  ========================================================= */
+
+  const getFrontendHtml = async () => {
+    const url = `${FRONTEND_INTERNAL_URL}/`;
+
+    let response;
+
     try {
-      const { productSlug } = req.params;
+      response = await fetch(url, {
+        method: "GET",
 
-      console.log(
-        "[SEO] Product page requested:",
-        req.originalUrl
-      );
+        headers: {
+          Accept: "text/html",
+          "Cache-Control": "no-cache",
+        },
 
-      /* -----------------------------------------
-         FETCH PRODUCT
-      ----------------------------------------- */
-
-      const product =
-        await getProductDetails(productSlug);
-
-      if (!product) {
-        return res.status(404).send(
-          "Product not found"
-        );
-      }
-
-      /* -----------------------------------------
-         FETCH CURRENT FRONTEND HTML
-      ----------------------------------------- */
-
-      const html = await getFrontendHtml();
-
-      /* -----------------------------------------
-         BUILD EXISTING PRODUCT SEO
-      ----------------------------------------- */
-
-      const seoTags = buildProductSeo(
-        product,
-        req.originalUrl
-      );
-
-      /* -----------------------------------------
-         INJECT SEO INTO CURRENT HTML
-      ----------------------------------------- */
-
-      const finalHtml = injectSeo(
-        html,
-        seoTags
-      );
-
-      /* -----------------------------------------
-         RESPONSE
-      ----------------------------------------- */
-
-      setSeoHeaders(
-        res,
-        "express-product"
-      );
-
-      return res.status(200).send(
-        finalHtml
-      );
+        signal: AbortSignal.timeout(
+          FRONTEND_REQUEST_TIMEOUT_MS
+        ),
+      });
     } catch (error) {
-      return sendSeoError(
-        res,
-        "Product SEO",
+      console.error(
+        "[SEO] Frontend HTML request failed:",
         error
       );
+
+      throw new Error(
+        "Current frontend HTML is unavailable"
+      );
     }
-  }
-);
 
-/* =========================================================
-   CATEGORY SEO HTML
+    if (!response.ok) {
+      throw new Error(
+        `Frontend HTML returned HTTP ${response.status}`
+      );
+    }
 
-   Route:
-   /product-category/:slug
+    const contentType = String(
+      response.headers.get("content-type") || ""
+    ).toLowerCase();
 
-   SEO data source:
-   GET /api/category-seo/public/:slug
+    if (!contentType.includes("text/html")) {
+      throw new Error(
+        `Unexpected frontend content type: ${contentType}`
+      );
+    }
 
-   This route must be registered before the
-   React SPA fallback.
+    const html = await response.text();
 
-   Flow:
-   1. Read category slug.
-   2. Fetch Category SEO data.
-   3. Fetch current frontend index.html.
-   4. Build Category SEO tags.
-   5. Remove homepage SEO and inject category SEO.
-   6. Return SEO-ready HTML.
-========================================================= */
+    if (
+      !/<html[\s>]/i.test(html) ||
+      !/<head[\s>]/i.test(html) ||
+      !/<\/head\s*>/i.test(html) ||
+      !/<body[\s>]/i.test(html)
+    ) {
+      throw new Error(
+        "Invalid frontend HTML template received"
+      );
+    }
 
-app.get(
-  "/product-category/:slug",
-  async (req, res) => {
+    /*
+    * Check for a Vite JavaScript entry.
+    *
+    * This helps detect an unexpected response
+    * before generating SEO HTML.
+    */
+
+    const hasModuleScript =
+      /<script\b[^>]*type=["']module["'][^>]*src=["'][^"']+\.js(?:\?[^"']*)?["']/i.test(
+        html
+      ) ||
+      /<script\b[^>]*src=["'][^"']+\.js(?:\?[^"']*)?["'][^>]*type=["']module["']/i.test(
+        html
+      );
+
+    if (!hasModuleScript) {
+      throw new Error(
+        "Frontend HTML does not contain a Vite module script"
+      );
+    }
+
+    return html;
+  };
+
+  /* =========================================================
+    CATEGORY SEO DATA FETCHER
+
+    Uses the existing public Category SEO API.
+
+    Expected response:
+
+    {
+      success: true,
+      data: {
+        category_id: 30,
+        category_name: "12MM Kaolin Slabs",
+        category_slug: "12mm-kaolin-slabs",
+        title: "Kaolin Slabs",
+        description: "Slab Description",
+        canonical_url: "...",
+        og_title: "...",
+        og_description: "...",
+        og_image: null,
+        robots_index: true,
+        robots_follow: true,
+        schema_markup: null
+      }
+    }
+  ========================================================= */
+
+  const getCategorySeoData = async (slug) => {
+    const normalizedSlug = String(
+      slug || ""
+    ).trim();
+
+    if (!normalizedSlug) {
+      throw new Error(
+        "Category slug is required."
+      );
+    }
+
+    const url =
+      `${CATEGORY_SEO_INTERNAL_URL}` +
+      `/api/category-seo/public/` +
+      encodeURIComponent(normalizedSlug);
+
+    let response;
+
     try {
-      const { slug } = req.params;
+      response = await fetch(url, {
+        method: "GET",
 
-      console.log(
-        "[SEO] Category page requested:",
-        req.originalUrl
-      );
+        headers: {
+          Accept: "application/json",
+        },
 
-      /* -----------------------------------------
-         VALIDATE SLUG
-      ----------------------------------------- */
-
-      if (!slug || !String(slug).trim()) {
-        return res.status(404).send(
-          "Category not found"
-        );
-      }
-
-      /* -----------------------------------------
-         FETCH CATEGORY SEO DATA
-      ----------------------------------------- */
-
-      const category =
-        await getCategorySeoData(slug);
-
-      if (!category) {
-        return res.status(404).send(
-          "Category not found"
-        );
-      }
-
-      /* -----------------------------------------
-         FETCH CURRENT FRONTEND HTML
-      ----------------------------------------- */
-
-      const html = await getFrontendHtml();
-
-      /* -----------------------------------------
-         BUILD CATEGORY SEO
-
-         Uses buildCategorySeo() from:
-         src/utils/seoHtml.js
-      ----------------------------------------- */
-
-      const seoTags =
-        buildCategorySeo(category);
-
-      /* -----------------------------------------
-         INJECT CATEGORY SEO
-
-         injectSeo() removes existing:
-         - Title
-         - Description
-         - Robots
-         - Googlebot
-         - Canonical
-         - Open Graph
-         - Twitter metadata
-
-         Then injects category-specific tags.
-      ----------------------------------------- */
-
-      const finalHtml = injectSeo(
-        html,
-        seoTags
-      );
-
-      /* -----------------------------------------
-         RESPONSE
-      ----------------------------------------- */
-
-      setSeoHeaders(
-        res,
-        "express-category"
-      );
-
-      return res.status(200).send(
-        finalHtml
-      );
+        signal: AbortSignal.timeout(
+          CATEGORY_SEO_REQUEST_TIMEOUT_MS
+        ),
+      });
     } catch (error) {
-      return sendSeoError(
-        res,
-        "Category SEO",
+      console.error(
+        "[SEO] Category SEO API request failed:",
         error
       );
-    }
-  }
-);
 
-/* =========================================================
-   BLOG SEO HTML
-
-   Route:
-   /blog/:identifier
-========================================================= */
-
-app.get(
-  "/blog/:identifier",
-  async (req, res) => {
-    try {
-      const { identifier } = req.params;
-
-      /* -----------------------------------------
-         FETCH BLOG
-      ----------------------------------------- */
-
-      const blog =
-        await getBlogById(identifier);
-
-      if (
-        !blog ||
-        blog.status !== "PUBLISHED" ||
-        blog.deleted_at
-      ) {
-        return res.status(404).send(
-          "Blog not found"
-        );
-      }
-
-      /* -----------------------------------------
-         FETCH CURRENT FRONTEND HTML
-      ----------------------------------------- */
-
-      const html = await getFrontendHtml();
-
-      /* -----------------------------------------
-         EXISTING BLOG SEO
-      ----------------------------------------- */
-
-      const seoTags = buildBlogSeo(
-        blog,
-        `/blog/${blog.slug}`
-      );
-
-      const finalHtml = injectSeo(
-        html,
-        seoTags
-      );
-
-      /* -----------------------------------------
-         RESPONSE
-      ----------------------------------------- */
-
-      setSeoHeaders(
-        res,
-        "express-blog"
-      );
-
-      return res.status(200).send(
-        finalHtml
-      );
-    } catch (error) {
-      if (
-        error.message ===
-        "Blog post not found"
-      ) {
-        return res.status(404).send(
-          "Blog not found"
-        );
-      }
-
-      return sendSeoError(
-        res,
-        "Blog SEO",
-        error
+      throw new Error(
+        "Category SEO API is unavailable"
       );
     }
-  }
-);
 
-/* =========================================================
-   LOCATION SEO HTML
+    if (response.status === 404) {
+      return null;
+    }
 
-   Route:
-   /locations/:slug
-========================================================= */
-
-app.get(
-  "/locations/:slug",
-  async (req, res) => {
-    try {
-      const { slug } = req.params;
-
-      console.log(
-        "[SEO] Location page requested:",
-        req.originalUrl
-      );
-
-      /* -----------------------------------------
-         FETCH LOCATION
-      ----------------------------------------- */
-
-      const location =
-        await companyService.getCompanyBySlug(
-          slug
-        );
-
-      if (
-        !location ||
-        location.is_active !== true
-      ) {
-        return res.status(404).send(
-          "Location not found"
-        );
-      }
-
-      /* -----------------------------------------
-         CANONICAL LOCATION PATH
-      ----------------------------------------- */
-
-      const canonicalPath =
-        `/locations/${encodeURIComponent(
-          location.slug
-        )}`;
-
-      if (req.path !== canonicalPath) {
-        return res.redirect(
-          301,
-          canonicalPath
-        );
-      }
-
-      /* -----------------------------------------
-         FETCH CURRENT FRONTEND HTML
-      ----------------------------------------- */
-
-      const html = await getFrontendHtml();
-
-      /* -----------------------------------------
-         EXISTING LOCATION SEO
-      ----------------------------------------- */
-
-      const seoTags =
-        buildLocationSeo(location);
-
-      const finalHtml = injectSeo(
-        html,
-        seoTags
-      );
-
-      /* -----------------------------------------
-         RESPONSE
-      ----------------------------------------- */
-
-      setSeoHeaders(
-        res,
-        "express-location"
-      );
-
-      return res.status(200).send(
-        finalHtml
-      );
-    } catch (error) {
-      if (
-        error.message ===
-        "Showroom not found"
-      ) {
-        return res.status(404).send(
-          "Location not found"
-        );
-      }
-
-      return sendSeoError(
-        res,
-        "Location SEO",
-        error
+    if (!response.ok) {
+      throw new Error(
+        `Category SEO API returned HTTP ${response.status}`
       );
     }
-  }
-);
 
-/* =========================================================
-   REACT SPA FALLBACK
+    const contentType = String(
+      response.headers.get("content-type") || ""
+    ).toLowerCase();
 
-   IMPORTANT:
-   This must remain AFTER all SEO HTML routes.
+    if (!contentType.includes("application/json")) {
+      throw new Error(
+        `Unexpected Category SEO content type: ${contentType}`
+      );
+    }
 
-   Otherwise:
-   /product-category/:slug
-   would receive the homepage HTML.
-========================================================= */
+    const result = await response.json();
 
-app.use(async (req, res) => {
-  /*
-   * Do not serve React HTML for unknown API
-   * endpoints.
-   */
+    if (
+      !result ||
+      result.success !== true ||
+      !result.data ||
+      typeof result.data !== "object" ||
+      Array.isArray(result.data)
+    ) {
+      throw new Error(
+        "Invalid Category SEO API response"
+      );
+    }
 
-  if (
-    req.path === "/api" ||
-    req.path.startsWith("/api/")
-  ) {
-    return res.status(404).json({
-      success: false,
-      message: "API endpoint not found",
-    });
-  }
+    if (
+      String(result.data.category_slug || "") !==
+      normalizedSlug
+    ) {
+      throw new Error(
+        "Category SEO slug mismatch"
+      );
+    }
 
-  /*
-   * Unknown routes should not silently return
-   * the SPA for POST/PUT/PATCH/DELETE requests.
-   */
+    return result.data;
+  };
 
-  if (
-    req.method !== "GET" &&
-    req.method !== "HEAD"
-  ) {
-    return res.status(404).send(
-      "Route not found"
-    );
-  }
+  /* =========================================================
+    SEO RESPONSE HEADERS
+  ========================================================= */
 
-  try {
-    const html = await getFrontendHtml();
-
+  const setSeoHeaders = (res, source) => {
     res.setHeader(
       "Content-Type",
       "text/html; charset=utf-8"
     );
 
     res.setHeader(
+      "X-SEO-Source",
+      source
+    );
+
+    /*
+    * HTML should be revalidated after deployments.
+    * Versioned Vite assets can still be cached
+    * independently by Nginx.
+    */
+
+    res.setHeader(
       "Cache-Control",
       "no-cache, must-revalidate"
     );
+  };
 
-    return res.status(200).send(html);
-  } catch (error) {
+  /* =========================================================
+    SEO ERROR RESPONSE
+  ========================================================= */
+
+  const sendSeoError = (
+    res,
+    label,
+    error
+  ) => {
     console.error(
-      "[Frontend] Fallback failed:",
+      `[SEO] ${label} generation failed:`,
       error
     );
+
+    /*
+    * Do not return stale local index.html.
+    * It may reference JavaScript files that
+    * no longer exist.
+    */
 
     res.setHeader(
       "Cache-Control",
@@ -885,15 +438,486 @@ app.use(async (req, res) => {
     );
 
     return res.status(503).send(
-      "Website temporarily unavailable"
+      "This page is temporarily unavailable. Please try again shortly."
     );
-  }
-});
+  };
 
-/* =========================================================
-   GLOBAL ERROR HANDLER
-========================================================= */
+  /* =========================================================
+    PRODUCT SEO HTML
 
-app.use(errorHandler);
+    Route:
+    /product/:categorySlug/:productSlug
 
-module.exports = app;
+    SEO logic remains unchanged.
+
+    Only the frontend HTML source is updated.
+  ========================================================= */
+
+  app.get(
+    "/product/:categorySlug/:productSlug",
+    async (req, res) => {
+      try {
+        const { productSlug } = req.params;
+
+        console.log(
+          "[SEO] Product page requested:",
+          req.originalUrl
+        );
+
+        /* -----------------------------------------
+          FETCH PRODUCT
+        ----------------------------------------- */
+
+        const product =
+          await getProductDetails(productSlug);
+
+        if (!product) {
+  const html = await getFrontendHtml();
+
+  const notFoundSeo = `
+    <title>404 - Page Not Found | Ultra Stones</title>
+    <meta name="robots" content="noindex, follow" />
+    <meta name="googlebot" content="noindex, follow" />
+    <meta name="description" content="The requested page could not be found on Ultra Stones." />
+  `;
+
+  const finalHtml = injectSeo(
+    html,
+    notFoundSeo
+  );
+
+  setSeoHeaders(res, "express-product-not-found");
+
+  res.setHeader(
+    "X-Robots-Tag",
+    "noindex, follow"
+  );
+
+  res.setHeader(
+    "Cache-Control",
+    "no-store"
+  );
+
+  return res.status(404).send(finalHtml);
+}
+
+        /* -----------------------------------------
+          FETCH CURRENT FRONTEND HTML
+        ----------------------------------------- */
+
+        const html = await getFrontendHtml();
+
+        /* -----------------------------------------
+          BUILD EXISTING PRODUCT SEO
+        ----------------------------------------- */
+
+        const seoTags = buildProductSeo(
+          product,
+          req.originalUrl
+        );
+
+        /* -----------------------------------------
+          INJECT SEO INTO CURRENT HTML
+        ----------------------------------------- */
+
+        const finalHtml = injectSeo(
+          html,
+          seoTags
+        );
+
+        /* -----------------------------------------
+          RESPONSE
+        ----------------------------------------- */
+
+        setSeoHeaders(
+          res,
+          "express-product"
+        );
+
+        return res.status(200).send(
+          finalHtml
+        );
+      } catch (error) {
+        return sendSeoError(
+          res,
+          "Product SEO",
+          error
+        );
+      }
+    }
+  );
+
+  /* =========================================================
+    CATEGORY SEO HTML
+
+    Route:
+    /product-category/:slug
+
+    SEO data source:
+    GET /api/category-seo/public/:slug
+
+    This route must be registered before the
+    React SPA fallback.
+
+    Flow:
+    1. Read category slug.
+    2. Fetch Category SEO data.
+    3. Fetch current frontend index.html.
+    4. Build Category SEO tags.
+    5. Remove homepage SEO and inject category SEO.
+    6. Return SEO-ready HTML.
+  ========================================================= */
+
+  app.get(
+    "/product-category/:slug",
+    async (req, res) => {
+      try {
+        const { slug } = req.params;
+
+        console.log(
+          "[SEO] Category page requested:",
+          req.originalUrl
+        );
+
+        /* -----------------------------------------
+          VALIDATE SLUG
+        ----------------------------------------- */
+
+        if (!slug || !String(slug).trim()) {
+          return res.status(404).send(
+            "Category not found"
+          );
+        }
+
+        /* -----------------------------------------
+          FETCH CATEGORY SEO DATA
+        ----------------------------------------- */
+
+        const category =
+          await getCategorySeoData(slug);
+
+        if (!category) {
+          return res.status(404).send(
+            "Category not found"
+          );
+        }
+
+        /* -----------------------------------------
+          FETCH CURRENT FRONTEND HTML
+        ----------------------------------------- */
+
+        const html = await getFrontendHtml();
+
+        /* -----------------------------------------
+          BUILD CATEGORY SEO
+
+          Uses buildCategorySeo() from:
+          src/utils/seoHtml.js
+        ----------------------------------------- */
+
+        const seoTags =
+          buildCategorySeo(category);
+
+        /* -----------------------------------------
+          INJECT CATEGORY SEO
+
+          injectSeo() removes existing:
+          - Title
+          - Description
+          - Robots
+          - Googlebot
+          - Canonical
+          - Open Graph
+          - Twitter metadata
+
+          Then injects category-specific tags.
+        ----------------------------------------- */
+
+        const finalHtml = injectSeo(
+          html,
+          seoTags
+        );
+
+        /* -----------------------------------------
+          RESPONSE
+        ----------------------------------------- */
+
+        setSeoHeaders(
+          res,
+          "express-category"
+        );
+
+        return res.status(200).send(
+          finalHtml
+        );
+      } catch (error) {
+        return sendSeoError(
+          res,
+          "Category SEO",
+          error
+        );
+      }
+    }
+  );
+
+  /* =========================================================
+    BLOG SEO HTML
+
+    Route:
+    /blog/:identifier
+  ========================================================= */
+
+  app.get(
+    "/blog/:identifier",
+    async (req, res) => {
+      try {
+        const { identifier } = req.params;
+
+        /* -----------------------------------------
+          FETCH BLOG
+        ----------------------------------------- */
+
+        const blog =
+          await getBlogById(identifier);
+
+        if (
+          !blog ||
+          blog.status !== "PUBLISHED" ||
+          blog.deleted_at
+        ) {
+          return res.status(404).send(
+            "Blog not found"
+          );
+        }
+
+        /* -----------------------------------------
+          FETCH CURRENT FRONTEND HTML
+        ----------------------------------------- */
+
+        const html = await getFrontendHtml();
+
+        /* -----------------------------------------
+          EXISTING BLOG SEO
+        ----------------------------------------- */
+
+        const seoTags = buildBlogSeo(
+          blog,
+          `/blog/${blog.slug}`
+        );
+
+        const finalHtml = injectSeo(
+          html,
+          seoTags
+        );
+
+        /* -----------------------------------------
+          RESPONSE
+        ----------------------------------------- */
+
+        setSeoHeaders(
+          res,
+          "express-blog"
+        );
+
+        return res.status(200).send(
+          finalHtml
+        );
+      } catch (error) {
+        if (
+          error.message ===
+          "Blog post not found"
+        ) {
+          return res.status(404).send(
+            "Blog not found"
+          );
+        }
+
+        return sendSeoError(
+          res,
+          "Blog SEO",
+          error
+        );
+      }
+    }
+  );
+
+  /* =========================================================
+    LOCATION SEO HTML
+
+    Route:
+    /locations/:slug
+  ========================================================= */
+
+  app.get(
+    "/locations/:slug",
+    async (req, res) => {
+      try {
+        const { slug } = req.params;
+
+        console.log(
+          "[SEO] Location page requested:",
+          req.originalUrl
+        );
+
+        /* -----------------------------------------
+          FETCH LOCATION
+        ----------------------------------------- */
+
+        const location =
+          await companyService.getCompanyBySlug(
+            slug
+          );
+
+        if (
+          !location ||
+          location.is_active !== true
+        ) {
+          return res.status(404).send(
+            "Location not found"
+          );
+        }
+
+        /* -----------------------------------------
+          CANONICAL LOCATION PATH
+        ----------------------------------------- */
+
+        const canonicalPath =
+          `/locations/${encodeURIComponent(
+            location.slug
+          )}`;
+
+        if (req.path !== canonicalPath) {
+          return res.redirect(
+            301,
+            canonicalPath
+          );
+        }
+
+        /* -----------------------------------------
+          FETCH CURRENT FRONTEND HTML
+        ----------------------------------------- */
+
+        const html = await getFrontendHtml();
+
+        /* -----------------------------------------
+          EXISTING LOCATION SEO
+        ----------------------------------------- */
+
+        const seoTags =
+          buildLocationSeo(location);
+
+        const finalHtml = injectSeo(
+          html,
+          seoTags
+        );
+
+        /* -----------------------------------------
+          RESPONSE
+        ----------------------------------------- */
+
+        setSeoHeaders(
+          res,
+          "express-location"
+        );
+
+        return res.status(200).send(
+          finalHtml
+        );
+      } catch (error) {
+        if (
+          error.message ===
+          "Showroom not found"
+        ) {
+          return res.status(404).send(
+            "Location not found"
+          );
+        }
+
+        return sendSeoError(
+          res,
+          "Location SEO",
+          error
+        );
+      }
+    }
+  );
+
+  /* =========================================================
+    REACT SPA FALLBACK
+
+    IMPORTANT:
+    This must remain AFTER all SEO HTML routes.
+
+    Otherwise:
+    /product-category/:slug
+    would receive the homepage HTML.
+  ========================================================= */
+
+  app.use(async (req, res) => {
+    /*
+    * Do not serve React HTML for unknown API
+    * endpoints.
+    */
+
+    if (
+      req.path === "/api" ||
+      req.path.startsWith("/api/")
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: "API endpoint not found",
+      });
+    }
+
+    /*
+    * Unknown routes should not silently return
+    * the SPA for POST/PUT/PATCH/DELETE requests.
+    */
+
+    if (
+      req.method !== "GET" &&
+      req.method !== "HEAD"
+    ) {
+      return res.status(404).send(
+        "Route not found"
+      );
+    }
+
+    try {
+      const html = await getFrontendHtml();
+
+      res.setHeader(
+        "Content-Type",
+        "text/html; charset=utf-8"
+      );
+
+      res.setHeader(
+        "Cache-Control",
+        "no-cache, must-revalidate"
+      );
+
+      return res.status(200).send(html);
+    } catch (error) {
+      console.error(
+        "[Frontend] Fallback failed:",
+        error
+      );
+
+      res.setHeader(
+        "Cache-Control",
+        "no-store"
+      );
+
+      return res.status(503).send(
+        "Website temporarily unavailable"
+      );
+    }
+  });
+
+  /* =========================================================
+    GLOBAL ERROR HANDLER
+  ========================================================= */
+
+  app.use(errorHandler);
+
+  module.exports = app;
