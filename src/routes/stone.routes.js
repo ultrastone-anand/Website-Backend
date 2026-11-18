@@ -21,6 +21,12 @@ router.get("/", stoneController.getStones);
 
 router.get("/:slug", stoneController.getCategoryProducts);
 
+router.get(
+  "/admin/productdetail/:slug",
+  authenticate,
+  stoneController.getAdminProductDetails
+);
+
 router.get("/productdetail/:slug", stoneController.getProductDetails);
 
 // ==============================

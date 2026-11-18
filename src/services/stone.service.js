@@ -115,14 +115,26 @@ const getCategoryProducts = async (slug) => {
     products: serializedProducts,
   };
 };
-const getProductDetails = async (slug) => {
+
+const getAdminProductDetails = async (slug) => {
+  return getProductDetails(slug, {
+    includeInactive: true,
+  });
+};
+const getProductDetails = async (
+  slug,
+  { includeInactive = false } = {}
+) => {
   const product = await prisma.stone_products.findFirst({
     where: {
       slug,
-      is_active: true,
-      is_published: true,
+      ...(includeInactive
+        ? {}
+        : {
+            is_active: true,
+            is_published: true,
+          }),
     },
-
     select: {
       // BASIC
 
@@ -3696,6 +3708,7 @@ const getBrowseProducts = async (limit = 6) => {
 module.exports = {
   getStones,
   getCategoryProducts,
+  getAdminProductDetails,
   getProductDetails,
   searchProducts,
 

@@ -157,6 +157,35 @@ const getCategoryProducts = async (req, res) => {
 // GET PRODUCT DETAILS
 // ======================================================
 
+
+const getAdminProductDetails = async (req, res) => {
+  try {
+    const product =
+      await stoneService.getAdminProductDetails(
+        req.params.slug
+      );
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: product,
+    });
+  } catch (error) {
+    console.error("Admin product details error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to retrieve product",
+    });
+  }
+};  
+
 const getProductDetails = async (req, res) => {
   try {
     const { slug } = req.params;
@@ -1083,6 +1112,7 @@ const getBrowseProducts = async (
 module.exports = {
   getStones,
   getCategoryProducts,
+  getAdminProductDetails,
   getProductDetails,
   searchProducts,
 
