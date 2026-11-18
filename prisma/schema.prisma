@@ -156,6 +156,7 @@ model stone_products {
   silica_warning_message             String?
   silica_datasheet_url               String?
   is_published                       Boolean                              @default(false)
+  vein_color                         String?                              @db.VarChar(100)
   inspiration_gallery_image_products inspiration_gallery_image_products[]
   inspiration_gallery_images         inspiration_gallery_images[]
   product_faqs                       product_faqs[]

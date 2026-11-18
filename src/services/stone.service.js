@@ -156,6 +156,8 @@ const getProductDetails = async (slug) => {
 
       origin_country: true,
 
+      vein_color: true,
+
       pantone_colour: true,
 
       // APPLICATIONS
@@ -290,9 +292,9 @@ const getProductDetails = async (slug) => {
     },
   });
 
-if (!product) {
-  return null;
-}
+  if (!product) {
+    return null;
+  }
 
   // Separate media types
 
@@ -496,6 +498,7 @@ const searchProducts = async ({
         stone_group: true,
         pattern: true,
         origin_country: true,
+        vein_color: true,
         thicknesses_cm: true,
         finishes_available: true,
         category_id: true,
@@ -1112,6 +1115,11 @@ const createProduct = async (
             origin_country:
               body.origin_country ||
               null,
+
+            vein_color:
+              typeof body.vein_color === "string"
+                ? body.vein_color.trim() || null
+                : null,
 
             pantone_colour:
               body.pantone_colour ||
@@ -2442,24 +2450,35 @@ const updateProduct = async (
   }
 
   if (
-    hasField(
-      "origin_country"
-    )
-  ) {
-    updateData.origin_country =
-      body.origin_country ||
-      null;
-  }
+  hasField(
+    "origin_country"
+  )
+) {
+  updateData.origin_country =
+    body.origin_country ||
+    null;
+}
 
-  if (
-    hasField(
-      "pantone_colour"
-    )
-  ) {
-    updateData.pantone_colour =
-      body.pantone_colour ||
-      null;
-  }
+// ========================================================
+// VEIN COLOR
+// ========================================================
+
+if (hasField("vein_color")) {
+  updateData.vein_color =
+    typeof body.vein_color === "string"
+      ? body.vein_color.trim() || null
+      : null;
+}
+
+if (
+  hasField(
+    "pantone_colour"
+  )
+) {
+  updateData.pantone_colour =
+    body.pantone_colour ||
+    null;
+}
 
   if (
     hasField(
@@ -3140,6 +3159,11 @@ const bulkCreateProducts = async (
 
                   origin_country:
                     product.origin_country,
+
+                    vein_color:
+  typeof product.vein_color === "string"
+    ? product.vein_color.trim() || null
+    : null,
 
                   abrasion_resistance:
                     product.abrasion_resistance,
