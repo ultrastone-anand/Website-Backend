@@ -164,6 +164,16 @@ const getProductDetails = async (req, res) => {
     const product =
       await stoneservice.getProductDetails(slug);
 
+    // Product does not exist, is inactive,
+    // or is not published.
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    // Product is active and published.
     return res.status(200).json({
       success: true,
       product,

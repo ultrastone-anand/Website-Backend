@@ -120,6 +120,7 @@ const getProductDetails = async (slug) => {
     where: {
       slug,
       is_active: true,
+      is_published: true,
     },
 
     select: {
@@ -210,12 +211,10 @@ const getProductDetails = async (slug) => {
       // FLAGS
 
       is_featured: true,
-
       is_new_arrival: true,
-
       is_trending: true,
-
       is_active: true,
+      is_published: true,
 
       // DATES
 
@@ -291,9 +290,9 @@ const getProductDetails = async (slug) => {
     },
   });
 
-  if (!product) {
-    throw new Error("Product not found");
-  }
+if (!product) {
+  return null;
+}
 
   // Separate media types
 
@@ -554,18 +553,18 @@ const searchProducts = async ({
       category:
         product.stone_categories
           ? {
-              id:
-                product
-                  .stone_categories.id,
+            id:
+              product
+                .stone_categories.id,
 
-              name:
-                product
-                  .stone_categories.name,
+            name:
+              product
+                .stone_categories.name,
 
-              slug:
-                product
-                  .stone_categories.slug,
-            }
+            slug:
+              product
+                .stone_categories.slug,
+          }
           : null,
     }));
 
@@ -609,8 +608,8 @@ const createCategory = async (
 
     parent_id:
       body.parent_id === '' ||
-      body.parent_id === null ||
-      body.parent_id === undefined
+        body.parent_id === null ||
+        body.parent_id === undefined
         ? null
         : Number(body.parent_id),
 
@@ -622,8 +621,8 @@ const createCategory = async (
 
     display_order:
       body.display_order === '' ||
-      body.display_order === null ||
-      body.display_order === undefined
+        body.display_order === null ||
+        body.display_order === undefined
         ? 1
         : Number(body.display_order),
 
@@ -642,7 +641,7 @@ const createCategory = async (
       body.is_active === undefined
         ? true
         : body.is_active === 'true' ||
-          body.is_active === true,
+        body.is_active === true,
   };
 
   return auditService.track({
@@ -705,8 +704,8 @@ const updateCategory = async (
   if ('parent_id' in body) {
     updateData.parent_id =
       body.parent_id === '' ||
-      body.parent_id === null ||
-      body.parent_id === undefined
+        body.parent_id === null ||
+        body.parent_id === undefined
         ? null
         : Number(body.parent_id);
   }
@@ -724,8 +723,8 @@ const updateCategory = async (
   if ('display_order' in body) {
     updateData.display_order =
       body.display_order === '' ||
-      body.display_order === null ||
-      body.display_order === undefined
+        body.display_order === null ||
+        body.display_order === undefined
         ? null
         : Number(body.display_order);
   }
@@ -840,1629 +839,6 @@ const serializeBigInt = (data) => {
     )
   );
 };
-
-// const createProduct = async (
-//   body,
-//   files,
-//   audit = {}
-// ) => {
-//   const toBool = (value) =>
-//     value === true ||
-//     value === "true";
-
-//   const parseArray = (value) => {
-//     try {
-//       if (!value) return [];
-
-//       if (Array.isArray(value)) {
-//         return value;
-//       }
-
-//       return JSON.parse(value);
-//     } catch {
-//       return [];
-//     }
-//   };
-
-//   const parseFaqs = (value) => {
-//     try {
-//       if (!value) return [];
-
-//       if (Array.isArray(value)) {
-//         return value;
-//       }
-
-//       return JSON.parse(value);
-//     } catch {
-//       return [];
-//     }
-//   };
-
-//   const uploadFiles = async (
-//     fileArray,
-//     folder,
-//     resourceType = "image"
-//   ) => {
-//     if (
-//       !fileArray ||
-//       fileArray.length === 0
-//     ) {
-//       return [];
-//     }
-
-//     return Promise.all(
-//       fileArray.map(async (file) => {
-//         const uploaded =
-//           await uploadToR2(
-//             file.path,
-//             folder,
-//             resourceType
-//           );
-
-//         return {
-//           url:
-//             uploaded.secure_url,
-
-//           public_id:
-//             uploaded.public_id,
-//         };
-//       })
-//     );
-//   };
-
-//   const featuredImages =
-//     await uploadFiles(
-//       files?.closeup_images,
-//       "ultrastones/products/featured"
-//     );
-
-//   const galleryImages =
-//     await uploadFiles(
-//       files?.slab_images,
-//       "ultrastones/products/gallery"
-//     );
-
-//   const featuredVideos =
-//     await uploadFiles(
-//       files?.featured_videos,
-//       "ultrastones/products/videos",
-//       "video"
-//     );
-
-//   const applicationImages =
-//     await uploadFiles(
-//       files?.application_images,
-//       "ultrastones/products/application"
-//     );
-
-//   const bookmatchSlipmatchImages =
-//     await uploadFiles(
-//       files?.bookmatch_slipmatch,
-//       "ultrastones/products/bookmatch-slipmatch"
-//     );
-
-//   const faqs =
-//     parseFaqs(body.faqs);
-
-//   // ==============================
-//   // CREATE PRODUCT
-//   // ==============================
-
-//   const createdProduct =
-//     await auditService.track({
-//       audit,
-
-//       action:
-//         "CREATE",
-
-//       resourceType:
-//         "PRODUCT",
-
-//       moduleName:
-//         "Stone Management",
-
-//       operation: () =>
-//         prisma.stone_products.create({
-//           data: {
-//             // BASIC
-
-//             name:
-//               body.name,
-
-//             slug:
-//               body.slug,
-
-//             small_description:
-//               body.small_description,
-
-//             long_description:
-//               body.long_description,
-
-//             category_id:
-//               body.category_id
-//                 ? Number(
-//                     body.category_id
-//                   )
-//                 : null,
-
-//             silica_warning:
-//               toBool(
-//                 body.silica_warning
-//               ),
-
-//             silica_warning_message:
-//               body.silica_warning_message ||
-//               null,
-
-//             /*
-//              * The controller uploads the PDF
-//              * and passes the R2 URL here.
-//              */
-//             silica_datasheet_url:
-//               body.silica_datasheet_url ||
-//               null,
-
-//             // DETAILS
-
-//             finishes_available:
-//               parseArray(
-//                 body.finishes_available
-//               ),
-
-//             pattern:
-//               body.pattern,
-
-//             thicknesses_cm:
-//               parseArray(
-//                 body.thicknesses_cm
-//               ),
-
-//             average_sizes_inches:
-//               parseArray(
-//                 body.average_sizes_inches
-//               ),
-
-//             stone_group:
-//               body.stone_group,
-
-//             translucent:
-//               toBool(
-//                 body.translucent
-//               ),
-
-//             cut_to_size:
-//               toBool(
-//                 body.cut_to_size
-//               ),
-
-//             origin_country:
-//               body.origin_country,
-
-//             pantone_colour:
-//               body.pantone_colour,
-
-//             sealer:
-//               body.sealer,
-
-//             // APPLICATIONS
-
-//             color_enhancing:
-//               toBool(
-//                 body.color_enhancing
-//               ),
-
-//             countertops_vanities:
-//               toBool(
-//                 body.countertops_vanities
-//               ),
-
-//             interior_floor:
-//               toBool(
-//                 body.interior_floor
-//               ),
-
-//             interior_wall:
-//               toBool(
-//                 body.interior_wall
-//               ),
-
-//             shower_wall:
-//               toBool(
-//                 body.shower_wall
-//               ),
-
-//             shower_floor:
-//               toBool(
-//                 body.shower_floor
-//               ),
-
-//             exterior_floor:
-//               toBool(
-//                 body.exterior_floor
-//               ),
-
-//             exterior_wall:
-//               toBool(
-//                 body.exterior_wall
-//               ),
-
-//             pool_fountain:
-//               toBool(
-//                 body.pool_fountain
-//               ),
-
-//             fireplace:
-//               toBool(
-//                 body.fireplace
-//               ),
-
-//             furniture_top:
-//               toBool(
-//                 body.furniture_top
-//               ),
-
-//             silica_warning:
-//               toBool(
-//                 body.silica_warning
-//               ),
-
-//             // SPECIFICATIONS
-
-//             abrasion_resistance:
-//               body.abrasion_resistance,
-
-//             stain_resistance:
-//               body.stain_resistance,
-
-//             etching_resistance:
-//               body.etching_resistance,
-
-//             heat_resistance:
-//               body.heat_resistance,
-
-//             uv_resistance:
-//               body.uv_resistance,
-
-//             color_range:
-//               body.color_range,
-
-//             movement_index:
-//               body.movement_index,
-
-//             // VARIATION
-
-//             variation_level:
-//               body.variation_level,
-
-//             // FLAGS
-
-//             is_featured:
-//               toBool(
-//                 body.is_featured
-//               ),
-
-//             is_trending:
-//               toBool(
-//                 body.is_trending
-//               ),
-
-//             is_new_arrival:
-//               toBool(
-//                 body.is_new_arrival
-//               ),
-
-//             is_active:
-//               true,
-
-//             // ==============================
-//             // SEO
-//             // ==============================
-
-//             stone_product_seo: {
-//               create: {
-//                 meta_title:
-//                   body.meta_title ||
-//                   null,
-
-//                 meta_description:
-//                   body.meta_description ||
-//                   null,
-
-//                 canonical_url:
-//                   body.canonical_url ||
-//                   null,
-
-//                 og_title:
-//                   body.og_title ||
-//                   null,
-
-//                 og_description:
-//                   body.og_description ||
-//                   null,
-
-//                 og_image:
-//                   body.og_image ||
-//                   null,
-
-//                 schema_markup:
-//                   body.schema_markup
-//                     ? JSON.parse(
-//                         body.schema_markup
-//                       )
-//                     : null,
-
-//                 robots_index:
-//                   body.robots_index !==
-//                   undefined
-//                     ? toBool(
-//                         body.robots_index
-//                       )
-//                     : true,
-
-//                 robots_follow:
-//                   body.robots_follow !==
-//                   undefined
-//                     ? toBool(
-//                         body.robots_follow
-//                       )
-//                     : true,
-
-//                 seo_content:
-//                   body.seo_content ||
-//                   null,
-//               },
-//             },
-
-//             product_faqs: {
-//               create: faqs
-//                 .filter(
-//                   (faq) =>
-//                     faq.question?.trim() &&
-//                     faq.answer?.trim()
-//                 )
-//                 .map(
-//                   (
-//                     faq,
-//                     index
-//                   ) => ({
-//                     question:
-//                       faq.question.trim(),
-
-//                     answer:
-//                       faq.answer.trim(),
-
-//                     sort_order:
-//                       faq.sort_order ??
-//                       index,
-
-//                     is_active:
-//                       faq.is_active ??
-//                       true,
-//                   })
-//                 ),
-//             },
-
-//             // ==============================
-//             // MEDIA
-//             // ==============================
-
-//             media: {
-//               create: [
-//                 ...featuredImages.map(
-//                   (
-//                     url,
-//                     index
-//                   ) => ({
-//                     media_type:
-//                       "CLOSEUP_IMAGE",
-
-//                     media_url:
-//                       url,
-
-//                     display_order:
-//                       index,
-//                   })
-//                 ),
-
-//                 ...galleryImages.map(
-//                   (
-//                     url,
-//                     index
-//                   ) => ({
-//                     media_type:
-//                       "SLAB_IMAGE",
-
-//                     media_url:
-//                       url,
-
-//                     display_order:
-//                       index,
-//                   })
-//                 ),
-
-//                 ...featuredVideos.map(
-//                   (
-//                     url,
-//                     index
-//                   ) => ({
-//                     media_type:
-//                       "FEATURED_VIDEO",
-
-//                     media_url:
-//                       url,
-
-//                     display_order:
-//                       index,
-//                   })
-//                 ),
-
-//                 ...applicationImages.map(
-//                   (
-//                     url,
-//                     index
-//                   ) => ({
-//                     media_type:
-//                       "APPLICATION_IMAGE",
-
-//                     media_url:
-//                       url,
-
-//                     display_order:
-//                       index,
-//                   })
-//                 ),
-
-//                 ...bookmatchSlipmatchImages.map(
-//                   (
-//                     url,
-//                     index
-//                   ) => ({
-//                     media_type:
-//                       "BOOKMATCH_SLIPMATCH",
-
-//                     media_url:
-//                       url,
-
-//                     display_order:
-//                       index,
-//                   })
-//                 ),
-//               ],
-//             },
-//           },
-
-//           include: {
-//             stone_product_seo:
-//               true,
-
-//             media:
-//               true,
-
-//             product_faqs:
-//               true,
-//           },
-//         }),
-//     });
-
-//   return serializeBigInt(
-//     createdProduct
-//   );
-// };
-
-// const updateProduct = async (
-//   id,
-//   body,
-//   files,
-//   audit = {}
-// ) => {
-//   console.time(
-//     `UPDATE_PRODUCT_TOTAL_${id}`
-//   );
-
-//   // ==============================
-//   // HELPERS
-//   // ==============================
-
-//   const toBool = (value) => {
-//     return (
-//       value === true ||
-//       value === "true"
-//     );
-//   };
-
-//   const parseArray = (value) => {
-//     try {
-//       if (!value) {
-//         return [];
-//       }
-
-//       if (Array.isArray(value)) {
-//         return value;
-//       }
-
-//       return JSON.parse(value);
-//     } catch {
-//       return [];
-//     }
-//   };
-
-//   const parseJson = (value) => {
-//     try {
-//       if (!value) {
-//         return null;
-//       }
-
-//       if (
-//         typeof value === "object"
-//       ) {
-//         return value;
-//       }
-
-//       return JSON.parse(value);
-//     } catch {
-//       return null;
-//     }
-//   };
-
-//   const parseFaqs = (value) => {
-//     try {
-//       if (!value) {
-//         return [];
-//       }
-
-//       if (Array.isArray(value)) {
-//         return value;
-//       }
-
-//       return JSON.parse(value);
-//     } catch {
-//       return [];
-//     }
-//   };
-
-//   const existingProduct =
-//     await prisma.stone_products.findUnique({
-//       where: {
-//         id: BigInt(id),
-//       },
-
-//       include: {
-//         stone_product_seo: true,
-//         media: true,
-//         product_faqs: true,
-//       },
-//     });
-
-//   if (!existingProduct) {
-//     throw new Error(
-//       "Product not found"
-//     );
-//   }
-
-//   const existingMedia =
-//     parseArray(
-//       body.existing_media
-//     );
-
-//   const uploadedFeaturedVideos =
-//     parseArray(
-//       body.uploaded_featured_videos
-//     );
-
-//   const oldMedia =
-//     existingProduct.media
-//       .map((m) => ({
-//         id: m.id.toString(),
-//         alt_text: m.alt_text,
-//       }))
-//       .sort(
-//         (a, b) =>
-//           Number(a.id) -
-//           Number(b.id)
-//       );
-
-//   const newMedia =
-//     existingMedia
-//       .filter((m) => m.id)
-//       .map((m) => ({
-//         id: m.id.toString(),
-//         alt_text:
-//           m.alt_text || null,
-//       }))
-//       .sort(
-//         (a, b) =>
-//           Number(a.id) -
-//           Number(b.id)
-//       );
-
-//   const mediaChanged =
-//     JSON.stringify(oldMedia) !==
-//     JSON.stringify(newMedia);
-
-//   const altTextMap =
-//     new Map(
-//       existingMedia
-//         .filter(
-//           (item) =>
-//             item.media_type &&
-//             item.media_url
-//         )
-//         .map((item) => [
-//           `${item.media_type}_${item.media_url}`,
-//           item.alt_text || null,
-//         ])
-//     );
-
-//   // ==============================
-//   // SILICA DATASHEET
-//   // ==============================
-
-//   const hasSilicaDatasheetUrl =
-//     Object.prototype.hasOwnProperty.call(
-//       body,
-//       "silica_datasheet_url"
-//     );
-
-//   const silicaDatasheetUrl =
-//     hasSilicaDatasheetUrl
-//       ? String(
-//           body.silica_datasheet_url ||
-//             ""
-//         ).trim() || null
-//       : existingProduct.silica_datasheet_url;
-
-//   const faqs = parseFaqs(
-//     body.faqs
-//   );
-
-//   const newFaqs = faqs
-//     .filter(
-//       (faq) =>
-//         faq.question?.trim() &&
-//         faq.answer?.trim()
-//     )
-//     .map((faq, index) => ({
-//       question:
-//         faq.question.trim(),
-
-//       answer:
-//         faq.answer.trim(),
-
-//       sort_order:
-//         faq.sort_order ?? index,
-
-//       is_active:
-//         faq.is_active ?? true,
-//     }));
-
-//   const oldFaqs =
-//     existingProduct.product_faqs.map(
-//       (faq) => ({
-//         question:
-//           faq.question,
-
-//         answer:
-//           faq.answer,
-
-//         sort_order:
-//           faq.sort_order,
-
-//         is_active:
-//           faq.is_active,
-//       })
-//     );
-
-//   const faqChanged =
-//     JSON.stringify(oldFaqs) !==
-//     JSON.stringify(newFaqs);
-
-//   const oldSeo =
-//     existingProduct
-//       .stone_product_seo || {};
-
-//   const newSeo = {
-//     meta_title:
-//       body.meta_title || null,
-
-//     meta_description:
-//       body.meta_description ||
-//       null,
-
-//     canonical_url:
-//       body.canonical_url ||
-//       null,
-
-//     og_title:
-//       body.og_title || null,
-
-//     og_description:
-//       body.og_description ||
-//       null,
-
-//     og_image:
-//       body.og_image || null,
-
-//     schema_markup:
-//       parseJson(
-//         body.schema_markup
-//       ),
-
-//     robots_index:
-//       toBool(
-//         body.robots_index
-//       ),
-
-//     robots_follow:
-//       toBool(
-//         body.robots_follow
-//       ),
-
-//     seo_content:
-//       body.seo_content || null,
-//   };
-
-//   const seoChanged =
-//     JSON.stringify({
-//       meta_title:
-//         oldSeo.meta_title,
-
-//       meta_description:
-//         oldSeo.meta_description,
-
-//       canonical_url:
-//         oldSeo.canonical_url,
-
-//       og_title:
-//         oldSeo.og_title,
-
-//       og_description:
-//         oldSeo.og_description,
-
-//       og_image:
-//         oldSeo.og_image,
-
-//       schema_markup:
-//         oldSeo.schema_markup,
-
-//       robots_index:
-//         oldSeo.robots_index,
-
-//       robots_follow:
-//         oldSeo.robots_follow,
-
-//       seo_content:
-//         oldSeo.seo_content,
-//     }) !==
-//     JSON.stringify(newSeo);
-
-//   // ==============================
-//   // FEATURED IMAGES
-//   // ==============================
-
-//   let featuredImages =
-//     existingProduct.media
-//       .filter(
-//         (item) =>
-//           item.media_type ===
-//           "CLOSEUP_IMAGE"
-//       )
-//       .map((item) => ({
-//         media_url:
-//           item.media_url,
-
-//         public_id:
-//           item.public_id,
-//       }));
-
-//   if (
-//     files?.closeup_images &&
-//     files.closeup_images.length > 0
-//   ) {
-//     const uploadedImages =
-//       await Promise.all(
-//         files.closeup_images.map(
-//           async (file) => {
-//             const uploaded =
-//               await uploadToR2(
-//                 file.path,
-//                 "ultrastones/products/featured"
-//               );
-
-//             return {
-//               media_url:
-//                 uploaded.secure_url,
-
-//               public_id:
-//                 uploaded.public_id,
-//             };
-//           }
-//         )
-//       );
-
-//     featuredImages.push(
-//       ...uploadedImages
-//     );
-//   }
-
-//   // ==============================
-//   // GALLERY IMAGES
-//   // ==============================
-
-//   let galleryImages =
-//     existingProduct.media
-//       .filter(
-//         (item) =>
-//           item.media_type ===
-//           "SLAB_IMAGE"
-//       )
-//       .map((item) => ({
-//         media_url:
-//           item.media_url,
-
-//         public_id:
-//           item.public_id,
-//       }));
-
-//   if (
-//     files?.slab_images &&
-//     files.slab_images.length > 0
-//   ) {
-//     const uploadedImages =
-//       await Promise.all(
-//         files.slab_images.map(
-//           async (file) => {
-//             const uploaded =
-//               await uploadToR2(
-//                 file.path,
-//                 "ultrastones/products/gallery"
-//               );
-
-//             return {
-//               media_url:
-//                 uploaded.secure_url,
-
-//               public_id:
-//                 uploaded.public_id,
-//             };
-//           }
-//         )
-//       );
-
-//     // Append new uploads instead
-//     // of replacing old ones.
-//     galleryImages.push(
-//       ...uploadedImages
-//     );
-//   }
-
-//   // ==============================
-//   // FEATURED VIDEOS
-//   // Presigned videos are already
-//   // uploaded to R2.
-//   // ==============================
-
-//   let featuredVideos =
-//     existingMedia
-//       .filter(
-//         (item) =>
-//           item.media_type ===
-//             "FEATURED_VIDEO" &&
-//           item.media_url
-//       )
-//       .map((item) => ({
-//         media_url:
-//           item.media_url,
-
-//         public_id:
-//           item.public_id ||
-//           null,
-
-//         alt_text:
-//           item.alt_text ||
-//           null,
-//       }));
-
-//   const newPresignedVideos =
-//     uploadedFeaturedVideos
-//       .filter(
-//         (video) =>
-//           video &&
-//           video.media_url
-//       )
-//       .map((video) => ({
-//         media_url:
-//           video.media_url,
-
-//         public_id:
-//           video.public_id ||
-//           null,
-
-//         alt_text:
-//           video.alt_text ||
-//           null,
-//       }));
-
-//   featuredVideos.push(
-//     ...newPresignedVideos
-//   );
-
-//   featuredVideos =
-//     Array.from(
-//       new Map(
-//         featuredVideos.map(
-//           (video) => [
-//             video.public_id ||
-//               video.media_url,
-
-//             video,
-//           ]
-//         )
-//       ).values()
-//     );
-
-//   // ==============================
-//   // APPLICATION IMAGES
-//   // ==============================
-
-//   let applicationImages =
-//     existingProduct.media
-//       .filter(
-//         (item) =>
-//           item.media_type ===
-//           "APPLICATION_IMAGE"
-//       )
-//       .map((item) => ({
-//         media_url:
-//           item.media_url,
-
-//         public_id:
-//           item.public_id,
-//       }));
-
-//   if (
-//     files?.application_images &&
-//     files.application_images
-//       .length > 0
-//   ) {
-//     const uploadedImages =
-//       await Promise.all(
-//         files.application_images.map(
-//           async (file) => {
-//             const uploaded =
-//               await uploadToR2(
-//                 file.path,
-//                 "ultrastones/products/application"
-//               );
-
-//             return {
-//               media_url:
-//                 uploaded.secure_url,
-
-//               public_id:
-//                 uploaded.public_id,
-//             };
-//           }
-//         )
-//       );
-
-//     applicationImages.push(
-//       ...uploadedImages
-//     );
-//   }
-
-//   // ==============================
-//   // BOOKMATCH / SLIPMATCH
-//   // ==============================
-
-//   let bookmatchSlipmatchImages =
-//     existingProduct.media
-//       .filter(
-//         (item) =>
-//           item.media_type ===
-//           "BOOKMATCH_SLIPMATCH"
-//       )
-//       .map((item) => ({
-//         media_url:
-//           item.media_url,
-
-//         public_id:
-//           item.public_id,
-//       }));
-
-//   if (
-//     files?.bookmatch_slipmatch &&
-//     files.bookmatch_slipmatch
-//       .length > 0
-//   ) {
-//     const uploadedImages =
-//       await Promise.all(
-//         files.bookmatch_slipmatch.map(
-//           async (file) => {
-//             const uploaded =
-//               await uploadToR2(
-//                 file.path,
-//                 "ultrastones/products/bookmatch-slipmatch"
-//               );
-
-//             return {
-//               media_url:
-//                 uploaded.secure_url,
-
-//               public_id:
-//                 uploaded.public_id,
-//             };
-//           }
-//         )
-//       );
-
-//     bookmatchSlipmatchImages.push(
-//       ...uploadedImages
-//     );
-//   }
-
-//   // ==============================
-//   // BUILD MEDIA ARRAY
-//   // ==============================
-
-//   const mediaToCreate = [];
-
-//   // CLOSEUP IMAGES
-
-//   featuredImages.forEach(
-//     (image, index) => {
-//       mediaToCreate.push({
-//         product_id:
-//           BigInt(id),
-
-//         media_type:
-//           "CLOSEUP_IMAGE",
-
-//         media_url:
-//           image.media_url,
-
-//         public_id:
-//           image.public_id,
-
-//         alt_text:
-//           altTextMap.get(
-//             `CLOSEUP_IMAGE_${image.media_url}`
-//           ) || null,
-
-//         display_order:
-//           index,
-//       });
-//     }
-//   );
-
-//   // SLAB IMAGES
-
-//   galleryImages.forEach(
-//     (image, index) => {
-//       mediaToCreate.push({
-//         product_id:
-//           BigInt(id),
-
-//         media_type:
-//           "SLAB_IMAGE",
-
-//         media_url:
-//           image.media_url,
-
-//         public_id:
-//           image.public_id,
-
-//         alt_text:
-//           altTextMap.get(
-//             `SLAB_IMAGE_${image.media_url}`
-//           ) || null,
-
-//         display_order:
-//           index,
-//       });
-//     }
-//   );
-
-//   // APPLICATION IMAGES
-
-//   applicationImages.forEach(
-//     (image, index) => {
-//       mediaToCreate.push({
-//         product_id:
-//           BigInt(id),
-
-//         media_type:
-//           "APPLICATION_IMAGE",
-
-//         media_url:
-//           image.media_url,
-
-//         public_id:
-//           image.public_id,
-
-//         alt_text:
-//           altTextMap.get(
-//             `APPLICATION_IMAGE_${image.media_url}`
-//           ) || null,
-
-//         display_order:
-//           index,
-//       });
-//     }
-//   );
-
-//   // BOOKMATCH / SLIPMATCH
-
-//   bookmatchSlipmatchImages.forEach(
-//     (image, index) => {
-//       mediaToCreate.push({
-//         product_id:
-//           BigInt(id),
-
-//         media_type:
-//           "BOOKMATCH_SLIPMATCH",
-
-//         media_url:
-//           image.media_url,
-
-//         public_id:
-//           image.public_id,
-
-//         alt_text:
-//           altTextMap.get(
-//             `BOOKMATCH_SLIPMATCH_${image.media_url}`
-//           ) || null,
-
-//         display_order:
-//           index,
-//       });
-//     }
-//   );
-
-//   // VIDEOS
-
-//   featuredVideos.forEach(
-//     (video, index) => {
-//       mediaToCreate.push({
-//         product_id:
-//           BigInt(id),
-
-//         media_type:
-//           "FEATURED_VIDEO",
-
-//         media_url:
-//           video.media_url,
-
-//         public_id:
-//           video.public_id ||
-//           null,
-
-//         alt_text:
-//           video.alt_text ||
-//           altTextMap.get(
-//             `FEATURED_VIDEO_${video.media_url}`
-//           ) ||
-//           null,
-
-//         display_order:
-//           index,
-//       });
-//     }
-//   );
-
-//   // ==============================
-//   // UPDATE PRODUCT
-//   // ==============================
-
-//   if (seoChanged) {
-//     await auditService.track({
-//       audit,
-
-//       action:
-//         "UPDATE",
-
-//       resourceType:
-//         "PRODUCT_SEO",
-
-//       resourceId:
-//         BigInt(id),
-
-//       description:
-//         `${existingProduct.name} SEO updated`,
-
-//       moduleName:
-//         "Stone Management",
-
-//       oldValues: {
-//         meta_title:
-//           oldSeo.meta_title,
-
-//         meta_description:
-//           oldSeo.meta_description,
-
-//         canonical_url:
-//           oldSeo.canonical_url,
-
-//         og_title:
-//           oldSeo.og_title,
-
-//         og_description:
-//           oldSeo.og_description,
-
-//         og_image:
-//           oldSeo.og_image,
-
-//         schema_markup:
-//           oldSeo.schema_markup,
-
-//         robots_index:
-//           oldSeo.robots_index,
-
-//         robots_follow:
-//           oldSeo.robots_follow,
-
-//         seo_content:
-//           oldSeo.seo_content,
-//       },
-
-//       operation: async () => {
-//         await prisma
-//           .stone_product_seo
-//           .upsert({
-//             where: {
-//               product_id:
-//                 BigInt(id),
-//             },
-
-//             create: {
-//               product_id:
-//                 BigInt(id),
-
-//               ...newSeo,
-//             },
-
-//             update:
-//               newSeo,
-//           });
-
-//         return newSeo;
-//       },
-//     });
-//   }
-
-//   if (faqChanged) {
-//     await auditService.track({
-//       audit,
-
-//       action:
-//         "UPDATE",
-
-//       resourceType:
-//         "PRODUCT_FAQ",
-
-//       resourceId:
-//         BigInt(id),
-
-//       description:
-//         `${existingProduct.name} FAQ updated`,
-
-//       moduleName:
-//         "Stone Management",
-
-//       oldValues:
-//         oldFaqs,
-
-//       operation: async () => {
-//         await prisma
-//           .product_faqs
-//           .deleteMany({
-//             where: {
-//               product_id:
-//                 BigInt(id),
-//             },
-//           });
-
-//         if (newFaqs.length) {
-//           await prisma
-//             .product_faqs
-//             .createMany({
-//               data:
-//                 newFaqs.map(
-//                   (faq) => ({
-//                     ...faq,
-
-//                     product_id:
-//                       BigInt(id),
-//                   })
-//                 ),
-//             });
-//         }
-
-//         return newFaqs;
-//       },
-//     });
-//   }
-
-//   const productAuditData = {
-//     ...existingProduct,
-//   };
-
-//   delete productAuditData.media;
-//   delete productAuditData
-//     .product_faqs;
-//   delete productAuditData
-//     .stone_product_seo;
-
-//   const updatedProduct =
-//     await auditService.track({
-//       audit,
-
-//       action:
-//         "UPDATE",
-
-//       resourceType:
-//         "PRODUCT",
-
-//       resourceId:
-//         existingProduct.id,
-
-//       moduleName:
-//         "Stone Management",
-
-//       oldValues:
-//         serializeBigInt(
-//           productAuditData
-//         ),
-
-//       operation: async () => {
-//         const updated =
-//           await prisma
-//             .stone_products
-//             .update({
-//               where: {
-//                 id: BigInt(id),
-//               },
-
-//               data: {
-//                 // BASIC
-
-//                 name:
-//                   body.name,
-
-//                 slug:
-//                   body.slug,
-
-//                 small_description:
-//                   body.small_description,
-
-//                 long_description:
-//                   body.long_description,
-
-//                 category_id:
-//                   body.category_id
-//                     ? Number(
-//                         body.category_id
-//                       )
-//                     : null,
-
-//                 // DETAILS
-
-//                 pattern:
-//                   body.pattern,
-
-//                 stone_group:
-//                   body.stone_group,
-
-//                 origin_country:
-//                   body.origin_country,
-
-//                 pantone_colour:
-//                   body.pantone_colour,
-
-//                 variation_level:
-//                   body.variation_level,
-
-//                 sealer:
-//                   body.sealer,
-
-//                 finishes_available:
-//                   parseArray(
-//                     body.finishes_available
-//                   ),
-
-//                 thicknesses_cm:
-//                   parseArray(
-//                     body.thicknesses_cm
-//                   ),
-
-//                 average_sizes_inches:
-//                   parseArray(
-//                     body.average_sizes_inches
-//                   ),
-
-//                 translucent:
-//                   toBool(
-//                     body.translucent
-//                   ),
-
-//                 cut_to_size:
-//                   toBool(
-//                     body.cut_to_size
-//                   ),
-
-//                 // APPLICATIONS
-
-//                 color_enhancing:
-//                   toBool(
-//                     body.color_enhancing
-//                   ),
-
-//                 countertops_vanities:
-//                   toBool(
-//                     body.countertops_vanities
-//                   ),
-
-//                 interior_floor:
-//                   toBool(
-//                     body.interior_floor
-//                   ),
-
-//                 interior_wall:
-//                   toBool(
-//                     body.interior_wall
-//                   ),
-
-//                 shower_wall:
-//                   toBool(
-//                     body.shower_wall
-//                   ),
-
-//                 shower_floor:
-//                   toBool(
-//                     body.shower_floor
-//                   ),
-
-//                 exterior_floor:
-//                   toBool(
-//                     body.exterior_floor
-//                   ),
-
-//                 exterior_wall:
-//                   toBool(
-//                     body.exterior_wall
-//                   ),
-
-//                 pool_fountain:
-//                   toBool(
-//                     body.pool_fountain
-//                   ),
-
-//                 fireplace:
-//                   toBool(
-//                     body.fireplace
-//                   ),
-
-//                 furniture_top:
-//                   toBool(
-//                     body.furniture_top
-//                   ),
-
-//                 silica_warning:
-//                   toBool(
-//                     body.silica_warning
-//                   ),
-
-//                 silica_warning_message:
-//                   body.silica_warning_message,
-
-//                 silica_datasheet_url:
-//                   silicaDatasheetUrl,
-
-//                 // SPECIFICATIONS
-
-//                 abrasion_resistance:
-//                   body.abrasion_resistance,
-
-//                 stain_resistance:
-//                   body.stain_resistance,
-
-//                 etching_resistance:
-//                   body.etching_resistance,
-
-//                 heat_resistance:
-//                   body.heat_resistance,
-
-//                 uv_resistance:
-//                   body.uv_resistance,
-
-//                 color_range:
-//                   body.color_range,
-
-//                 movement_index:
-//                   body.movement_index,
-
-//                 // FLAGS
-
-//                 is_featured:
-//                   toBool(
-//                     body.is_featured
-//                   ),
-
-//                 is_trending:
-//                   toBool(
-//                     body.is_trending
-//                   ),
-
-//                 is_new_arrival:
-//                   toBool(
-//                     body.is_new_arrival
-//                   ),
-//               },
-
-//               include: {
-//                 stone_product_seo:
-//                   true,
-
-//                 media:
-//                   true,
-
-//                 product_faqs:
-//                   true,
-//               },
-//             });
-
-//         await prisma
-//           .stone_product_media
-//           .deleteMany({
-//             where: {
-//               product_id:
-//                 BigInt(id),
-//             },
-//           });
-
-//         if (
-//           mediaToCreate.length > 0
-//         ) {
-//           await prisma
-//             .stone_product_media
-//             .createMany({
-//               data:
-//                 mediaToCreate,
-//             });
-//         }
-
-//         // Reload updated media
-
-//         const finalProduct =
-//           await prisma
-//             .stone_products
-//             .findUnique({
-//               where: {
-//                 id: BigInt(id),
-//               },
-
-//               include: {
-//                 media: true,
-
-//                 stone_product_seo:
-//                   true,
-
-//                 product_faqs:
-//                   true,
-//               },
-//             });
-
-//         return finalProduct;
-//       },
-//     });
-
-//   console.timeEnd(
-//     `UPDATE_PRODUCT_TOTAL_${id}`
-//   );
-
-//   return serializeBigInt(
-//     updatedProduct
-//   );
-// };
 
 const createProduct = async (
   body,
@@ -2675,8 +1051,8 @@ const createProduct = async (
             category_id:
               body.category_id
                 ? Number(
-                    body.category_id
-                  )
+                  body.category_id
+                )
                 : null,
 
             /* =============================================
@@ -2903,18 +1279,18 @@ const createProduct = async (
 
                 robots_index:
                   body.robots_index !==
-                  undefined
+                    undefined
                     ? toBool(
-                        body.robots_index
-                      )
+                      body.robots_index
+                    )
                     : true,
 
                 robots_follow:
                   body.robots_follow !==
-                  undefined
+                    undefined
                     ? toBool(
-                        body.robots_follow
-                      )
+                      body.robots_follow
+                    )
                     : true,
 
                 seo_content:
@@ -3317,29 +1693,29 @@ const updateProduct = async (
   const existingMedia =
     hasExistingMediaPayload
       ? parseArray(
-          body.existing_media
-        )
+        body.existing_media
+      )
       : existingProduct.media.map(
-          (item) => ({
-            id:
-              item.id.toString(),
+        (item) => ({
+          id:
+            item.id.toString(),
 
-            media_type:
-              item.media_type,
+          media_type:
+            item.media_type,
 
-            media_url:
-              item.media_url,
+          media_url:
+            item.media_url,
 
-            public_id:
-              item.public_id,
+          public_id:
+            item.public_id,
 
-            alt_text:
-              item.alt_text,
+          alt_text:
+            item.alt_text,
 
-            display_order:
-              item.display_order,
-          })
-        );
+          display_order:
+            item.display_order,
+        })
+      );
 
   const uploadedFeaturedVideos =
     parseArray(
@@ -3357,7 +1733,7 @@ const updateProduct = async (
       .filter(
         (item) =>
           item.media_type ===
-            type &&
+          type &&
           item.media_url
       )
       .map(
@@ -3388,9 +1764,9 @@ const updateProduct = async (
       "silica_datasheet_url"
     )
       ? String(
-          body.silica_datasheet_url ||
-            ""
-        ).trim() || null
+        body.silica_datasheet_url ||
+        ""
+      ).trim() || null
       : existingProduct.silica_datasheet_url;
 
   /* ========================================================
@@ -3459,30 +1835,30 @@ const updateProduct = async (
         "schema_markup"
       )
         ? parseJson(
-            body.schema_markup
-          )
+          body.schema_markup
+        )
         : oldSeo.schema_markup ??
-          null,
+        null,
 
     robots_index:
       hasField(
         "robots_index"
       )
         ? toBool(
-            body.robots_index
-          )
+          body.robots_index
+        )
         : oldSeo.robots_index ??
-          true,
+        true,
 
     robots_follow:
       hasField(
         "robots_follow"
       )
         ? toBool(
-            body.robots_follow
-          )
+          body.robots_follow
+        )
         : oldSeo.robots_follow ??
-          true,
+        true,
 
     seo_content:
       getSeoValue(
@@ -3569,33 +1945,33 @@ const updateProduct = async (
   const newFaqs =
     hasFaqPayload
       ? parseFaqs(
-          body.faqs
+        body.faqs
+      )
+        .filter(
+          (faq) =>
+            faq?.question?.trim() &&
+            faq?.answer?.trim()
         )
-          .filter(
-            (faq) =>
-              faq?.question?.trim() &&
-              faq?.answer?.trim()
-          )
-          .map(
-            (
-              faq,
-              index
-            ) => ({
-              question:
-                faq.question.trim(),
+        .map(
+          (
+            faq,
+            index
+          ) => ({
+            question:
+              faq.question.trim(),
 
-              answer:
-                faq.answer.trim(),
+            answer:
+              faq.answer.trim(),
 
-              sort_order:
-                faq.sort_order ??
-                index,
+            sort_order:
+              faq.sort_order ??
+              index,
 
-              is_active:
-                faq.is_active ??
-                true,
-            })
-          )
+            is_active:
+              faq.is_active ??
+              true,
+          })
+        )
       : oldFaqs;
 
   const faqChanged =
@@ -3748,7 +2124,7 @@ const updateProduct = async (
         featuredVideos.map(
           (video) => [
             video.public_id ||
-              video.media_url,
+            video.media_url,
 
             video,
           ]
@@ -4040,8 +2416,8 @@ const updateProduct = async (
     updateData.category_id =
       body.category_id
         ? Number(
-            body.category_id
-          )
+          body.category_id
+        )
         : null;
   }
 
@@ -4266,7 +2642,7 @@ const updateProduct = async (
       ) => {
         acc[field] =
           existingProduct[
-            field
+          field
           ];
 
         return acc;
@@ -4291,7 +2667,7 @@ const updateProduct = async (
         } else {
           acc[field] =
             existingProduct[
-              field
+            field
             ];
         }
 
@@ -4476,7 +2852,7 @@ const updateProduct = async (
             ) => {
               acc[field] =
                 updated[
-                  field
+                field
                 ];
 
               return acc;
@@ -5071,31 +3447,31 @@ const bulkPublishProducts = async (
 
 const deleteStoneProductMedia = async (mediaId) => {
 
-    // 1. Find media
-    const media =
-        await prisma.stone_product_media.findUnique({
-            where: {
-                id: BigInt(mediaId),
-            },
-        });
-
-    if (!media) {
-        throw new Error("Media not found.");
-    }
-
-    // 2. Delete from R2
-    if (media.public_id) {
-        await deleteFileFromR2(media.public_id);
-    }
-
-    // 3. Delete DB record
-    await prisma.stone_product_media.delete({
-        where: {
-            id: BigInt(mediaId),
-        },
+  // 1. Find media
+  const media =
+    await prisma.stone_product_media.findUnique({
+      where: {
+        id: BigInt(mediaId),
+      },
     });
 
-    return media;
+  if (!media) {
+    throw new Error("Media not found.");
+  }
+
+  // 2. Delete from R2
+  if (media.public_id) {
+    await deleteFileFromR2(media.public_id);
+  }
+
+  // 3. Delete DB record
+  await prisma.stone_product_media.delete({
+    where: {
+      id: BigInt(mediaId),
+    },
+  });
+
+  return media;
 };
 
 const getMediaBase64 = async (imageUrl) => {

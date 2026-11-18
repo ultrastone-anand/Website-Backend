@@ -154,6 +154,7 @@ router.post(
 
 router.patch(
   "/product/:id/status",
+  authenticate,
   stoneController.updateProductStatus
 );
 
