@@ -159,6 +159,7 @@ const getCategoryProducts = async (req, res) => {
 
 
 
+
 const getAdminProductDetails = async (req, res) => {
   try {
     const { slug } = req.params;
@@ -175,7 +176,7 @@ const getAdminProductDetails = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: serialize(product),
+      product: serialize(product),
     });
   } catch (error) {
     return sendStoneError(
@@ -186,6 +187,7 @@ const getAdminProductDetails = async (req, res) => {
     );
   }
 };
+
 
 
 const getProductDetails = async (req, res) => {
