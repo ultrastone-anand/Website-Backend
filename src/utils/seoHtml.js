@@ -1093,9 +1093,71 @@ function injectSeo(html, seoTags) {
   );
 }
 
+
+/* =========================================================
+   STATIC PAGE CANONICAL INJECTION
+
+   Only replaces canonical tags.
+   Preserves titles, descriptions, robots,
+   Open Graph, Twitter, and JSON-LD.
+========================================================= */
+
+function injectStaticCanonical(html, pathname) {
+  if (
+    typeof html !== "string" ||
+    !/<\/head\s*>/i.test(html)
+  ) {
+    throw new Error("Valid frontend HTML is required.");
+  }
+
+  const staticPaths = new Set([
+    "/aboutus",
+    "/ourprocess",
+    "/categories",
+    "/resources",
+    "/merchandising-displays",
+    "/gallery",
+    "/safety-first",
+    "/ceu",
+    "/blogs",
+    "/career",
+    "/product_registration",
+    "/contact",
+  ]);
+
+  const normalizedPath =
+    String(pathname || "").split("?")[0].split("#")[0];
+
+  if (!staticPaths.has(normalizedPath)) {
+    throw new Error("Unsupported static canonical path.");
+  }
+
+  const canonical = `${SITE_URL}${normalizedPath}`;
+
+  // Modify the head only, never the body.
+  return html.replace(
+    /<head\b[^>]*>[\s\S]*?<\/head\s*>/i,
+    (head) => {
+      // Remove existing canonical links.
+      const cleanHead = head.replace(
+        /<link\b(?=[^>]*\brel\s*=\s*(?:"[^"]*\bcanonical\b[^"]*"|'[^']*\bcanonical\b[^']*'|canonical(?=[\s/>])))[^>]*>/gi,
+        ""
+      );
+
+      // Insert exactly one canonical link.
+      return cleanHead.replace(
+        /<\/head\s*>/i,
+        `${canonicalTag(canonical)}\n</head>`
+      );
+    }
+  );
+}
+
+
 /* =========================================================
    EXPORTS
 ========================================================= */
+
 
 module.exports = {
   buildProductSeo,
@@ -1103,4 +1165,5 @@ module.exports = {
   buildLocationSeo,
   buildCategorySeo,
   injectSeo,
+  injectStaticCanonical,
 };
