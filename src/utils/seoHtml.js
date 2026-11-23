@@ -1,11 +1,13 @@
 
- // src/utils/seoHtml.js
+"use strict";
+
+// src/utils/seoHtml.js
 
 const SITE_URL = "https://www.ultrastones.com";
 
-/* =========================================================
-   COMMON HELPERS
-========================================================= */
+// ============================================================
+// COMMON HELPERS
+// ============================================================
 
 function escapeHtml(value = "") {
   return String(value ?? "")
@@ -61,6 +63,7 @@ function cleanCanonical(value) {
   if (!url) return "";
 
   const parsed = new URL(url);
+
   parsed.search = "";
   parsed.hash = "";
 
@@ -104,27 +107,56 @@ function getValidSchemaMarkup(schemaMarkup) {
   }
 }
 
+// ============================================================
+// SERVER SEO MARKERS
+// ============================================================
+
+const SSR_ATTRIBUTE = 'data-ultra-ssr-seo="true"';
+
+const PAGE_SCHEMA_ATTRIBUTE =
+  'data-ultra-page-schema="true"';
+
 function schemaScript(schema) {
   return schema
-    ? `<script type="application/ld+json">${schema}</script>`
+    ? `<script type="application/ld+json" ${SSR_ATTRIBUTE} ${PAGE_SCHEMA_ATTRIBUTE}>${schema}</script>`
     : "";
 }
 
 function metaName(name, content) {
-  return `<meta name="${escapeHtml(name)}" content="${escapeHtml(content)}" />`;
+  return (
+    `<meta name="${escapeHtml(name)}" ` +
+    `content="${escapeHtml(content)}" ` +
+    `${SSR_ATTRIBUTE} />`
+  );
 }
 
 function metaProperty(property, content) {
-  return `<meta property="${escapeHtml(property)}" content="${escapeHtml(content)}" />`;
+  return (
+    `<meta property="${escapeHtml(property)}" ` +
+    `content="${escapeHtml(content)}" ` +
+    `${SSR_ATTRIBUTE} />`
+  );
 }
 
 function canonicalTag(url) {
-  return `<link rel="canonical" href="${escapeHtml(url)}" />`;
+  return (
+    `<link rel="canonical" ` +
+    `href="${escapeHtml(url)}" ` +
+    `${SSR_ATTRIBUTE} />`
+  );
 }
 
-/* =========================================================
-   PRODUCT HELPERS
-========================================================= */
+function titleTag(title) {
+  return (
+    `<title ${SSR_ATTRIBUTE}>` +
+    `${escapeHtml(title)}` +
+    `</title>`
+  );
+}
+
+// ============================================================
+// PRODUCT HELPERS
+// ============================================================
 
 function getCanonicalUrl(product, reqPath = "") {
   const databaseCanonical = cleanCanonical(
@@ -136,7 +168,8 @@ function getCanonicalUrl(product, reqPath = "") {
   }
 
   const categorySlug =
-    product?.stone_categories?.slug;
+    product?.stone_categories?.slug ||
+    product?.category_slug;
 
   const productSlug = product?.slug;
 
@@ -276,9 +309,9 @@ function containsProductSchema(schemaMarkup) {
   }
 }
 
-/* =========================================================
-   PRODUCT SEO GENERATION
-========================================================= */
+// ============================================================
+// PRODUCT SEO GENERATION
+// ============================================================
 
 function buildProductSeo(product, reqPath = "") {
   if (!product) {
@@ -348,7 +381,7 @@ function buildProductSeo(product, reqPath = "") {
   return `
 <!-- ULTRA STONES - PRODUCT SEO -->
 
-<title>${escapeHtml(title)}</title>
+${titleTag(title)}
 
 ${metaName("description", description)}
 ${metaName("robots", robots)}
@@ -375,9 +408,9 @@ ${schemaScript(automaticProductSchema)}
 `;
 }
 
-/* =========================================================
-   BLOG HELPERS
-========================================================= */
+// ============================================================
+// BLOG HELPERS
+// ============================================================
 
 function getBlogCanonicalUrl(blog) {
   if (!valid(blog?.slug)) {
@@ -468,9 +501,9 @@ function buildBlogSchema(
   return serializeJsonLd(schema);
 }
 
-/* =========================================================
-   BLOG SEO GENERATION
-========================================================= */
+// ============================================================
+// BLOG SEO GENERATION
+// ============================================================
 
 function buildBlogSeo(blog, reqPath = "") {
   if (!blog) {
@@ -522,7 +555,7 @@ function buildBlogSeo(blog, reqPath = "") {
   return `
 <!-- ULTRA STONES - BLOG SEO -->
 
-<title>${escapeHtml(title)}</title>
+${titleTag(title)}
 
 ${metaName("description", description)}
 ${metaName("robots", "index, follow, max-image-preview:large")}
@@ -555,9 +588,9 @@ ${schemaScript(schemaMarkup)}
 `;
 }
 
-/* =========================================================
-   LOCATION HELPERS
-========================================================= */
+// ============================================================
+// LOCATION HELPERS
+// ============================================================
 
 function getLocationCanonicalUrl(location) {
   if (!valid(location?.slug)) {
@@ -788,9 +821,9 @@ function buildLocationSchema(
   return serializeJsonLd(schema);
 }
 
-/* =========================================================
-   LOCATION SEO GENERATION
-========================================================= */
+// ============================================================
+// LOCATION SEO GENERATION
+// ============================================================
 
 function buildLocationSeo(location) {
   if (!location || !valid(location.slug)) {
@@ -826,7 +859,7 @@ function buildLocationSeo(location) {
   return `
 <!-- ULTRA STONES - LOCATION SEO -->
 
-<title>${escapeHtml(title)}</title>
+${titleTag(title)}
 
 ${metaName("description", description)}
 ${metaName("robots", "index, follow, max-image-preview:large")}
@@ -842,7 +875,10 @@ ${metaProperty("og:url", canonical)}
 
 ${image ? metaProperty("og:image", image) : ""}
 
-${metaName("twitter:card", image ? "summary_large_image" : "summary")}
+${metaName(
+    "twitter:card",
+    image ? "summary_large_image" : "summary"
+  )}
 ${metaName("twitter:title", title)}
 ${metaName("twitter:description", description)}
 
@@ -854,12 +890,9 @@ ${schemaScript(schemaMarkup)}
 `;
 }
 
-/* =========================================================
-   CATEGORY SEO GENERATION
-
-   Public API:
-   GET /api/category-seo/public/:slug
-========================================================= */
+// ============================================================
+// CATEGORY SEO GENERATION
+// ============================================================
 
 function buildCategorySeo(category) {
   if (
@@ -880,10 +913,6 @@ function buildCategorySeo(category) {
     ? String(category.category_name).trim()
     : categorySlug.replace(/-/g, " ");
 
-  // ======================================================
-  // TITLE AND DESCRIPTION
-  // ======================================================
-
   const title = valid(category.title)
     ? String(category.title).trim()
     : `${categoryName} | Ultra Stones`;
@@ -899,10 +928,6 @@ function buildCategorySeo(category) {
         `commercial projects.`
       );
 
-  // ======================================================
-  // CANONICAL
-  // ======================================================
-
   const defaultCanonical =
     `${SITE_URL}/product-category/` +
     encodeURIComponent(categorySlug);
@@ -910,10 +935,6 @@ function buildCategorySeo(category) {
   const canonical =
     cleanCanonical(category.canonical_url) ||
     defaultCanonical;
-
-  // ======================================================
-  // OPEN GRAPH
-  // ======================================================
 
   const ogTitle = valid(category.og_title)
     ? String(category.og_title).trim()
@@ -929,10 +950,6 @@ function buildCategorySeo(category) {
     category.og_image
   );
 
-  // ======================================================
-  // ROBOTS
-  // ======================================================
-
   const robotsIndex =
     category.robots_index === false
       ? "noindex"
@@ -947,32 +964,20 @@ function buildCategorySeo(category) {
     `${robotsIndex}, ${robotsFollow}, ` +
     "max-image-preview:large";
 
-  // ======================================================
-  // STRUCTURED DATA
-  // ======================================================
-
   const customSchema = getValidSchemaMarkup(
     category.schema_markup
   );
 
-  // ======================================================
-  // GENERATE CATEGORY SEO
-  // ======================================================
-
   return `
-<!-- =====================================================
-     ULTRA STONES - CATEGORY SEO
-===================================================== -->
+<!-- ULTRA STONES - CATEGORY SEO -->
 
-<title>${escapeHtml(title)}</title>
+${titleTag(title)}
 
 ${metaName("description", description)}
 ${metaName("robots", robots)}
 ${metaName("googlebot", robots)}
 
 ${canonicalTag(canonical)}
-
-<!-- OPEN GRAPH -->
 
 ${metaProperty("og:type", "website")}
 ${metaProperty("og:locale", "en_US")}
@@ -985,15 +990,14 @@ ${metaProperty("og:url", canonical)}
 ${ogImage ? metaProperty("og:image", ogImage) : ""}
 ${ogImage ? metaProperty("og:image:alt", categoryName) : ""}
 
-<!-- TWITTER / X -->
-
-${metaName("twitter:card", ogImage ? "summary_large_image" : "summary")}
+${metaName(
+    "twitter:card",
+    ogImage ? "summary_large_image" : "summary"
+  )}
 ${metaName("twitter:title", ogTitle)}
 ${metaName("twitter:description", ogDescription)}
 
 ${ogImage ? metaName("twitter:image", ogImage) : ""}
-
-<!-- CUSTOM CATEGORY STRUCTURED DATA -->
 
 ${schemaScript(customSchema)}
 
@@ -1001,64 +1005,280 @@ ${schemaScript(customSchema)}
 `;
 }
 
-/* =========================================================
-   REMOVE EXISTING SEO TAGS
+// ============================================================
+// STATIC PAGE SEO GENERATION
+// ============================================================
+//
+// Used for CMS-managed pages:
+//
+// /aboutus
+// /ourprocess
+// /ceu
+// /privacy-policy
+// /merchandising-displays
+// /safety-first
+//
+// The frontend route is the source of truth for
+// canonical URLs, regardless of old database values.
+//
+// ============================================================
 
-   Prevent duplicate metadata when injecting
-   dynamic SEO into the frontend index.html.
-========================================================= */
+function normalizeStaticPath(pathname) {
+  const rawPath = String(pathname || "")
+    .split("?")[0]
+    .split("#")[0]
+    .trim();
 
-function removeExistingSeo(html) {
-  let cleanHtml = html;
+  const normalizedPath =
+    "/" + rawPath.replace(/^\/+|\/+$/g, "");
 
-  // Remove existing title.
-  cleanHtml = cleanHtml.replace(
-    /<title\b[^>]*>[\s\S]*?<\/title\s*>/gi,
-    ""
-  );
+  if (
+    normalizedPath === "/" ||
+    normalizedPath.includes("\\") ||
+    normalizedPath.includes("//")
+  ) {
+    throw new Error(
+      "Valid static page path is required."
+    );
+  }
 
-  // Remove existing description.
-  cleanHtml = cleanHtml.replace(
-    /<meta\b(?=[^>]*\bname\s*=\s*["']description["'])[^>]*>/gi,
-    ""
-  );
-
-  // Remove existing robots.
-  cleanHtml = cleanHtml.replace(
-    /<meta\b(?=[^>]*\bname\s*=\s*["']robots["'])[^>]*>/gi,
-    ""
-  );
-
-  // Remove existing Googlebot directives.
-  cleanHtml = cleanHtml.replace(
-    /<meta\b(?=[^>]*\bname\s*=\s*["']googlebot["'])[^>]*>/gi,
-    ""
-  );
-
-  // Remove existing canonical.
-  cleanHtml = cleanHtml.replace(
-    /<link\b(?=[^>]*\brel\s*=\s*["']canonical["'])[^>]*>/gi,
-    ""
-  );
-
-  // Remove existing Open Graph metadata.
-  cleanHtml = cleanHtml.replace(
-    /<meta\b(?=[^>]*\bproperty\s*=\s*["']og:[^"']*["'])[^>]*>/gi,
-    ""
-  );
-
-  // Remove existing Twitter metadata.
-  cleanHtml = cleanHtml.replace(
-    /<meta\b(?=[^>]*\bname\s*=\s*["']twitter:[^"']*["'])[^>]*>/gi,
-    ""
-  );
-
-  return cleanHtml;
+  return normalizedPath;
 }
 
-/* =========================================================
-   INJECT SEO INTO FRONTEND HTML
-========================================================= */
+function normalizeStaticSchema(schemaMarkup, canonical) {
+  if (!valid(schemaMarkup)) return "";
+
+  try {
+    const parsed =
+      typeof schemaMarkup === "string"
+        ? JSON.parse(schemaMarkup)
+        : structuredClone(schemaMarkup);
+
+    // Update only page-specific URL fields.
+    // Do not modify Organization, publisher,
+    // image, or other unrelated URLs.
+
+    const normalizeNode = (node) => {
+      if (!node || typeof node !== "object") {
+        return node;
+      }
+
+      if (Array.isArray(node)) {
+        node.forEach(normalizeNode);
+        return node;
+      }
+
+      const types = Array.isArray(node["@type"])
+        ? node["@type"]
+        : [node["@type"]];
+
+      const pageTypes = new Set([
+        "WebPage",
+        "AboutPage",
+        "ContactPage",
+        "CollectionPage",
+        "FAQPage",
+        "ProfilePage",
+        "ItemPage",
+      ]);
+
+      const isPageSchema = types.some((type) => {
+        const shortType = String(type || "")
+          .split("/")
+          .pop();
+
+        return pageTypes.has(shortType);
+      });
+
+      if (isPageSchema) {
+        node.url = canonical;
+
+        if (node["@id"]) {
+          node["@id"] = `${canonical}#webpage`;
+        }
+      }
+
+      if (node["@graph"]) {
+        normalizeNode(node["@graph"]);
+      }
+
+      return node;
+    };
+
+    normalizeNode(parsed);
+
+    return getValidSchemaMarkup(parsed);
+  } catch (error) {
+    console.warn(
+      "[SEO] Invalid static page schema:",
+      error.message
+    );
+
+    return "";
+  }
+}
+
+function buildStaticPageSeo(page, pathname) {
+  if (!page || !page.page_seo) {
+    throw new Error(
+      "Valid page SEO data is required."
+    );
+  }
+
+  const seo = page.page_seo;
+
+  const normalizedPath =
+    normalizeStaticPath(pathname);
+
+  const canonical =
+    `${SITE_URL}${normalizedPath}`;
+
+  const pageTitle = valid(page.title)
+    ? String(page.title).trim()
+    : "Ultra Stones";
+
+  const title = valid(seo.meta_title)
+    ? String(seo.meta_title).trim()
+    : `${pageTitle} | Ultra Stones`;
+
+  const description = valid(seo.meta_description)
+    ? String(seo.meta_description).trim()
+    : `Discover ${pageTitle} at Ultra Stones.`;
+
+  const ogTitle = valid(seo.og_title)
+    ? String(seo.og_title).trim()
+    : title;
+
+  const ogDescription = valid(seo.og_description)
+    ? String(seo.og_description).trim()
+    : description;
+
+  const ogImage = safeUrl(
+    seo.og_image_url
+  );
+
+  const robotsIndex =
+    seo.robots_index === "noindex" ||
+    seo.robots_index === false
+      ? "noindex"
+      : "index";
+
+  const robotsFollow =
+    seo.robots_follow === "nofollow" ||
+    seo.robots_follow === false
+      ? "nofollow"
+      : "follow";
+
+  const robots =
+    `${robotsIndex}, ${robotsFollow}, ` +
+    "max-image-preview:large";
+
+  const customSchema = normalizeStaticSchema(
+    seo.schema_markup,
+    canonical
+  );
+
+  return `
+<!-- ULTRA STONES - STATIC PAGE SEO -->
+
+${titleTag(title)}
+
+${metaName("description", description)}
+${metaName("robots", robots)}
+${metaName("googlebot", robots)}
+
+${canonicalTag(canonical)}
+
+${metaProperty("og:type", "website")}
+${metaProperty("og:locale", "en_US")}
+${metaProperty("og:site_name", "Ultra Stones")}
+
+${metaProperty("og:title", ogTitle)}
+${metaProperty("og:description", ogDescription)}
+${metaProperty("og:url", canonical)}
+
+${ogImage ? metaProperty("og:image", ogImage) : ""}
+${ogImage ? metaProperty("og:image:alt", pageTitle) : ""}
+
+${metaName(
+    "twitter:card",
+    ogImage ? "summary_large_image" : "summary"
+  )}
+${metaName("twitter:title", ogTitle)}
+${metaName("twitter:description", ogDescription)}
+
+${ogImage ? metaName("twitter:image", ogImage) : ""}
+
+${schemaScript(customSchema)}
+
+<!-- END STATIC PAGE SEO -->
+`;
+}
+
+// ============================================================
+// REMOVE EXISTING SEO TAGS
+// ============================================================
+//
+// Clean only the document head.
+//
+// Preserve:
+// - CSS and JavaScript resources
+// - preload/preconnect links
+// - favicon and manifest
+// - global Organization/WebSite JSON-LD
+//
+// Remove:
+// - existing page-specific metadata
+// - existing canonical links
+// - existing page-specific JSON-LD marked by Express
+//
+// ============================================================
+
+function removeExistingSeo(html) {
+  return html.replace(
+    /<head\b[^>]*>[\s\S]*?<\/head\s*>/i,
+    (head) => {
+      let cleanHead = head;
+
+      // Remove existing titles.
+      cleanHead = cleanHead.replace(
+        /<title\b[^>]*>[\s\S]*?<\/title\s*>/gi,
+        ""
+      );
+
+      // Remove standard SEO metadata.
+      cleanHead = cleanHead.replace(
+        /<meta\b(?=[^>]*\bname\s*=\s*["'](?:description|robots|googlebot|twitter:[^"']+)["'])[^>]*>/gi,
+        ""
+      );
+
+      // Remove Open Graph metadata.
+      cleanHead = cleanHead.replace(
+        /<meta\b(?=[^>]*\bproperty\s*=\s*["'](?:og:[^"']+|article:[^"']+)["'])[^>]*>/gi,
+        ""
+      );
+
+      // Remove canonical links.
+      cleanHead = cleanHead.replace(
+        /<link\b(?=[^>]*\brel\s*=\s*(?:"[^"]*\bcanonical\b[^"]*"|'[^']*\bcanonical\b[^']*'|canonical(?=[\s/>])))[^>]*>/gi,
+        ""
+      );
+
+      // Remove previously injected page schemas.
+      // Preserve unmarked global JSON-LD.
+      cleanHead = cleanHead.replace(
+        /<script\b(?=[^>]*\bdata-ultra-page-schema\s*=\s*["']true["'])[^>]*>[\s\S]*?<\/script\s*>/gi,
+        ""
+      );
+
+      return cleanHead;
+    }
+  );
+}
+
+// ============================================================
+// INJECT SEO INTO FRONTEND HTML
+// ============================================================
 
 function injectSeo(html, seoTags) {
   if (
@@ -1079,13 +1299,13 @@ function injectSeo(html, seoTags) {
     );
   }
 
-  const cleanHtml = removeExistingSeo(html);
-
-  if (!/<\/head\s*>/i.test(cleanHtml)) {
+  if (!/<\/head\s*>/i.test(html)) {
     throw new Error(
       "HTML template is missing closing head tag."
     );
   }
+
+  const cleanHtml = removeExistingSeo(html);
 
   return cleanHtml.replace(
     /<\/head\s*>/i,
@@ -1093,21 +1313,26 @@ function injectSeo(html, seoTags) {
   );
 }
 
-
-/* =========================================================
-   STATIC PAGE CANONICAL INJECTION
-
-   Only replaces canonical tags.
-   Preserves titles, descriptions, robots,
-   Open Graph, Twitter, and JSON-LD.
-========================================================= */
+// ============================================================
+// STATIC PAGE CANONICAL INJECTION
+// ============================================================
+//
+// Fallback for static pages without CMS SEO records.
+//
+// Only canonical tags are replaced.
+// Existing title, description and other metadata
+// are preserved for compatibility.
+//
+// ============================================================
 
 function injectStaticCanonical(html, pathname) {
   if (
     typeof html !== "string" ||
     !/<\/head\s*>/i.test(html)
   ) {
-    throw new Error("Valid frontend HTML is required.");
+    throw new Error(
+      "Valid frontend HTML is required."
+    );
   }
 
   const staticPaths = new Set([
@@ -1123,28 +1348,29 @@ function injectStaticCanonical(html, pathname) {
     "/career",
     "/product_registration",
     "/contact",
+    "/privacy-policy",
   ]);
 
   const normalizedPath =
-    String(pathname || "").split("?")[0].split("#")[0];
+    normalizeStaticPath(pathname);
 
   if (!staticPaths.has(normalizedPath)) {
-    throw new Error("Unsupported static canonical path.");
+    throw new Error(
+      "Unsupported static canonical path."
+    );
   }
 
-  const canonical = `${SITE_URL}${normalizedPath}`;
+  const canonical =
+    `${SITE_URL}${normalizedPath}`;
 
-  // Modify the head only, never the body.
   return html.replace(
     /<head\b[^>]*>[\s\S]*?<\/head\s*>/i,
     (head) => {
-      // Remove existing canonical links.
       const cleanHead = head.replace(
         /<link\b(?=[^>]*\brel\s*=\s*(?:"[^"]*\bcanonical\b[^"]*"|'[^']*\bcanonical\b[^']*'|canonical(?=[\s/>])))[^>]*>/gi,
         ""
       );
 
-      // Insert exactly one canonical link.
       return cleanHead.replace(
         /<\/head\s*>/i,
         `${canonicalTag(canonical)}\n</head>`
@@ -1153,17 +1379,16 @@ function injectStaticCanonical(html, pathname) {
   );
 }
 
-
-/* =========================================================
-   EXPORTS
-========================================================= */
-
+// ============================================================
+// EXPORTS
+// ============================================================
 
 module.exports = {
   buildProductSeo,
   buildBlogSeo,
   buildLocationSeo,
   buildCategorySeo,
+  buildStaticPageSeo,
   injectSeo,
   injectStaticCanonical,
 };
