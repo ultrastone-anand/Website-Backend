@@ -7,8 +7,8 @@
 - [Home](https://web.ultrastone.in/)
 - [Material Portfolio](https://web.ultrastone.in/categories)
 - [Contact Ultra Stones](https://web.ultrastone.in/contact)
-- [About Ultra Stones](https://web.ultrastone.in/aboutus)
-- [Our Process](https://web.ultrastone.in/ourprocess)
+- [About Ultra Stones](https://web.ultrastone.in/about-us)
+- [Our Process](https://web.ultrastone.in/our-process)
 
 ## Resources
 

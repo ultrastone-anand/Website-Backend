@@ -1,4 +1,3 @@
-
 const fs = require("fs");
 const path = require("path");
 
@@ -86,6 +85,128 @@ exports.deletePage = async (req, res, next) => {
 };
 
 // ============================================================
+// GET ALL PAGE SEO
+// ============================================================
+
+exports.getAllPageSeo = async (req, res, next) => {
+  try {
+    const data = await pageService.getAllPageSeo();
+
+    return res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ============================================================
+// GET PAGE SEO BY PAGE ID
+// ============================================================
+
+exports.getPageSeoById = async (req, res, next) => {
+  try {
+    const data = await pageService.getPageSeoById(
+      req.params.pageId
+    );
+
+    return res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ============================================================
+// GET PUBLIC PAGE SEO BY SLUG
+// ============================================================
+
+exports.getPublicPageSeo = async (req, res, next) => {
+  try {
+    const data = await pageService.getPublicPageSeo(
+      req.params.slug
+    );
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: "Page SEO not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ============================================================
+// CREATE PAGE SEO
+// ============================================================
+
+exports.createPageSeo = async (req, res, next) => {
+  try {
+    const data = await pageService.createPageSeo(
+      req.body
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Page SEO created successfully",
+      data,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ============================================================
+// UPDATE PAGE SEO
+// ============================================================
+
+exports.updatePageSeo = async (req, res, next) => {
+  try {
+    const data = await pageService.updatePageSeo(
+      req.params.pageId,
+      req.body
+    );
+
+    return res.json({
+      success: true,
+      message: "Page SEO saved successfully",
+      data,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ============================================================
+// DELETE PAGE SEO
+// ============================================================
+
+exports.deletePageSeo = async (req, res, next) => {
+  try {
+    await pageService.deletePageSeo(
+      req.params.pageId
+    );
+
+    return res.json({
+      success: true,
+      message: "Page SEO deleted successfully",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ============================================================
 // UPLOAD PAGE IMAGE
 // ============================================================
 
@@ -111,20 +232,12 @@ exports.uploadPageImage = async (req, res, next) => {
 
 exports.uploadPagePdf = async (req, res, next) => {
   try {
-    // --------------------------------------------------------
-    // VALIDATE FILE EXISTS
-    // --------------------------------------------------------
-
     if (!req.file) {
       return res.status(400).json({
         success: false,
         message: "PDF file is required.",
       });
     }
-
-    // --------------------------------------------------------
-    // VALIDATE PDF FILE TYPE
-    // --------------------------------------------------------
 
     const extension = path
       .extname(req.file.originalname)
@@ -147,18 +260,10 @@ exports.uploadPagePdf = async (req, res, next) => {
       });
     }
 
-    // --------------------------------------------------------
-    // UPLOAD TO CLOUDFLARE R2
-    // --------------------------------------------------------
-
     const uploadedPdf = await uploadToR2(
       req.file,
       "page-pdfs"
     );
-
-    // --------------------------------------------------------
-    // SUCCESS RESPONSE
-    // --------------------------------------------------------
 
     return res.status(201).json({
       success: true,

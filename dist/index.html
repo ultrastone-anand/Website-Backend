@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
   <head>
@@ -7,111 +8,103 @@
 
     <meta charset="UTF-8" />
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
 
     <meta name="theme-color" content="#ffffff" />
 
     <!-- =========================================================
          PERFORMANCE: PRECONNECT
 
-         Establish connections to important external
-         resources before they are requested.
-    ========================================================== -->
-
-    <link rel="preconnect" href="https://cdn.ultrastone.in" crossorigin />
-
-    <link rel="preconnect" href="https://backend.ultrastones.com" crossorigin />
-
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-
-    <!-- =========================================================
-     RESPONSIVE HOMEPAGE HERO POSTER
-
-     Preloads the homepage poster using responsive
-     image candidates.
-
-     IMPORTANT:
-     These preloads run on every direct page visit.
-     Remove them when implementing route-specific
-     preload handling.
-========================================================= -->
-
-<link
-  rel="preload"
-  as="image"
-  href="https://cdn.ultrastone.in/cdn-cgi/image/width=480,quality=75,format=auto/frame0.png"
-  imagesrcset="https://cdn.ultrastone.in/cdn-cgi/image/width=480,quality=75,format=auto/frame0.png 480w, https://cdn.ultrastone.in/cdn-cgi/image/width=768,quality=75,format=auto/frame0.png 768w, https://cdn.ultrastone.in/cdn-cgi/image/width=960,quality=75,format=auto/frame0.png 960w"
-  imagesizes="100vw"
-  media="(max-width: 767px)"
-  fetchpriority="high"
-/>
-
-<link
-  rel="preload"
-  as="image"
-  href="https://cdn.ultrastone.in/cdn-cgi/image/width=1600,quality=80,format=auto/frame0.png"
-  imagesrcset="https://cdn.ultrastone.in/cdn-cgi/image/width=1280,quality=80,format=auto/frame0.png 1280w, https://cdn.ultrastone.in/cdn-cgi/image/width=1600,quality=80,format=auto/frame0.png 1600w, https://cdn.ultrastone.in/cdn-cgi/image/width=1920,quality=80,format=auto/frame0.png 1920w"
-  imagesizes="100vw"
-  media="(min-width: 768px)"
-  fetchpriority="high"
-/>
-    <!-- =========================================================
-         GOOGLE FONTS - NON-BLOCKING
-
-         Font stylesheet is loaded without blocking
-         the initial page render.
-
-         font-display=swap allows fallback fonts
-         while custom fonts download.
+         Establish early connections to important
+         external resources.
     ========================================================== -->
 
     <link
-      rel="preload"
-      as="style"
-      href="https://fonts.googleapis.com/css2?family=BBH+Bartle&family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=Montserrat:wght@400;500;600;700&display=swap"
-      onload="
-        this.onload = null;
-        this.rel = 'stylesheet';
-      "
+      rel="preconnect"
+      href="https://cdn.ultrastone.in"
+      crossorigin
     />
 
-    <!-- Fallback for browsers with JavaScript disabled -->
+    <link
+      rel="preconnect"
+      href="https://backend.ultrastones.com"
+      crossorigin
+    />
 
-    <noscript>
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=BBH+Bartle&family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=Montserrat:wght@400;500;600;700&display=swap"
-      />
-    </noscript>
+    <link
+      rel="preconnect"
+      href="https://fonts.googleapis.com"
+    />
+
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
 
     <!-- =========================================================
-         GOOGLE TAG MANAGER
+         RESPONSIVE HOMEPAGE HERO POSTER
 
-         Preserved existing GTM implementation.
+         Existing responsive image preloads preserved.
+
+         NOTE:
+         These preloads currently run on all routes.
+         Route-specific preloading can be implemented
+         separately to avoid unnecessary requests.
     ========================================================== -->
 
-    <script>
-      (function (w, d, s, l, i) {
-        w[l] = w[l] || [];
+    <!-- MOBILE HERO POSTER -->
 
-        w[l].push({
-          "gtm.start": new Date().getTime(),
-          event: "gtm.js",
-        });
+    <link
+      rel="preload"
+      as="image"
+      href="https://cdn.ultrastone.in/cdn-cgi/image/width=480,quality=75,format=auto/frame0.png"
+      imagesrcset="https://cdn.ultrastone.in/cdn-cgi/image/width=480,quality=75,format=auto/frame0.png 480w, https://cdn.ultrastone.in/cdn-cgi/image/width=768,quality=75,format=auto/frame0.png 768w, https://cdn.ultrastone.in/cdn-cgi/image/width=960,quality=75,format=auto/frame0.png 960w"
+      imagesizes="100vw"
+      media="(max-width: 767px)"
+      fetchpriority="high"
+    />
 
-        var f = d.getElementsByTagName(s)[0],
-          j = d.createElement(s),
-          dl = l != "dataLayer" ? "&l=" + l : "";
+    <!-- DESKTOP HERO POSTER -->
 
-        j.async = true;
+    <link
+      rel="preload"
+      as="image"
+      href="https://cdn.ultrastone.in/cdn-cgi/image/width=1600,quality=80,format=auto/frame0.png"
+      imagesrcset="https://cdn.ultrastone.in/cdn-cgi/image/width=1280,quality=80,format=auto/frame0.png 1280w, https://cdn.ultrastone.in/cdn-cgi/image/width=1600,quality=80,format=auto/frame0.png 1600w, https://cdn.ultrastone.in/cdn-cgi/image/width=1920,quality=80,format=auto/frame0.png 1920w"
+      imagesizes="100vw"
+      media="(min-width: 768px)"
+      fetchpriority="high"
+    />
 
-        j.src = "https://www.googletagmanager.com/gtm.js?id=" + i + dl;
+    <!-- =========================================================
+         GOOGLE FONTS - CSP COMPATIBLE
 
-        f.parentNode.insertBefore(j, f);
-      })(window, document, "script", "dataLayer", "GTM-NR3PXVZX");
-    </script>
+         Removed:
+         - Inline onload handler
+         - Preload-to-stylesheet conversion
+         - External font-loader.js dependency
+
+         Fonts now load through a standard stylesheet.
+         font-display=swap is retained in the URL.
+    ========================================================== -->
+
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=BBH+Bartle&family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=Montserrat:wght@400;500;600;700&display=swap"
+    />
+
+    <!-- =========================================================
+         GOOGLE TAG MANAGER - CSP COMPATIBLE
+
+         Existing GTM container preserved.
+         Bootstrap runs from public/gtm-loader.js.
+    ========================================================== -->
+
+    <script src="/gtm-loader.js" defer></script>
 
     <!-- =========================================================
          SEARCH ENGINE CRAWLING
@@ -131,7 +124,9 @@
          PRIMARY SEO
     ========================================================== -->
 
-    <title>Luxury Granite, Marble & Quartz Countertops | Ultra Stones</title>
+    <title>
+      Luxury Granite, Marble & Quartz Countertops | Ultra Stones
+    </title>
 
     <meta
       name="description"
@@ -145,28 +140,42 @@
     <!-- =========================================================
          CANONICAL URL
 
-         Note:
-         Your React SEO component should update this
+         Your React SEO component updates this
          for individual routes.
     ========================================================== -->
 
-    <link rel="canonical" href="https://www.ultrastones.com/" />
+    <link
+      rel="canonical"
+      href="https://www.ultrastones.com/"
+    />
 
     <!-- =========================================================
          LANGUAGE / REGION
     ========================================================== -->
 
-    <meta http-equiv="content-language" content="en" />
+    <meta
+      http-equiv="content-language"
+      content="en"
+    />
 
     <!-- =========================================================
          OPEN GRAPH / SOCIAL SHARING
     ========================================================== -->
 
-    <meta property="og:type" content="website" />
+    <meta
+      property="og:type"
+      content="website"
+    />
 
-    <meta property="og:locale" content="en_US" />
+    <meta
+      property="og:locale"
+      content="en_US"
+    />
 
-    <meta property="og:site_name" content="Ultra Stones" />
+    <meta
+      property="og:site_name"
+      content="Ultra Stones"
+    />
 
     <meta
       property="og:title"
@@ -178,7 +187,10 @@
       content="Explore premium granite, marble, quartzite, quartz and engineered surfaces from Ultra Stones for residential and commercial projects."
     />
 
-    <meta property="og:url" content="https://www.ultrastones.com/" />
+    <meta
+      property="og:url"
+      content="https://www.ultrastones.com/"
+    />
 
     <meta
       property="og:image"
@@ -190,15 +202,24 @@
       content="Luxury granite, marble and quartz surfaces by Ultra Stones"
     />
 
-    <meta property="og:image:width" content="1920" />
+    <meta
+      property="og:image:width"
+      content="1920"
+    />
 
-    <meta property="og:image:height" content="1080" />
+    <meta
+      property="og:image:height"
+      content="1080"
+    />
 
     <!-- =========================================================
          TWITTER / X
     ========================================================== -->
 
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:card"
+      content="summary_large_image"
+    />
 
     <meta
       name="twitter:title"
@@ -224,12 +245,21 @@
          FAVICON
     ========================================================== -->
 
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/favicon.svg"
+    />
 
-    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link
+      rel="apple-touch-icon"
+      href="/favicon.svg"
+    />
 
     <!-- =========================================================
          STRUCTURED DATA - ORGANIZATION
+
+         JSON-LD is non-executable structured data.
     ========================================================== -->
 
     <script type="application/ld+json">
@@ -255,29 +285,15 @@
       }
     </script>
 
-    <!-- =========================================================
-         HERO PRELOAD
-
-         Removed the hardcoded frame0.png preload.
-
-         Reason:
-         Homepage hero is dynamic and may use a
-         different image or mobile-specific poster.
-
-         The HeroSection component already uses:
-         loading="eager"
-         fetchPriority="high"
-
-         A dynamic preload can be implemented later
-         when the active hero URL is known.
-    ========================================================== -->
-    <script type="module" crossorigin src="/assets/index-Bn3LZPnQ.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BXzP1DPu.css">
+    <script type="module" crossorigin src="/assets/index-CrLirBdQ.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-D3D_eyqj.css">
   </head>
 
   <body>
     <!-- =========================================================
          GOOGLE TAG MANAGER - NOSCRIPT
+
+         No inline CSS or JavaScript.
     ========================================================== -->
 
     <noscript>
@@ -285,7 +301,7 @@
         src="https://www.googletagmanager.com/ns.html?id=GTM-NR3PXVZX"
         height="0"
         width="0"
-        style="display: none; visibility: hidden"
+        hidden
       ></iframe>
     </noscript>
 

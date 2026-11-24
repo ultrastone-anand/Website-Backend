@@ -1336,8 +1336,8 @@ function injectStaticCanonical(html, pathname) {
   }
 
   const staticPaths = new Set([
-    "/aboutus",
-    "/ourprocess",
+    "/about-us",
+    "/our-process",
     "/categories",
     "/resources",
     "/merchandising-displays",

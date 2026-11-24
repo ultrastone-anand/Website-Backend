@@ -974,8 +974,8 @@ app.get(
 // ============================================================
 
 const STATIC_CANONICAL_PATHS = [
-  "/aboutus",
-  "/ourprocess",
+  "/about-us",
+  "/our-process",
   "/categories",
   "/resources",
   "/merchandising-displays",
@@ -990,8 +990,8 @@ const STATIC_CANONICAL_PATHS = [
 ];
 
 const STATIC_PAGE_SLUG_MAP = {
-  "/aboutus": "about-us",
-  "/ourprocess": "our-process",
+  "/about-us": "about-us",
+  "/our-process": "our-process",
   "/merchandising-displays": "merchandising-displays",
   "/safety-first": "silica-first",
   "/ceu": "ceu",
