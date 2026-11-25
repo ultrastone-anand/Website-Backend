@@ -90,7 +90,9 @@ exports.deletePage = async (req, res, next) => {
 
 exports.getAllPageSeo = async (req, res, next) => {
   try {
-    const data = await pageService.getAllPageSeo();
+    const data = await pageService.getAllPageSeo(
+      req.query.mode
+    );
 
     return res.json({
       success: true,
@@ -102,13 +104,14 @@ exports.getAllPageSeo = async (req, res, next) => {
 };
 
 // ============================================================
-// GET PAGE SEO BY PAGE ID
+// GET PAGE SEO BY PAGE ID OR SEO RECORD ID
 // ============================================================
 
 exports.getPageSeoById = async (req, res, next) => {
   try {
     const data = await pageService.getPageSeoById(
-      req.params.pageId
+      req.params.pageId,
+      req.query.mode
     );
 
     return res.json({
@@ -153,7 +156,8 @@ exports.getPublicPageSeo = async (req, res, next) => {
 exports.createPageSeo = async (req, res, next) => {
   try {
     const data = await pageService.createPageSeo(
-      req.body
+      req.body,
+      req.query.mode
     );
 
     return res.status(201).json({
@@ -174,7 +178,8 @@ exports.updatePageSeo = async (req, res, next) => {
   try {
     const data = await pageService.updatePageSeo(
       req.params.pageId,
-      req.body
+      req.body,
+      req.query.mode
     );
 
     return res.json({
@@ -194,7 +199,8 @@ exports.updatePageSeo = async (req, res, next) => {
 exports.deletePageSeo = async (req, res, next) => {
   try {
     await pageService.deletePageSeo(
-      req.params.pageId
+      req.params.pageId,
+      req.query.mode
     );
 
     return res.json({

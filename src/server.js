@@ -21,7 +21,7 @@ const {
 } = require("./utils/seoHtml");
 
 const {
-  getPageBySlug,
+  getPublicPageSeo,
 } = require("./services/page.service");
 
 const errorHandler = require("./middlewares/error.middleware");
@@ -176,6 +176,17 @@ const normalizeSlug = (value) => {
 
 const encodeSlug = (value) => {
   return encodeURIComponent(normalizeSlug(value));
+};
+
+const normalizeRoutePath = (value) => {
+  const pathname = String(value || "").trim();
+
+  if (!pathname) return "/";
+
+  return (
+    pathname.replace(/\/+$/, "").toLowerCase() ||
+    "/"
+  );
 };
 
 const getProductCategorySlug = (product) => {
@@ -367,6 +378,120 @@ const getCategorySeoData = async (slug) => {
   }
 
   return result.data;
+};
+
+// ============================================================
+// PAGE SEO DATA FETCHER
+// ============================================================
+//
+// Supports:
+// - CMS-managed pages
+// - Standalone website pages
+// - Future registered frontend routes
+//
+// Uses the existing public page SEO service directly.
+// No additional internal HTTP request is required.
+//
+// ============================================================
+
+const getStaticPageSeoData = async (pathname) => {
+  const normalizedPath = normalizeRoutePath(pathname);
+
+  if (normalizedPath === "/") {
+    return null;
+  }
+
+  const record = await getPublicPageSeo(
+    normalizedPath
+  );
+
+  if (!record) {
+    return null;
+  }
+
+  // Ensure that SEO belongs to the requested route.
+
+  if (
+    !record.route_path ||
+    normalizeRoutePath(record.route_path) !==
+      normalizedPath
+  ) {
+    console.warn(
+      "[SEO] Page SEO route mismatch:",
+      {
+        requestedPath: normalizedPath,
+        recordPath: record.route_path,
+      }
+    );
+
+    return null;
+  }
+
+  // Do not expose SEO belonging to unpublished CMS pages.
+
+  if (
+    record.page_id != null &&
+    record.page_status !== "published"
+  ) {
+    return null;
+  }
+
+  return record;
+};
+
+// ============================================================
+// PAGE SEO CONFIGURATION CHECK
+// ============================================================
+
+const hasConfiguredPageSeo = (record) => {
+  return Boolean(
+    record &&
+    typeof record.meta_title === "string" &&
+    record.meta_title.trim() &&
+    typeof record.meta_description === "string" &&
+    record.meta_description.trim()
+  );
+};
+
+// ============================================================
+// PAGE SEO BUILDER ADAPTER
+// ============================================================
+//
+// Existing buildStaticPageSeo() receives a page object
+// containing nested page_seo data.
+//
+// The centralized SEO service returns a flat SEO record.
+//
+// This adapter preserves the existing builder interface
+// without requiring standalone records in the pages table.
+//
+// ============================================================
+
+const createStaticPageSeoPayload = (
+  record,
+  pathname
+) => {
+  return {
+    id: record.page_id ?? null,
+
+    slug:
+      record.page_slug ||
+      pathname.replace(/^\/+/, ""),
+
+    title:
+      record.page_name ||
+      record.page_title ||
+      "Ultra Stones",
+
+    status:
+      record.page_status || "published",
+
+    route_path: pathname,
+
+    page_seo: {
+      ...record,
+    },
+  };
 };
 
 // ============================================================
@@ -567,7 +692,9 @@ app.get(
       ) {
         const correctPath =
           `/product/${encodeSlug(actualCategorySlug)}/` +
-          encodeSlug(actualProductSlug || requestedProduct);
+          encodeSlug(
+            actualProductSlug || requestedProduct
+          );
 
         return res.redirect(
           301,
@@ -630,10 +757,6 @@ app.get(
 //
 // SEO source:
 // GET /api/category-seo/public/:slug
-//
-// The category SEO record is required by this route.
-// A missing SEO record is not automatically treated as
-// a valid category.
 //
 // ============================================================
 
@@ -955,25 +1078,19 @@ app.get(
 );
 
 // ============================================================
-// STATIC PAGE SEO
+// STATIC CANONICAL FALLBACK PATHS
 // ============================================================
 //
-// CMS-managed pages use their published database SEO.
+// These paths are retained for canonical-only fallback.
 //
-// Frontend route          Database slug
-// ------------------------------------------------------------
-// /aboutus                about-us
-// /ourprocess             our-process
-// /merchandising-displays merchandising-displays
-// /safety-first           silica-first
-// /ceu                    ceu
-// /privacy-policy         privacy-policy
+// They are NOT used to restrict database-driven SEO.
 //
-// All other static routes retain canonical fallback.
+// Any eligible frontend route registered in page_seo
+// can receive database-driven SEO.
 //
 // ============================================================
 
-const STATIC_CANONICAL_PATHS = [
+const STATIC_CANONICAL_PATHS = new Set([
   "/about-us",
   "/our-process",
   "/categories",
@@ -987,26 +1104,127 @@ const STATIC_CANONICAL_PATHS = [
   "/product_registration",
   "/contact",
   "/privacy-policy",
-];
-
-const STATIC_PAGE_SLUG_MAP = {
-  "/about-us": "about-us",
-  "/our-process": "our-process",
-  "/merchandising-displays": "merchandising-displays",
-  "/safety-first": "silica-first",
-  "/ceu": "ceu",
-  "/privacy-policy": "privacy-policy",
-};
+]);
 
 // ============================================================
-// STATIC PAGE SEO HANDLER
+// CENTRALIZED STATIC PAGE SEO HANDLER
+// ============================================================
+//
+// SEO source:
+// page_seo.route_path
+//
+// Supports both:
+//
+// 1. CMS-managed pages
+//    page_id != null
+//
+// 2. Standalone pages
+//    page_id == null
+//
+// This middleware must remain after all specialized SEO
+// handlers and before the React SPA fallback.
+//
 // ============================================================
 
-app.get(
-  STATIC_CANONICAL_PATHS,
-  async (req, res) => {
-    try {
-      const pathname = req.path;
+app.use(async (req, res, next) => {
+  // ----------------------------------------------------------
+  // ONLY HANDLE WEBSITE GET AND HEAD REQUESTS
+  // ----------------------------------------------------------
+
+  if (
+    req.method !== "GET" &&
+    req.method !== "HEAD"
+  ) {
+    return next();
+  }
+
+  const pathname = normalizeRoutePath(
+    req.path
+  );
+
+  // ----------------------------------------------------------
+  // EXCLUDE API, UPLOADS AND STATIC ASSETS
+  // ----------------------------------------------------------
+
+  if (
+    pathname === "/" ||
+    pathname === "/api" ||
+    pathname.startsWith("/api/") ||
+    pathname === "/uploads" ||
+    pathname.startsWith("/uploads/") ||
+    pathname === "/assets" ||
+    pathname.startsWith("/assets/") ||
+    pathname.startsWith("/@") ||
+    pathname.startsWith("/src/") ||
+    pathname.startsWith("/node_modules/") ||
+    pathname.startsWith("/.well-known/") ||
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml" ||
+    /\.[a-z0-9]+$/i.test(pathname)
+  ) {
+    return next();
+  }
+
+  // ----------------------------------------------------------
+  // EXCLUDE SPECIALIZED SEO ROUTES
+  // ----------------------------------------------------------
+
+  if (
+    pathname === "/product" ||
+    pathname.startsWith("/product/") ||
+    pathname === "/product-category" ||
+    pathname.startsWith("/product-category/") ||
+    pathname === "/blog" ||
+    pathname.startsWith("/blog/") ||
+    pathname === "/locations" ||
+    pathname.startsWith("/locations/") ||
+    pathname.startsWith("/careers/")
+  ) {
+    return next();
+  }
+
+  // ----------------------------------------------------------
+  // VALIDATE FRONTEND ROUTE FORMAT
+  // ----------------------------------------------------------
+
+  if (
+    !/^\/[a-z0-9_-]+(?:\/[a-z0-9_-]+)*$/.test(
+      pathname
+    )
+  ) {
+    return next();
+  }
+
+  const isKnownStaticPage =
+    STATIC_CANONICAL_PATHS.has(pathname);
+
+  try {
+    // --------------------------------------------------------
+    // FETCH CENTRALIZED PAGE SEO
+    // --------------------------------------------------------
+
+    const record = await getStaticPageSeoData(
+      pathname
+    );
+
+    // --------------------------------------------------------
+    // DATABASE-DRIVEN SEO
+    // --------------------------------------------------------
+
+    if (hasConfiguredPageSeo(record)) {
+      console.log(
+        "[SEO] Database page SEO requested:",
+        {
+          pathname,
+          seoId: record.id,
+          pageId: record.page_id,
+          pageName: record.page_name,
+          pageType:
+            record.page_id == null
+              ? "STANDALONE"
+              : "CMS_MANAGED",
+        }
+      );
 
       // ------------------------------------------------------
       // FETCH CURRENT FRONTEND HTML
@@ -1015,75 +1233,75 @@ app.get(
       const html = await getFrontendHtml();
 
       // ------------------------------------------------------
-      // RESOLVE CMS PAGE SLUG
+      // ADAPT SEO RECORD FOR EXISTING SEO BUILDER
       // ------------------------------------------------------
 
-      const dbSlug =
-        STATIC_PAGE_SLUG_MAP[pathname];
+      const page = createStaticPageSeoPayload(
+        record,
+        pathname
+      );
 
-      if (dbSlug) {
-        // ----------------------------------------------------
-        // FETCH PUBLISHED PAGE + SEO FROM DATABASE
-        // ----------------------------------------------------
+      // ------------------------------------------------------
+      // GENERATE STATIC PAGE SEO
+      // ------------------------------------------------------
 
-        const page = await getPageBySlug(
-          dbSlug
-        );
+      const seoTags = buildStaticPageSeo(
+        page,
+        pathname
+      );
 
-        if (
-          page &&
-          page.status === "published" &&
-          page.page_seo
-        ) {
-          // --------------------------------------------------
-          // GENERATE PAGE SEO
-          // --------------------------------------------------
+      // ------------------------------------------------------
+      // VALIDATE GENERATED SEO
+      // ------------------------------------------------------
 
-          const seoTags = buildStaticPageSeo(
-            page,
-            pathname
-          );
-
-          // --------------------------------------------------
-          // INJECT PAGE SEO
-          // --------------------------------------------------
-
-          const finalHtml = injectSeo(
-            html,
-            seoTags
-          );
-
-          // --------------------------------------------------
-          // RESPONSE
-          // --------------------------------------------------
-
-          setSeoHeaders(
-            res,
-            "express-static-page"
-          );
-
-          return res.status(200).send(
-            finalHtml
-          );
-        }
-
-        console.warn(
-          "[SEO] Published CMS page SEO unavailable:",
-          {
-            pathname,
-            dbSlug,
-          }
+      if (
+        typeof seoTags !== "string" ||
+        !seoTags.trim()
+      ) {
+        throw new Error(
+          "Static page SEO builder returned empty metadata"
         );
       }
 
       // ------------------------------------------------------
-      // FALLBACK: CANONICAL-ONLY SEO
+      // INJECT PAGE SEO
       // ------------------------------------------------------
-      //
-      // Preserve existing behavior for static pages
-      // without a published CMS SEO record.
-      //
+
+      const finalHtml = injectSeo(
+        html,
+        seoTags
+      );
+
       // ------------------------------------------------------
+      // RESPONSE
+      // ------------------------------------------------------
+
+      setSeoHeaders(
+        res,
+        "express-static-page"
+      );
+
+      return res.status(200).send(
+        finalHtml
+      );
+    }
+
+    // --------------------------------------------------------
+    // CANONICAL FALLBACK
+    // --------------------------------------------------------
+    //
+    // Retain canonical fallback for known website pages
+    // without complete SEO configuration.
+    //
+    // --------------------------------------------------------
+
+    if (isKnownStaticPage || record) {
+      console.warn(
+        "[SEO] Page SEO not configured. Using canonical fallback:",
+        pathname
+      );
+
+      const html = await getFrontendHtml();
 
       const finalHtml = injectStaticCanonical(
         html,
@@ -1098,15 +1316,25 @@ app.get(
       return res.status(200).send(
         finalHtml
       );
-    } catch (error) {
-      return sendSeoError(
-        res,
-        "Static Page SEO",
-        error
-      );
     }
+
+    // --------------------------------------------------------
+    // NO REGISTERED PAGE SEO
+    // --------------------------------------------------------
+    //
+    // Continue to the existing React SPA fallback.
+    //
+    // --------------------------------------------------------
+
+    return next();
+  } catch (error) {
+    return sendSeoError(
+      res,
+      "Static Page SEO",
+      error
+    );
   }
-);
+});
 
 // ============================================================
 // REACT SPA FALLBACK
@@ -1117,7 +1345,7 @@ app.get(
 // - Category SEO
 // - Blog SEO
 // - Location SEO
-// - Static Page SEO
+// - Centralized Static Page SEO
 //
 // ============================================================
 
