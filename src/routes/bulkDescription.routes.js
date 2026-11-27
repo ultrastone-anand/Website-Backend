@@ -5,23 +5,38 @@ const bulkDescriptionController = require(
   "../controller/bulkDescription.controller"
 );
 
+const authenticate = require(
+  "../middlewares/auth.middleware"
+);
+
 const router = express.Router();
 
+// ======================================================
+// AUTHENTICATION
+// ======================================================
 
+router.use(authenticate);
+
+// ======================================================
+// CACHE CONTROL
+// ======================================================
 
 router.use((req, res, next) => {
-
-
   res.setHeader(
     "Cache-Control",
     "no-store, no-cache, must-revalidate, proxy-revalidate"
   );
+
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
   res.setHeader("Surrogate-Control", "no-store");
 
   next();
 });
+
+// ======================================================
+// FILE UPLOAD CONFIGURATION
+// ======================================================
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -56,10 +71,13 @@ const upload = multer({
   },
 });
 
+// ======================================================
+// TEST ROUTE
+// ======================================================
+
 router.get(
   "/test",
   (req, res) => {
-
     return res.status(200).json({
       success: true,
       message: "New bulk description route is active.",
@@ -68,16 +86,28 @@ router.get(
   }
 );
 
+// ======================================================
+// DOWNLOAD TEMPLATE
+// ======================================================
+
 router.get(
   "/template/:categoryId",
   bulkDescriptionController.downloadTemplate
 );
+
+// ======================================================
+// VALIDATE EXCEL
+// ======================================================
 
 router.post(
   "/validate",
   upload.single("file"),
   bulkDescriptionController.validateExcel
 );
+
+// ======================================================
+// BULK UPDATE DESCRIPTIONS
+// ======================================================
 
 router.patch(
   "/update",

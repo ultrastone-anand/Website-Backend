@@ -129,7 +129,7 @@ const getStones = async (req, res) => {
 };
 
 // ======================================================
-// GET CATEGORY PRODUCTS
+// GET CATEGORY PRODUCTS - PUBLIC
 // ======================================================
 
 const getCategoryProducts = async (req, res) => {
@@ -144,11 +144,14 @@ const getCategoryProducts = async (req, res) => {
       ...data,
     });
   } catch (error) {
-    return sendStoneError(
+    return sendKnownStoneError(
       res,
       error,
       "Get Category Products Error:",
-      "Failed to fetch category products"
+      "Failed to fetch category products",
+      {
+        "Category not found": 404,
+      }
     );
   }
 };
@@ -157,6 +160,57 @@ const getCategoryProducts = async (req, res) => {
 // GET PRODUCT DETAILS
 // ======================================================
 
+
+// ======================================================
+// GET ALL STONES - CMS ADMIN
+// ======================================================
+
+const getAdminStones = async (req, res) => {
+  try {
+    const result =
+      await stoneservice.getAdminStones();
+
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    return sendStoneError(
+      res,
+      error,
+      "Get Admin Stones Error:",
+      "Failed to fetch stones"
+    );
+  }
+};
+
+// ======================================================
+// GET CATEGORY PRODUCTS - CMS ADMIN
+// ======================================================
+
+const getAdminCategoryProducts = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const data =
+      await stoneservice.getAdminCategoryProducts(slug);
+
+    return res.status(200).json({
+      success: true,
+      ...data,
+    });
+  } catch (error) {
+    return sendKnownStoneError(
+      res,
+      error,
+      "Get Admin Category Products Error:",
+      "Failed to fetch category products",
+      {
+        "Category not found": 404,
+      }
+    );
+  }
+};
 
 
 
@@ -1114,15 +1168,24 @@ const getBrowseProducts = async (
 // ======================================================
 
 module.exports = {
+  // PUBLIC
   getStones,
   getCategoryProducts,
-  getAdminProductDetails,
   getProductDetails,
+
+  // CMS ADMIN
+  getAdminStones,
+  getAdminCategoryProducts,
+  getAdminProductDetails,
+
+  // SEARCH
   searchProducts,
 
+  // CATEGORY CRUD
   createCategory,
   updateCategory,
 
+  // PRODUCT CRUD
   createProduct,
   updateProduct,
   deleteProduct,
@@ -1132,8 +1195,11 @@ module.exports = {
   updatePublishStatus,
   bulkPublishProducts,
 
+  // MEDIA
   deleteStoneProductMedia,
   getVideoUploadUrl,
   getMediaBase64,
+
+  // BROWSE
   getBrowseProducts,
 };

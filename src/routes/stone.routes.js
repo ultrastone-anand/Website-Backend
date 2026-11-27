@@ -35,8 +35,33 @@ router.get(
 );
 
 // ============================================================
+// CMS ADMIN CATEGORY LIST
+// Includes active and inactive categories
+// Protected - authenticated CMS users only
+// ============================================================
+
+router.get(
+  "/admin/categories",
+  authenticate,
+  stoneController.getAdminStones
+);
+
+// ============================================================
+// CMS ADMIN CATEGORY PRODUCTS
+// Includes active, inactive, published and unpublished products
+// Protected - authenticated CMS users only
+// ============================================================
+
+router.get(
+  "/admin/category/:slug",
+  authenticate,
+  stoneController.getAdminCategoryProducts
+);
+
+// ============================================================
 // CMS ADMIN PRODUCT DETAILS
 // Includes active, inactive, published and unpublished products
+// Protected - authenticated CMS users only
 // ============================================================
 
 router.get(
@@ -47,7 +72,7 @@ router.get(
 
 // ============================================================
 // PUBLIC PRODUCT DETAILS
-// Only active and published products
+// Only active and published products under active categories
 // ============================================================
 
 router.get(
@@ -56,7 +81,8 @@ router.get(
 );
 
 // ============================================================
-// GET ALL STONE CATEGORIES
+// PUBLIC STONE CATEGORIES
+// Only active categories
 // ============================================================
 
 router.get(
@@ -65,7 +91,8 @@ router.get(
 );
 
 // ============================================================
-// GET PRODUCTS BY CATEGORY
+// PUBLIC PRODUCTS BY CATEGORY
+// Only active categories and active, published products
 // Keep generic slug route after specific GET routes
 // ============================================================
 

@@ -6,24 +6,39 @@ const auditService = require("./audit.service");
 
 
 // ================= GET ALLs =================
-const getStones = async () => {
+const getStones = async (
+  { includeInactive = false } = {}
+) => {
   return await prisma.stone_categories.findMany({
+    where: includeInactive
+      ? {}
+      : {
+          is_active: true,
+        },
     orderBy: {
       display_order: "asc",
     },
   });
 };
-const getCategoryProducts = async (slug) => {
+const getCategoryProducts = async (
+  slug,
+  { includeInactive = false } = {}
+) => {
 
   // FIND CATEGORY
 
-  const category =
-    await prisma.stone_categories.findFirst({
-      where: {
-        slug,
-        is_active: true,
-      },
-    });
+const category =
+  await prisma.stone_categories.findFirst({
+    where: {
+      slug,
+
+      ...(includeInactive
+        ? {}
+        : {
+            is_active: true,
+          }),
+    },
+  });
 
   if (!category) {
     throw new Error("Category not found");
@@ -31,12 +46,19 @@ const getCategoryProducts = async (slug) => {
 
   // PRODUCTS
 
-  const products =
-    await prisma.stone_products.findMany({
+const products =
+  await prisma.stone_products.findMany({
 
-      where: {
-        category_id: category.id,
-      },
+    where: {
+      category_id: category.id,
+
+      ...(includeInactive
+        ? {}
+        : {
+            is_active: true,
+            is_published: true,
+          }),
+    },
 
       orderBy: {
         created_at: "desc",
@@ -124,11 +146,18 @@ const getProductDetails = async (
   const product = await prisma.stone_products.findFirst({
     where: {
       slug,
+
       ...(includeInactive
         ? {}
         : {
             is_active: true,
             is_published: true,
+
+            stone_categories: {
+              is: {
+                is_active: true,
+              },
+            },
           }),
     },
 
@@ -418,6 +447,27 @@ const getProductDetails = async (
   });
 };
 
+
+// ========================================================
+// CMS ADMIN CATEGORY LIST
+// ========================================================
+
+const getAdminStones = async () => {
+  return getStones({
+    includeInactive: true,
+  });
+};
+
+// ========================================================
+// CMS ADMIN CATEGORY PRODUCTS
+// ========================================================
+
+const getAdminCategoryProducts = async (slug) => {
+  return getCategoryProducts(slug, {
+    includeInactive: true,
+  });
+};
+
 // ========================================================
 // CMS ADMIN PRODUCT DETAILS
 // ========================================================
@@ -456,22 +506,22 @@ const searchProducts = async ({
     (safePage - 1) *
     safeLimit;
 
-  const where = {
-    OR: [
-      {
-        name: {
-          contains:
-            normalizedSearchTerm,
-        },
+const where = {
+  OR: [
+    {
+      name: {
+        contains: normalizedSearchTerm,
+        mode: 'insensitive',
       },
-      {
-        slug: {
-          contains:
-            normalizedSearchTerm,
-        },
+    },
+    {
+      slug: {
+        contains: normalizedSearchTerm,
+        mode: 'insensitive',
       },
-    ],
-  };
+    },
+  ],
+};
 
   if (
     categoryId !== null &&
@@ -3718,11 +3768,16 @@ const getBrowseProducts = async (limit = 6) => {
 };
 
 
-module.exports = {
+ module.exports = {
   getStones,
   getCategoryProducts,
   getProductDetails,
+
+  // CMS ADMIN
+  getAdminStones,
+  getAdminCategoryProducts,
   getAdminProductDetails,
+
   searchProducts,
 
   createCategory,
